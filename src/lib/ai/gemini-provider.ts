@@ -31,7 +31,9 @@ You MUST consider the user's profile:
 CRITICAL CONSTRAINTS:
 1. Never hallucinate overlapping slots over fixed commitments.
 2. Return strictly valid JSON adhering to the specified schema.
-3. Be calm, practical, and supportive.
+3. CONVERSATIONAL & GENERAL QUERIES: If the user message is a conversational query, greeting, or question (e.g. "what are you doing", "who are you", "what can you do", "hello", "how are you", "what is on my schedule today"), you MUST set intent to "general_query", provide a helpful, natural conversational reply in "explanation", and return an EMPTY ARRAY [] for "extractedTasks". NEVER create a task from a casual question!
+4. Only extract tasks if the user explicitly mentions tasks, study blocks, meetings, or activities they want to do or reschedule.
+5. Be calm, practical, and supportive.
 `;
 
     const responseSchema = {

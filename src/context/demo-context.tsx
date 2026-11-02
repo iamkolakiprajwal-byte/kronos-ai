@@ -580,7 +580,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
             sender: "assistant",
             text: plan.explanation,
             timestamp: "Just now",
-            suggestedTasks: verifiedTasks,
+            suggestedTasks: verifiedTasks && verifiedTasks.length > 0 ? verifiedTasks : undefined,
           },
         ]);
         return;
@@ -591,11 +591,24 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
     // Fallback simulation if route call fails or during static build
     setIsAiThinking(false);
-    const lower = userText.toLowerCase();
+    const lower = userText.toLowerCase().trim();
     let replyText = "";
     let suggestions: Partial<Task>[] | undefined;
 
-    if (lower.includes("blender") || lower.includes("assignment") || lower.includes("gym")) {
+    const isQuestionOrGreeting =
+      lower.includes("what are you doing") ||
+      lower.includes("who are you") ||
+      lower.includes("what can you do") ||
+      lower.includes("hello") ||
+      lower.includes("hi") ||
+      lower.includes("hey") ||
+      lower.includes("how are you");
+
+    if (isQuestionOrGreeting) {
+      replyText =
+        "I'm Kronos AI, your personal planning assistant! I help you organize tasks around your classes, meetings, and energy rhythms. Tell me what you'd like to accomplish today (e.g., '2 assignments, gym at 4, study economics') and I'll schedule them for you!";
+      suggestions = undefined;
+    } else if (lower.includes("blender") || lower.includes("assignment") || lower.includes("gym") || lower.includes("economics")) {
       replyText =
         "I understand your goal! You have fixed commitments earlier today. I found optimal windows: 60m Economics Problem Set at 14:00, 50m Gym workout at 16:00, and 45m Blender modeling at 18:00. This preserves your sleep routine.";
       suggestions = [
@@ -627,17 +640,30 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           tag: "Creative",
         },
       ];
-    } else {
-      replyText = `Understood: "${userText}". I've verified your availability rules and daily energy curve. Would you like me to allocate a 45-minute focus block in your next open window?`;
+    } else if (
+      lower.includes("study") ||
+      lower.includes("work") ||
+      lower.includes("read") ||
+      lower.includes("write") ||
+      lower.includes("code") ||
+      lower.includes("meeting") ||
+      lower.includes("clean") ||
+      lower.includes("exercise")
+    ) {
+      const cleanTitle = userText.replace(/^(i need to|i want to|please schedule|can you schedule)\s+/i, "");
+      replyText = `Understood: "${cleanTitle}". I've scheduled a focus block aligned with your open windows and energy rhythm.`;
       suggestions = [
         {
-          title: userText.length > 35 ? userText.slice(0, 32) + "..." : userText,
+          title: cleanTitle.length > 35 ? cleanTitle.slice(0, 32) + "..." : cleanTitle,
           category: role === "student" ? "study" : "work",
           priority: "medium",
-          estimatedDuration: 45,
-          tag: "Quick Task",
+          estimatedDuration: profile.preferredFocusDuration || 45,
+          tag: "Focus Block",
         },
       ];
+    } else {
+      replyText = `I'm here to help plan your schedule. I didn't detect any specific tasks in your message. Tell me what you'd like to work on today (e.g., "Study for 1 hour" or "Prepare presentation") and I'll fit it in!`;
+      suggestions = undefined;
     }
 
     setChatMessages((prev) => [
