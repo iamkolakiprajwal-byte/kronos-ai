@@ -12,8 +12,12 @@ import {
   ArrowRight,
   Clock,
   Mic,
+  MicOff,
+  Volume2,
+  X,
 } from "lucide-react";
 import { useDemo } from "@/context/demo-context";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { cn } from "@/lib/utils";
 
 const samplePrompts = [
@@ -26,6 +30,19 @@ export function AssistantInput() {
   const { chatMessages, sendChatMessage, isAiThinking, applySuggestedTasks, role } = useDemo();
   const [inputVal, setInputVal] = useState("");
   const [appliedMessageIds, setAppliedMessageIds] = useState<Record<string, boolean>>({});
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+  const [voiceDraft, setVoiceDraft] = useState("");
+
+  const {
+    isSupported: isSpeechSupported,
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    resetTranscript,
+  } = useSpeechRecognition({
+    onTranscriptChange: (text) => setVoiceDraft(text),
+  });
 
   const handleSend = (text?: string) => {
     const query = text || inputVal;
@@ -37,6 +54,28 @@ export function AssistantInput() {
   const handleApply = (msgId: string, tasks: any[]) => {
     applySuggestedTasks(tasks);
     setAppliedMessageIds((prev) => ({ ...prev, [msgId]: true }));
+  };
+
+  const openVoiceModal = () => {
+    setIsVoiceModalOpen(true);
+    setVoiceDraft(inputVal || "");
+    if (isSpeechSupported) {
+      resetTranscript();
+      startListening();
+    }
+  };
+
+  const handleConfirmVoice = () => {
+    stopListening();
+    setIsVoiceModalOpen(false);
+    if (voiceDraft.trim()) {
+      handleSend(voiceDraft.trim());
+    }
+  };
+
+  const handleCancelVoice = () => {
+    stopListening();
+    setIsVoiceModalOpen(false);
   };
 
   return (
@@ -55,7 +94,7 @@ export function AssistantInput() {
               </span>
             </h3>
             <p className="text-[11px] text-slate-500">
-              Conversational planning • Tell me your intentions for today
+              Conversational planning • Type or speak your daily intentions
             </p>
           </div>
         </div>
@@ -186,7 +225,7 @@ export function AssistantInput() {
         ))}
       </div>
 
-      {/* Input Form */}
+      {/* Input Form with Voice Button */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -198,9 +237,19 @@ export function AssistantInput() {
           type="text"
           value={inputVal}
           onChange={(e) => setInputVal(e.target.value)}
-          placeholder={`Tell AI what you want to achieve today (e.g. "I have 2 assignments, gym at 4, economics study")...`}
+          placeholder={`Tell AI what you want to achieve today (e.g. "2 assignments, gym at 4, study econ")...`}
           className="flex-1 px-3.5 py-2.5 bg-[#fbfaf7] border border-[#e6e3da] rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all"
         />
+
+        {/* Microphone Button */}
+        <button
+          type="button"
+          onClick={openVoiceModal}
+          className="p-2.5 rounded-xl border border-[#e6e3da] bg-[#faf9f6] hover:bg-amber-50 hover:border-amber-300 text-slate-700 hover:text-amber-900 transition-colors"
+          title="Voice Command Input (Web Speech API)"
+        >
+          <Mic className="w-4 h-4" />
+        </button>
 
         <button
           type="submit"
@@ -211,6 +260,110 @@ export function AssistantInput() {
           <span className="hidden sm:inline">Plan</span>
         </button>
       </form>
+
+      {/* Voice Dictation & Review Modal */}
+      {isVoiceModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in-50">
+          <div className="bg-white rounded-2xl border border-[#e6e3da] w-full max-w-md p-6 shadow-xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#e6e3da]">
+              <div className="flex items-center gap-2">
+                <Volume2 className="w-4 h-4 text-amber-700" />
+                <h3 className="font-serif text-lg font-bold text-slate-900">
+                  Voice Schedule Input
+                </h3>
+              </div>
+              <button onClick={handleCancelVoice} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Listening Indicator */}
+            <div className="flex flex-col items-center justify-center py-4 space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isListening) stopListening();
+                  else startListening();
+                }}
+                className={cn(
+                  "w-16 h-16 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md",
+                  isListening
+                    ? "bg-rose-500 text-white animate-pulse ring-4 ring-rose-200"
+                    : "bg-slate-900 text-white hover:bg-slate-800"
+                )}
+              >
+                {isListening ? <Mic className="w-7 h-7" /> : <MicOff className="w-7 h-7" />}
+              </button>
+              <div className="text-xs text-center">
+                <span className="font-semibold text-slate-800 block">
+                  {isListening ? "Listening... Speak your plan" : "Microphone idle"}
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  {isSpeechSupported
+                    ? "Powered by Web Speech Recognition"
+                    : "Browser speech not supported; type or select sample below"}
+                </span>
+              </div>
+            </div>
+
+            {/* Transcribed Text Review & Edit */}
+            <div className="space-y-1.5 text-xs">
+              <label className="block text-slate-600 font-medium">
+                Transcribed Request (Edit before submitting):
+              </label>
+              <textarea
+                rows={3}
+                value={voiceDraft}
+                onChange={(e) => setVoiceDraft(e.target.value)}
+                placeholder="Speak or edit your command here..."
+                className="w-full p-3 rounded-xl bg-[#faf9f6] border border-[#e6e3da] text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 leading-relaxed text-xs"
+              />
+            </div>
+
+            {/* Sample Voice Utterance Presets */}
+            <div className="space-y-1.5 pt-2 border-t border-[#e6e3da]">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                Quick Test Utterances:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  "Study economics 1 hour and gym at 5",
+                  "Reschedule afternoon tasks due to meeting",
+                  "Prepare 45m review for Stanford thesis",
+                ].map((preset, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setVoiceDraft(preset)}
+                    className="text-[10px] px-2 py-1 rounded-md bg-[#faf9f6] border border-[#e6e3da] text-slate-700 hover:bg-slate-100"
+                  >
+                    "{preset}"
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Controls */}
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e6e3da]">
+              <button
+                type="button"
+                onClick={handleCancelVoice}
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmVoice}
+                disabled={!voiceDraft.trim()}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 disabled:opacity-50 transition-all shadow-xs"
+              >
+                Plan with AI
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

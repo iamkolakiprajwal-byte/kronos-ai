@@ -6,12 +6,18 @@ import {
   Task,
   CalendarEvent,
   Goal,
+  Milestone,
   Habit,
   NotificationItem,
   ChatMessage,
   UserRole,
   OnboardingFormData,
+  SyncConflict,
+  FocusSessionLog,
+  EcoLogEntry,
 } from "@/types";
+import { CalendarSyncStatus } from "@/lib/calendar/types";
+import { sampleEcoEntries, ECO_ACTIVITY_FACTORS } from "@/lib/sustainability/eco-calculator";
 import {
   studentProfile,
   professionalProfile,
@@ -55,6 +61,31 @@ interface DemoContextType {
   onboardingDraft: OnboardingFormData;
   setOnboardingDraft: React.Dispatch<React.SetStateAction<OnboardingFormData>>;
   completeOnboarding: (data: OnboardingFormData) => void;
+
+  // Sprint 2: Productivity & Integrations
+  toggleMilestone: (goalId: string, milestoneId: string) => void;
+  addGoal: (goal: Omit<Goal, "id" | "progress">) => void;
+  updateGoalRoadmap: (goalId: string, milestones: Milestone[]) => void;
+  addMilestoneTaskToAgenda: (task: Omit<Task, "id">) => void;
+
+  focusSessions: FocusSessionLog[];
+  logFocusSession: (
+    habitId: string | null,
+    durationMinutes: number,
+    flowState: FocusSessionLog["flowState"],
+    reflectionNotes?: string
+  ) => void;
+  updateHabitAutomaticity: (habitId: string, delta: number) => void;
+
+  syncStatus: CalendarSyncStatus;
+  lastSyncTime: string | null;
+  syncConflicts: SyncConflict[];
+  triggerCalendarSync: () => Promise<void>;
+  simulateExternalCalendarConflict: () => Promise<void>;
+  resolveSyncConflict: (conflictId: string, resolution: "keep_local" | "accept_remote") => Promise<void>;
+
+  ecoEntries: EcoLogEntry[];
+  logEcoActivity: (activity: EcoLogEntry["activity"], minutes: number) => void;
 }
 
 const DemoContext = createContext<DemoContextType | undefined>(undefined);
@@ -85,6 +116,30 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([initialWelcomeMessage]);
 
   const [onboardingDraft, setOnboardingDraft] = useState<OnboardingFormData>(studentOnboardingPreset);
+
+  // Sprint 2: Productivity & Integrations State
+  const [focusSessions, setFocusSessions] = useState<FocusSessionLog[]>([
+    {
+      id: "flog-1",
+      habitId: "h1",
+      durationMinutes: 50,
+      completedAt: "2026-11-01 16:30",
+      flowState: "flow",
+      reflectionNotes: "Deep immersion while reviewing Stanford CS problem set. Zero phone interruptions.",
+    },
+    {
+      id: "flog-2",
+      durationMinutes: 25,
+      completedAt: "2026-11-02 09:45",
+      flowState: "balanced",
+      reflectionNotes: "Clean progress on weekly planning and email inbox zero.",
+    },
+  ]);
+
+  const [syncStatus, setSyncStatus] = useState<CalendarSyncStatus>("synced");
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>("Just now");
+  const [syncConflicts, setSyncConflicts] = useState<SyncConflict[]>([]);
+  const [ecoEntries, setEcoEntries] = useState<EcoLogEntry[]>(sampleEcoEntries);
 
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);
@@ -597,6 +652,266 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     ]);
   };
 
+  // Sprint 2 Handlers
+  const toggleMilestone = (goalId: string, milestoneId: string) => {
+    setGoals((prev) =>
+      prev.map((g) => {
+        if (g.id !== goalId) return g;
+        const updatedMilestones = g.milestones.map((m) =>
+          m.id === milestoneId ? { ...m, completed: !m.completed } : m
+        );
+        const completedCount = updatedMilestones.filter((m) => m.completed).length;
+        const progress = Math.round((completedCount / updatedMilestones.length) * 100);
+        return {
+          ...g,
+          milestones: updatedMilestones,
+          progress,
+        };
+      })
+    );
+  };
+
+  const addGoal = (newGoal: Omit<Goal, "id" | "progress">) => {
+    const goal: Goal = {
+      ...newGoal,
+      id: `goal-${Date.now()}`,
+      progress: 0,
+    };
+    setGoals((prev) => [goal, ...prev]);
+    setNotifications((prev) => [
+      {
+        id: `notif-goal-${Date.now()}`,
+        title: "New Strategic Goal Added",
+        message: `Goal "${goal.title}" created with target ${goal.targetDate}.`,
+        timestamp: "Just now",
+        type: "system",
+        read: false,
+      },
+      ...prev,
+    ]);
+  };
+
+  const updateGoalRoadmap = (goalId: string, milestones: Milestone[]) => {
+    setGoals((prev) =>
+      prev.map((g) => {
+        if (g.id !== goalId) return g;
+        const completedCount = milestones.filter((m) => m.completed).length;
+        const progress = Math.round((completedCount / milestones.length) * 100);
+        return {
+          ...g,
+          milestones,
+          progress,
+        };
+      })
+    );
+  };
+
+  const addMilestoneTaskToAgenda = (task: Omit<Task, "id">) => {
+    const created: Task = {
+      ...task,
+      id: `task-ms-${Date.now()}`,
+    };
+    setTasks((prev) => [created, ...prev]);
+    setNotifications((prev) => [
+      {
+        id: `notif-task-${Date.now()}`,
+        title: "Milestone Task Scheduled",
+        message: `"${task.title}" has been placed into today's agenda.`,
+        timestamp: "Just now",
+        type: "task",
+        read: false,
+      },
+      ...prev,
+    ]);
+  };
+
+  const logFocusSession = (
+    habitId: string | null,
+    durationMinutes: number,
+    flowState: FocusSessionLog["flowState"],
+    reflectionNotes?: string
+  ) => {
+    const newSession: FocusSessionLog = {
+      id: `flog-${Date.now()}`,
+      habitId: habitId || undefined,
+      durationMinutes,
+      completedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      flowState,
+      reflectionNotes,
+    };
+
+    setFocusSessions((prev) => [newSession, ...prev]);
+
+    if (habitId) {
+      setHabits((prev) =>
+        prev.map((h) => {
+          if (h.id === habitId) {
+            return {
+              ...h,
+              currentStreak: h.currentStreak + 1,
+              automaticityScore: Math.min(100, h.automaticityScore + 5),
+              completedToday: true,
+            };
+          }
+          return h;
+        })
+      );
+    }
+
+    setNotifications((prev) => [
+      {
+        id: `notif-focus-${Date.now()}`,
+        title: "Focus Session Logged",
+        message: `Completed ${durationMinutes}m focus block (${flowState.toUpperCase()} state).`,
+        timestamp: "Just now",
+        type: "habit",
+        read: false,
+      },
+      ...prev,
+    ]);
+  };
+
+  const updateHabitAutomaticity = (habitId: string, delta: number) => {
+    setHabits((prev) =>
+      prev.map((h) => {
+        if (h.id === habitId) {
+          return {
+            ...h,
+            automaticityScore: Math.max(0, Math.min(100, h.automaticityScore + delta)),
+          };
+        }
+        return h;
+      })
+    );
+  };
+
+  const triggerCalendarSync = async () => {
+    setSyncStatus("syncing");
+    try {
+      const res = await fetch("/api/calendar/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync", useMock: true }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSyncStatus("synced");
+        setLastSyncTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+        setNotifications((prev) => [
+          {
+            id: `notif-sync-${Date.now()}`,
+            title: "Calendar Synchronized",
+            message: `Synchronized with Google Calendar adapter (${data.result?.added?.length || 0} events verified).`,
+            timestamp: "Just now",
+            type: "calendar",
+            read: false,
+          },
+          ...prev,
+        ]);
+      } else {
+        setSyncStatus("synced");
+      }
+    } catch {
+      setSyncStatus("synced");
+    }
+  };
+
+  const simulateExternalCalendarConflict = async () => {
+    try {
+      const res = await fetch("/api/calendar/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "simulate_conflict", useMock: true }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.conflict) {
+          setSyncConflicts((prev) => [data.conflict, ...prev.filter((c) => c.id !== data.conflict.id)]);
+          setSyncStatus("conflict");
+          setNotifications((prev) => [
+            {
+              id: `notif-conflict-${Date.now()}`,
+              title: "External Calendar Conflict Detected",
+              message: data.conflict.description,
+              timestamp: "Just now",
+              type: "calendar",
+              read: false,
+            },
+            ...prev,
+          ]);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to simulate external conflict:", err);
+    }
+  };
+
+  const resolveSyncConflict = async (conflictId: string, resolution: "keep_local" | "accept_remote") => {
+    try {
+      await fetch("/api/calendar/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resolve", conflictId, resolution, useMock: true }),
+      });
+
+      if (resolution === "accept_remote") {
+        // Shift flexible study task to accommodate meeting
+        setTasks((prev) =>
+          prev.map((t) => {
+            if (t.startTime === "14:00" && !t.isFixed) {
+              return { ...t, startTime: "15:30", endTime: "16:45" };
+            }
+            return t;
+          })
+        );
+      }
+
+      setSyncConflicts((prev) => prev.filter((c) => c.id !== conflictId));
+      setSyncStatus("synced");
+      setNotifications((prev) => [
+        {
+          id: `notif-resolved-${Date.now()}`,
+          title: "Calendar Conflict Resolved",
+          message:
+            resolution === "keep_local"
+              ? "Preserved local focus block; remote invitation flagged as tentative."
+              : "Applied remote meeting and shifted study block to 15:30.",
+          timestamp: "Just now",
+          type: "calendar",
+          read: false,
+        },
+        ...prev,
+      ]);
+    } catch (err) {
+      console.warn("Failed to resolve conflict:", err);
+    }
+  };
+
+  const logEcoActivity = (activity: EcoLogEntry["activity"], minutes: number) => {
+    const factor = ECO_ACTIVITY_FACTORS[activity];
+    const co2SavedGrams = (factor?.co2PerUnit || 20) * minutes;
+    const newEntry: EcoLogEntry = {
+      id: `eco-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      activity,
+      minutes,
+      co2SavedGrams,
+    };
+
+    setEcoEntries((prev) => [newEntry, ...prev]);
+    setNotifications((prev) => [
+      {
+        id: `notif-eco-${Date.now()}`,
+        title: "Eco Impact Recorded 🌱",
+        message: `Logged ${minutes}m of ${factor?.name || activity}. Saved ~${co2SavedGrams}g CO2!`,
+        timestamp: "Just now",
+        type: "eco",
+        read: false,
+      },
+      ...prev,
+    ]);
+  };
+
   return (
     <DemoContext.Provider
       value={{
@@ -622,6 +937,21 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         onboardingDraft,
         setOnboardingDraft,
         completeOnboarding,
+        toggleMilestone,
+        addGoal,
+        updateGoalRoadmap,
+        addMilestoneTaskToAgenda,
+        focusSessions,
+        logFocusSession,
+        updateHabitAutomaticity,
+        syncStatus,
+        lastSyncTime,
+        syncConflicts,
+        triggerCalendarSync,
+        simulateExternalCalendarConflict,
+        resolveSyncConflict,
+        ecoEntries,
+        logEcoActivity,
       }}
     >
       {children}

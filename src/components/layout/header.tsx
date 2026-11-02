@@ -1,7 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
-import { Bell, Plus, Calendar, Sparkles, Check, X, ShieldCheck } from "lucide-react";
+import {
+  Bell,
+  Plus,
+  Calendar,
+  Sparkles,
+  Check,
+  X,
+  ShieldCheck,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle2,
+  ExternalLink,
+} from "lucide-react";
 import { useDemo } from "@/context/demo-context";
 import { cn } from "@/lib/utils";
 
@@ -11,8 +23,20 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenQuickTask }: HeaderProps) {
-  const { profile, notifications, markNotificationRead } = useDemo();
+  const {
+    profile,
+    notifications,
+    markNotificationRead,
+    syncStatus,
+    lastSyncTime,
+    syncConflicts,
+    triggerCalendarSync,
+    simulateExternalCalendarConflict,
+    resolveSyncConflict,
+  } = useDemo();
+
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
   const [greeting, setGreeting] = useState("Good morning");
   const [todayFormatted, setTodayFormatted] = useState("Monday, Nov 2, 2026");
 
@@ -56,6 +80,37 @@ export function Header({ onOpenQuickTask }: HeaderProps) {
 
       {/* Right: Actions, Notifications, & Quick Task */}
       <div className="flex items-center gap-3">
+        {/* Calendar Sync Pill */}
+        <button
+          onClick={() => setShowSyncModal(true)}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer shadow-xs",
+            syncStatus === "conflict"
+              ? "bg-amber-100 text-amber-900 border-amber-300 animate-bounce"
+              : syncStatus === "syncing"
+              ? "bg-sky-50 text-sky-800 border-sky-200"
+              : "bg-white text-slate-700 border-[#e6e3da] hover:bg-slate-50"
+          )}
+          title="Click to view Google Calendar sync status"
+        >
+          {syncStatus === "conflict" ? (
+            <>
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>1 Conflict</span>
+            </>
+          ) : (
+            <>
+              <RefreshCw
+                className={cn(
+                  "w-3.5 h-3.5 text-slate-500 shrink-0",
+                  syncStatus === "syncing" && "animate-spin text-sky-600"
+                )}
+              />
+              <span className="hidden sm:inline">GCal: {syncStatus === "syncing" ? "Syncing..." : "Synced"}</span>
+            </>
+          )}
+        </button>
+
         {/* Quick Task Button */}
         {onOpenQuickTask && (
           <button
@@ -131,9 +186,140 @@ export function Header({ onOpenQuickTask }: HeaderProps) {
         {/* Demo Mode Badge */}
         <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-200/80 bg-amber-50 text-[11px] font-medium text-amber-900">
           <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-          <span>Demo Mode (Mock Calendar)</span>
+          <span>Evaluation Mode</span>
         </div>
       </div>
+
+      {/* Calendar Synchronization & Conflict Modal */}
+      {showSyncModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in-50">
+          <div className="bg-white rounded-2xl border border-[#e6e3da] w-full max-w-lg p-6 shadow-xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#e6e3da]">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-slate-800" />
+                <h3 className="font-serif text-lg font-bold text-slate-900">
+                  Google Calendar Two-Way Synchronization
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowSyncModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Sync Status Banner */}
+            <div className="p-3.5 rounded-xl bg-[#faf9f6] border border-[#e6e3da] text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 font-medium">Adapter Protocol:</span>
+                <span className="font-mono text-slate-900 font-semibold">
+                  Google Calendar API v3 (Evaluation Mode)
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 font-medium">Last Synchronized:</span>
+                <span className="text-slate-800">{lastSyncTime || "Just now"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 font-medium">Active Conflicts:</span>
+                <span
+                  className={cn(
+                    "font-bold",
+                    syncConflicts.length > 0 ? "text-amber-700" : "text-emerald-700"
+                  )}
+                >
+                  {syncConflicts.length > 0 ? `${syncConflicts.length} Conflict Requiring Action` : "0 (Clean)"}
+                </span>
+              </div>
+            </div>
+
+            {/* Active Conflicts Resolution UI */}
+            {syncConflicts.length > 0 ? (
+              <div className="space-y-3">
+                <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5 uppercase tracking-wider">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  External Schedule Shift Detected
+                </span>
+
+                {syncConflicts.map((c) => (
+                  <div
+                    key={c.id}
+                    className="p-4 rounded-xl bg-amber-50/60 border border-amber-300 text-xs space-y-3"
+                  >
+                    <div>
+                      <h4 className="font-semibold text-amber-950 text-sm">{c.eventTitle}</h4>
+                      <p className="text-amber-900/80 mt-1">{c.description}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 p-2.5 rounded-lg bg-white border border-amber-200 text-[11px]">
+                      <div>
+                        <span className="text-slate-400 block font-medium">Local Kronos Block:</span>
+                        <span className="font-semibold text-slate-800">{c.localTime}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-medium">Remote Google Event:</span>
+                        <span className="font-semibold text-amber-900">{c.remoteTime}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                      <button
+                        onClick={() => resolveSyncConflict(c.id, "keep_local")}
+                        className="px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-slate-800 font-medium hover:bg-slate-50 transition-all text-xs"
+                      >
+                        Keep Local Focus Block
+                      </button>
+                      <button
+                        onClick={() => resolveSyncConflict(c.id, "accept_remote")}
+                        className="px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium hover:bg-slate-800 transition-all text-xs"
+                      >
+                        Accept Remote Shift (Reschedule Block)
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-3 text-center text-xs text-slate-500">
+                All local commitments and remote calendar entries are currently in perfect alignment.
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#e6e3da]">
+              <button
+                onClick={() => simulateExternalCalendarConflict()}
+                className="w-full sm:w-auto px-3.5 py-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 text-xs font-semibold transition-all"
+                title="Generates a simulated remote meeting collision to demonstrate two-way conflict handling"
+              >
+                Simulate Remote GCal Change (Demo)
+              </button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  onClick={() => setShowSyncModal(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-medium"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={async () => {
+                    await triggerCalendarSync();
+                  }}
+                  disabled={syncStatus === "syncing"}
+                  className="px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 text-xs shadow-xs transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <RefreshCw
+                    className={cn("w-3.5 h-3.5", syncStatus === "syncing" && "animate-spin")}
+                  />
+                  <span>{syncStatus === "syncing" ? "Syncing..." : "Sync Now"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

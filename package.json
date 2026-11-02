@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "npx tsx tests/scheduler/scheduler.test.ts && npx tsx tests/calendar/calendar-sync.test.ts && npx tsx tests/sustainability/eco-calculator.test.ts && npx tsx tests/ai/roadmap.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

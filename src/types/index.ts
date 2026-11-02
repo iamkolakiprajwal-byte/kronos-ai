@@ -59,11 +59,20 @@ export interface CalendarEvent {
   notes?: string;
 }
 
+export interface MilestoneTask {
+  id: string;
+  title: string;
+  durationMinutes: number;
+  difficulty: "high" | "medium" | "low";
+  suggestedPeriod: "morning" | "afternoon" | "evening";
+}
+
 export interface Milestone {
   id: string;
   title: string;
   dueDate: string;
   completed: boolean;
+  actionableTasks?: MilestoneTask[];
 }
 
 export interface Goal {
@@ -75,6 +84,32 @@ export interface Goal {
   progress: number; // 0 to 100
   category: "academic" | "career" | "wellness" | "skills" | "sustainability";
   milestones: Milestone[];
+}
+
+export interface FocusSessionLog {
+  id: string;
+  habitId?: string;
+  durationMinutes: number;
+  completedAt: string;
+  flowState: "flow" | "balanced" | "boredom" | "anxiety";
+  reflectionNotes?: string;
+}
+
+export interface SyncConflict {
+  id: string;
+  eventTitle: string;
+  localTime: string;
+  remoteTime: string;
+  source: "google_calendar" | "kronos";
+  description: string;
+}
+
+export interface EcoLogEntry {
+  id: string;
+  date: string;
+  activity: "cycle_commute" | "walk_commute" | "paperless_study" | "screen_power_down" | "plant_meal";
+  co2SavedGrams: number;
+  minutes: number;
 }
 
 export interface Habit {
