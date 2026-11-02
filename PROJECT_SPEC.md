@@ -58,6 +58,21 @@ The **AI Time Manager** is an intelligent personal planning assistant engineered
 - Opt-in eco-friendly routines (walking/cycling commute, zero-paper study, energy conservation).
 - Realistic personal impact tracking without exaggerated carbon metrics.
 
+### 3.7 Onboarding Experience Flow
+- **Stage 1 (Welcome)**: Introduction to adaptive, realistic time management philosophy.
+- **Stage 2 (User Type)**: Choice of Student, Working Professional, or Both (Dual Track).
+- **Stage 3 (Personal Info)**: Full name, email address, headline/title, and institution or enterprise.
+- **Stage 4 (Daily Rhythm)**: Wake-up target, sleep boundary (protected no-work zone), active planning days, and peak mental focus windows (Morning, Afternoon, Evening, Night).
+- **Stage 5 (Academic Information)**: For Students & Dual-Track: degree/course, semester, subjects, and interactive class timetable editor with fixed event flags.
+- **Stage 6 (Professional Information)**: For Professionals & Dual-Track: job role, company, core work hours, and interactive recurring meetings editor.
+- **Stage 7 (Goals)**: Short-term outcome and strategic horizon capability.
+- **Stage 8 (Habit Formation)**: Current routine anchors and desired habits paired with behavioral context cues.
+- **Stage 9 (Productivity Preferences)**: Focus session duration presets (25m, 45m, 50m, 60m, 90m), rest buffer intervals, and planning layout styles.
+- **Stage 10 (Sustainability)**: Optional eco-routine tracking (commute, paperless notes, power mindfulness).
+- **Stage 11 (Review & Summary)**: Complete summary review cards with direct jump-to-edit navigation.
+- **Stage 12 (Schedule Preview & Approval)**: Initial deterministic schedule simulation displaying fixed commitments, study/deep work blocks, lunch buffers, and sleep boundaries, with approval directly activating the planner.
+- **Quick Evaluation Presets**: Single-click auto-fill buttons for Student (Aria Chen), Professional (Marcus Reed), and Both (Elena Rostova).
+
 ---
 
 ## 4. Non-Functional Requirements

@@ -39,10 +39,20 @@ Visit [http://localhost:3000](http://localhost:3000) in your browser.
 ## 🧭 Navigation Structure
 
 - `/home`: Primary daily command center — Month Calendar, Today's Agenda, Activity Feed, AI Chat Input.
+- `/onboarding`: 13-stage guided onboarding wizard with interactive timetable/meetings editors and instant preset loaders.
 - `/plan`: Detailed daily & weekly schedules, task priority breakdown, time blocking.
 - `/goals`: Short and long-term milestones with AI-generated breakdown.
 - `/habits`: Behavioral habit tracking, automaticity indicators, and flow focus sessions.
 - `/profile`: Routine parameters, academic/work timetables, and AI preferences.
+
+---
+
+## 👥 Interactive Demonstration Presets
+
+The application features three built-in demonstration presets that can be switched in real time from the sidebar or auto-filled inside the Onboarding wizard:
+1. **Student (`Aria Chen`)**: Undergrad at Stanford University; semester lecture schedule, assignments, and exam review.
+2. **Professional (`Marcus Reed`)**: Principal Systems Architect; standups, architecture review RFCs, code reviews, and deep work blocks.
+3. **Dual Track (`Elena Rostova`)**: Working student balancing evening Master's coursework at UC Berkeley with part-time software engineering at Synthetix AI.
 
 ---
 
