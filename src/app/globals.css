@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #faf9f6; /* Warm paper / notebook alabaster */
+    --surface: #ffffff;
+    --surface-hover: #f5f4ef;
+    --border: #e6e3da;
+    --border-strong: #d2cebf;
+    --foreground: #1f2937;
+    --foreground-muted: #576274;
+    --foreground-subtle: #8a94a6;
+    
+    --primary: #1e3a8a; /* Deep calm indigo */
+    --primary-light: #eff6ff;
+    --accent-amber: #d97706;
+    --accent-amber-light: #fffbeb;
+    --accent-emerald: #059669;
+    --accent-emerald-light: #ecfdf5;
+    --accent-rose: #e11d48;
+    --accent-rose-light: #fff1f2;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Notebook paper style line texture for subtle planner feel */
+.notebook-ruled {
+  background-image: linear-gradient(var(--border) 1px, transparent 1px);
+  background-size: 100% 2.25rem;
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
