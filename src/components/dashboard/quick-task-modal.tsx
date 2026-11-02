@@ -47,17 +47,17 @@ export function QuickTaskModal({ isOpen, onClose }: QuickTaskModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in-50 duration-150">
-      <div className="bg-white rounded-2xl border border-[#e6e3da] shadow-xl w-full max-w-lg overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in-50 duration-150">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl border-t sm:border border-[#e6e3da] shadow-xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#e6e3da] bg-[#fdfcf9] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#e6e3da] bg-[#fdfcf9] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-slate-900 text-amber-300 flex items-center justify-center">
               <Plus className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-serif font-bold text-base text-slate-900">Add New Plan Item</h3>
-              <p className="text-[11px] text-slate-500">
+              <h3 className="font-serif font-bold text-sm sm:text-base text-slate-900">Add New Plan Item</h3>
+              <p className="text-[10px] sm:text-[11px] text-slate-500">
                 Scheduled for {format(selectedDate, "MMMM d, yyyy")}
               </p>
             </div>
@@ -71,7 +71,7 @@ export function QuickTaskModal({ isOpen, onClose }: QuickTaskModalProps) {
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3.5 sm:space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Task Title</label>
             <input
@@ -115,7 +115,7 @@ export function QuickTaskModal({ isOpen, onClose }: QuickTaskModalProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Estimated Duration
@@ -151,13 +151,13 @@ export function QuickTaskModal({ isOpen, onClose }: QuickTaskModalProps) {
           </div>
 
           {/* Fixed Commitment Checkbox */}
-          <div className="pt-2">
-            <label className="flex items-center gap-2 p-3 bg-amber-50/70 border border-amber-200/60 rounded-xl cursor-pointer">
+          <div className="pt-1">
+            <label className="flex items-start gap-2.5 p-3 bg-amber-50/70 border border-amber-200/60 rounded-xl cursor-pointer">
               <input
                 type="checkbox"
                 checked={isFixed}
                 onChange={(e) => setIsFixed(e.target.checked)}
-                className="rounded border-amber-300 text-amber-700 focus:ring-amber-500"
+                className="mt-0.5 rounded border-amber-300 text-amber-700 focus:ring-amber-500"
               />
               <div className="text-xs">
                 <span className="font-semibold text-amber-950 flex items-center gap-1">
@@ -171,7 +171,7 @@ export function QuickTaskModal({ isOpen, onClose }: QuickTaskModalProps) {
           </div>
 
           {/* Footer buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#e6e3da]">
+          <div className="flex items-center justify-end gap-2.5 pt-3 sm:pt-4 border-t border-[#e6e3da]">
             <button
               type="button"
               onClick={onClose}

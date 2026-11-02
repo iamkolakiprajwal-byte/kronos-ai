@@ -70,12 +70,12 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Daily Progress & Metric Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4">
         {/* Progress Card */}
-        <div className="p-4 bg-white rounded-xl border border-[#e6e3da] shadow-xs">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+        <div className="p-3 sm:p-4 bg-white rounded-xl border border-[#e6e3da] shadow-xs">
+          <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5 sm:mb-2">
             <span className="font-medium">Completion Rate</span>
             <span className="font-bold text-slate-800">{progressPercent}%</span>
           </div>
@@ -85,35 +85,35 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1.5 sm:mt-2">
             {completedTasks} of {totalTasks} tasks finished
           </p>
         </div>
 
         {/* Focus Hours Card */}
-        <div className="p-4 bg-white rounded-xl border border-[#e6e3da] shadow-xs">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+        <div className="p-3 sm:p-4 bg-white rounded-xl border border-[#e6e3da] shadow-xs">
+          <div className="flex items-center justify-between text-xs text-slate-500 mb-1 sm:mb-2">
             <span className="font-medium">Focus Time Planned</span>
             <Clock className="w-3.5 h-3.5 text-blue-500" />
           </div>
-          <div className="text-lg font-bold text-slate-900 font-serif">
+          <div className="text-base sm:text-lg font-bold text-slate-900 font-serif">
             {formatMinutes(totalMinutes)}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1">
             {formatMinutes(completedMinutes)} completed so far
           </p>
         </div>
 
         {/* Routine Energy Profile */}
-        <div className="p-4 bg-white rounded-xl border border-[#e6e3da] shadow-xs">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+        <div className="p-3 sm:p-4 bg-white rounded-xl border border-[#e6e3da] shadow-xs">
+          <div className="flex items-center justify-between text-xs text-slate-500 mb-1 sm:mb-2">
             <span className="font-medium">Peak Window</span>
             <Flame className="w-3.5 h-3.5 text-amber-500" />
           </div>
-          <div className="text-lg font-bold text-slate-900 capitalize font-serif">
+          <div className="text-base sm:text-lg font-bold text-slate-900 capitalize font-serif truncate">
             {profile.mostProductivePeriod}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1 truncate">
             Sleep: {profile.sleepTime} • Wake: {profile.wakeTime}
           </p>
         </div>
@@ -122,25 +122,25 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
       {/* Agenda & Tasks Notebook Section */}
       <div className="bg-white rounded-2xl border border-[#e6e3da] shadow-xs overflow-hidden">
         {/* Section Header */}
-        <div className="p-5 border-b border-[#e6e3da] flex items-center justify-between bg-[#fdfcf9]">
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-serif text-lg font-bold text-slate-900 tracking-tight">
+        <div className="p-3.5 sm:p-5 border-b border-[#e6e3da] flex items-center justify-between bg-[#fdfcf9] gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate">
                 {isToday ? "Today's Agenda & Action Plan" : `Agenda for ${format(selectedDate, "MMMM d")}`}
               </h3>
-              <span className="text-xs text-slate-500 font-sans">
+              <span className="text-[11px] sm:text-xs text-slate-500 font-sans shrink-0">
                 ({dayTasks.length} {dayTasks.length === 1 ? "item" : "items"})
               </span>
             </div>
-            <p className="text-xs text-slate-500">
-              Deterministic schedule • AI will adapt flexible tasks around fixed lectures
+            <p className="text-[11px] sm:text-xs text-slate-500 truncate">
+              Deterministic schedule • AI adapts flexible tasks around fixed commitments
             </p>
           </div>
 
           {onOpenQuickTask && (
             <button
               onClick={onOpenQuickTask}
-              className="px-3 py-1.5 bg-[#f5f3ec] hover:bg-[#ede9df] text-slate-800 text-xs font-semibold rounded-lg border border-[#e6e3da] transition-colors"
+              className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-[#f5f3ec] hover:bg-[#ede9df] text-slate-800 text-[11px] sm:text-xs font-semibold rounded-lg border border-[#e6e3da] transition-colors shrink-0"
             >
               + Quick Add
             </button>
@@ -150,8 +150,8 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
         {/* Agenda Task List */}
         <div className="divide-y divide-[#f0ede6]">
           {dayTasks.length === 0 ? (
-            <div className="p-12 text-center">
-              <Calendar className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <div className="p-8 sm:p-12 text-center">
+              <Calendar className="w-8 h-8 sm:w-10 sm:h-10 text-slate-300 mx-auto mb-2 sm:mb-3" />
               <h4 className="text-sm font-semibold text-slate-700">No tasks planned for this day</h4>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                 Use the AI Assistant input below or click "+ Quick Add" to plan your study blocks, assignments, or work sprints.
@@ -164,14 +164,14 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
                 <div
                   key={task.id}
                   className={cn(
-                    "p-4 transition-colors flex items-start gap-3.5 group",
+                    "p-3 sm:p-4 transition-colors flex items-start gap-2.5 sm:gap-3.5 group",
                     isCompleted ? "bg-[#faf9f6]/80 text-slate-400" : "hover:bg-[#fbfaf7]"
                   )}
                 >
-                  {/* Completion Toggle */}
+                  {/* Completion Toggle with comfortable touch target */}
                   <button
                     onClick={() => toggleTaskStatus(task.id)}
-                    className="mt-0.5 text-slate-400 hover:text-emerald-600 transition-colors focus:outline-hidden"
+                    className="w-10 h-10 -ml-2 -mt-2 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors focus:outline-hidden shrink-0 touch-manipulation"
                     aria-label={isCompleted ? "Mark incomplete" : "Mark complete"}
                   >
                     {isCompleted ? (
@@ -183,10 +183,10 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
 
                   {/* Task Details */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                       <span
                         className={cn(
-                          "text-sm font-medium transition-all",
+                          "text-xs sm:text-sm font-medium transition-all",
                           isCompleted
                             ? "line-through text-slate-400"
                             : "text-slate-900 font-semibold"
@@ -197,7 +197,7 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
 
                       {/* Fixed Commitment Indicator */}
                       {task.isFixed && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                        <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-medium px-1.5 sm:px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
                           <Lock className="w-2.5 h-2.5" />
                           Fixed
                         </span>
@@ -205,7 +205,7 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
 
                       {/* Tag / Subject badge */}
                       {task.tag && (
-                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/80">
+                        <span className="text-[9px] sm:text-[10px] font-medium px-1.5 sm:px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/80">
                           {task.tag}
                         </span>
                       )}
@@ -213,7 +213,7 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
                       {/* Priority Badge */}
                       <span
                         className={cn(
-                          "text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-sm border",
+                          "text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-sm border",
                           getPriorityBadge(task.priority)
                         )}
                       >
@@ -233,7 +233,7 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
                     )}
 
                     {/* Time Slot & Duration Info */}
-                    <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500">
+                    <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2 text-[10px] sm:text-[11px] text-slate-500 flex-wrap">
                       {task.startTime && task.endTime && (
                         <span className="flex items-center gap-1 font-medium text-slate-700">
                           <Clock className="w-3 h-3 text-slate-400" />
@@ -249,12 +249,13 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Actions — Visible on mobile touch devices, hoverable on desktop */}
+                  <div className="flex items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                     <button
                       onClick={() => deleteTask(task.id)}
-                      className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      className="p-1.5 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                       title="Delete task"
+                      aria-label="Delete task"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

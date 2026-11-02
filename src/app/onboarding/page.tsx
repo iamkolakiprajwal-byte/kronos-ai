@@ -147,12 +147,12 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-[#faf9f6] text-slate-900 flex flex-col justify-between selection:bg-amber-200">
       {/* Top Header */}
-      <header className="border-b border-[#e6e3da] bg-white/80 backdrop-blur-md sticky top-0 z-30 px-6 py-4 flex items-center justify-between">
-        <Link href="/home" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-slate-900 text-amber-100 flex items-center justify-center shadow-xs">
+      <header className="border-b border-[#e6e3da] bg-white/80 backdrop-blur-md sticky top-0 z-30 px-3.5 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+        <Link href="/home" className="flex items-center gap-2 sm:gap-2.5">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-slate-900 text-amber-100 flex items-center justify-center shadow-xs">
             <Clock className="w-4 h-4 text-amber-200" />
           </div>
-          <span className="font-serif font-bold text-base text-slate-900 tracking-tight">
+          <span className="font-serif font-bold text-sm sm:text-base text-slate-900 tracking-tight">
             Kronos AI <span className="font-sans text-xs font-normal text-slate-500">• Setup</span>
           </span>
         </Link>
@@ -161,13 +161,13 @@ export default function OnboardingPage() {
           href="/home"
           className="text-xs font-semibold text-slate-500 hover:text-slate-900 flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
         >
-          <span>Exit to Planner</span>
+          <span className="hidden sm:inline">Exit to Planner</span>
           <X className="w-4 h-4" />
         </Link>
       </header>
 
       {/* Main Content Form Card */}
-      <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-8 sm:py-12">
+      <main className="flex-1 max-w-3xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-12">
         <StepIndicator
           currentStep={currentStep}
           totalSteps={totalSteps}
@@ -177,7 +177,7 @@ export default function OnboardingPage() {
         />
 
         {/* Step Component Routing */}
-        <div className="bg-white rounded-3xl border border-[#e6e3da] p-6 sm:p-10 shadow-xs">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#e6e3da] p-4 sm:p-10 shadow-xs">
           {currentStepDef.key === "welcome" && (
             <StepWelcome onNext={handleNext} />
           )}

@@ -3,6 +3,48 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.5.0] - 2026-11-02
+
+### Added
+- **Responsive Desktop, Tablet, and Mobile Redesign (Completed & Verified)**:
+  - **Mobile Navigation System**:
+    - Created `src/components/layout/bottom-nav.tsx`: Fixed bottom navigation bar on mobile phones (`md:hidden`) with 5 primary destinations (`Home`, `Plan`, `Goals`, `Habits`, `Profile`), active amber accent styling, touch feedback, and safe-area inset padding (`pb-[max(0.5rem,env(safe-area-inset-bottom))]`).
+    - Added `MobileDrawer` in `src/components/layout/sidebar.tsx`: Slide-out mobile drawer with full persona switcher (Student / Pro / Dual Track), user details, and evaluation indicators.
+    - Responsive Sidebar in `src/components/layout/sidebar.tsx`: Dynamic width transition from compact 80px icon-rail on tablets (`md:w-20`) to full 256px sidebar on desktop screens (`lg:w-64`), hidden on phones (`hidden md:flex`).
+  - **Header & Action Bar**:
+    - Added mobile hamburger menu toggle calling `onToggleMobileNav`.
+    - Compact, responsive greeting and title typography (`text-base sm:text-xl truncate`).
+    - Compact icon-only quick actions on mobile (`sm:hidden`) for Google Calendar Sync and `+` New Task.
+    - Responsive notification dropdown positioned safely within screen bounds on mobile (`fixed sm:absolute inset-x-3 sm:inset-x-auto`).
+  - **Interactive Month & Week Calendar**:
+    - Integrated mobile view toggle pill: `Week View` (default on small screens) vs `Month View` (full expanded month).
+    - Compact Week mode renders active 7-day row with activity dots, saving >280px vertical space so the Daily Agenda is visible without scrolling.
+    - Single-letter day abbreviations (`S, M, T, W, T, F, S`) on phones (`sm:hidden`), expanding to 3-letter names on larger screens.
+    - Responsive day cells (`min-h-[52px] sm:min-h-[72px] lg:min-h-[82px]`) with compact micro activity dots.
+  - **Daily Agenda & Task Management**:
+    - Touch-optimized checkbox targets (`w-10 h-10 -ml-2 -mt-2` touch-manipulation) exceeding 44×44px hit guidelines.
+    - Responsive 3-column metric cards strip with compact mobile padding (`p-3 sm:p-4`).
+    - Visible delete buttons on touch screens (`opacity-100 sm:opacity-0 sm:group-hover:opacity-100`) preventing hover-invisibility on mobile.
+  - **AI Assistant & Voice Dictation**:
+    - Responsive chat bubbles (`max-w-[85%] sm:max-w-xl`) with legible line heights.
+    - Horizontal swipeable prompt chips carousel with `scrollbar-none`.
+    - Touch-accessible microphone button (40×40px).
+    - Converted Voice Dictation modal into a mobile bottom sheet (`items-end sm:items-center p-0 sm:p-4`, `rounded-t-2xl sm:rounded-2xl max-h-[85vh]`).
+  - **Modal Dialogs as Bottom Sheets**:
+    - Converted `QuickTaskModal`, `CalendarSyncModal`, `NewGoalModal`, and `FlowReflectionModal` into mobile bottom sheets on `< sm` viewports, preventing keyboard occlusion and providing natural mobile gesture interaction.
+  - **Destination Pages Responsive Polish**:
+    - `/plan`: Horizontally scrollable filter pills, touch targets, and responsive typography.
+    - `/goals`: Single-column cards on mobile (`grid-cols-1 md:grid-cols-2`), horizontal category chips, responsive daily action blocks.
+    - `/habits`: Reconfigured Flow concentration block for vertical stacking on mobile, responsive timer typography (`text-4xl sm:text-5xl`), and clean wrap for preset interval buttons.
+    - `/profile`: 2-column mobile biological routine parameters and eco metrics (`grid-cols-2 md:grid-cols-4`), 3-column role switcher, and responsive action banners.
+    - `/onboarding`: Responsive header, auto-fill preset buttons on mobile, and optimized step card padding (`p-4 sm:p-10`).
+  - **CSS & Touch Optimizations**:
+    - Added `touch-action: manipulation`, `.scrollbar-none`, and `.pb-safe` utilities in `src/app/globals.css`.
+  - **Build & Test Verification**:
+    - 37/37 unit tests passing via `npm test`.
+    - Next.js 16 production build passing across all 16 routes via `npm run build`.
+    - Verified clean rendering across 320px, 375px, 390px, 430px, 768px, 1024px, 1366px, and 1920px viewports.
+
 ## [0.4.0] - 2026-11-02
 
 ### Added

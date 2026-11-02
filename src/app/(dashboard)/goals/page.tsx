@@ -144,27 +144,27 @@ export default function GoalsPage() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in-50 duration-200">
+    <div className="space-y-4 sm:space-y-8 animate-in fade-in-50 duration-200">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e6e3da]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-[#e6e3da]">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-amber-100 text-amber-900">
+            <span className="p-1 sm:p-1.5 rounded-lg bg-amber-100 text-amber-900 shrink-0">
               <Compass className="w-4 h-4" />
             </span>
-            <h1 className="font-serif text-2xl font-bold text-slate-900 tracking-tight">
+            <h1 className="font-serif text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               Strategic Goals & AI Roadmaps
             </h1>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
             Decompose long-term ambitions into structured checkpoints, actionable daily tasks, and protected study blocks.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
           <button
             onClick={() => setIsNewGoalModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-[#e6e3da] text-slate-800 text-xs font-semibold hover:bg-slate-50 transition-all shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-white border border-[#e6e3da] text-slate-800 text-xs font-semibold hover:bg-slate-50 transition-all shadow-xs"
           >
             <Plus className="w-3.5 h-3.5 text-slate-500" />
             <span>New Goal</span>
@@ -174,14 +174,14 @@ export default function GoalsPage() {
 
       {/* Success Notification Banner */}
       {successNotice && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center justify-between animate-in fade-in-50">
+        <div className="p-3 sm:p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center justify-between animate-in fade-in-50">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{successNotice}</span>
           </div>
           <button
             onClick={() => setSuccessNotice(null)}
-            className="text-emerald-600 hover:text-emerald-800"
+            className="text-emerald-600 hover:text-emerald-800 p-1"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -189,12 +189,12 @@ export default function GoalsPage() {
       )}
 
       {/* Category Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none">
         {categories.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setActiveTab(cat.id)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
               activeTab === cat.id
                 ? "bg-slate-900 text-white shadow-xs"
                 : "bg-white text-slate-600 border border-[#e6e3da] hover:bg-slate-50"
@@ -206,7 +206,7 @@ export default function GoalsPage() {
       </div>
 
       {/* Goals Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {filteredGoals.map((goal) => {
           const isDecomposing = decomposingGoalId === goal.id;
           const completedCount = goal.milestones.filter((m) => m.completed).length;
@@ -214,20 +214,20 @@ export default function GoalsPage() {
           return (
             <div
               key={goal.id}
-              className="bg-white rounded-2xl border border-[#e6e3da] p-6 shadow-xs flex flex-col justify-between space-y-5 transition-all hover:border-slate-300"
+              className="bg-white rounded-2xl border border-[#e6e3da] p-4 sm:p-6 shadow-xs flex flex-col justify-between space-y-4 sm:space-y-5 transition-all hover:border-slate-300"
             >
               <div>
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200">
                     {goal.category}
                   </span>
-                  <span className="text-xs text-slate-500 flex items-center gap-1 font-mono">
+                  <span className="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1 font-mono">
                     <Calendar className="w-3 h-3 text-slate-400" />
                     Target: {goal.targetDate}
                   </span>
                 </div>
 
-                <h3 className="font-serif text-lg font-bold text-slate-900">{goal.title}</h3>
+                <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900">{goal.title}</h3>
                 <p className="text-xs text-slate-600 mt-1 leading-relaxed">{goal.description}</p>
               </div>
 
@@ -248,14 +248,14 @@ export default function GoalsPage() {
               {/* Milestones Checklist */}
               <div className="pt-3 border-t border-[#f0ede6] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
+                  <span className="text-[10px] sm:text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
                     Milestones ({completedCount}/{goal.milestones.length})
                   </span>
 
                   <button
                     onClick={() => handleDecomposeWithAI(goal)}
                     disabled={isDecomposing}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200/80 transition-all disabled:opacity-50"
+                    className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200/80 transition-all disabled:opacity-50"
                   >
                     <Sparkles className="w-3 h-3 text-amber-600" />
                     <span>{isDecomposing ? "Decomposing..." : "AI Breakdown"}</span>
@@ -271,7 +271,7 @@ export default function GoalsPage() {
                       <div className="flex items-center justify-between gap-2">
                         <button
                           onClick={() => toggleMilestone(goal.id, ms.id)}
-                          className="flex items-center gap-2 text-left group"
+                          className="flex items-center gap-2 text-left group min-w-0 flex-1"
                         >
                           {ms.completed ? (
                             <CheckCircle2 className="w-4 h-4 text-emerald-600 fill-emerald-50 shrink-0" />
@@ -281,33 +281,33 @@ export default function GoalsPage() {
                           <span
                             className={
                               ms.completed
-                                ? "line-through text-slate-400 font-medium"
-                                : "text-slate-800 font-medium"
+                                ? "line-through text-slate-400 font-medium truncate"
+                                : "text-slate-800 font-medium truncate"
                             }
                           >
                             {ms.title}
                           </span>
                         </button>
-                        <span className="text-[10px] text-slate-400 whitespace-nowrap font-mono">
+                        <span className="text-[10px] text-slate-400 whitespace-nowrap font-mono shrink-0">
                           {ms.dueDate}
                         </span>
                       </div>
 
                       {/* Actionable Daily Tasks if decomposed by AI */}
                       {ms.actionableTasks && ms.actionableTasks.length > 0 && (
-                        <div className="pt-2 border-t border-[#e6e3da]/60 space-y-1.5 pl-6">
+                        <div className="pt-2 border-t border-[#e6e3da]/60 space-y-1.5 pl-2 sm:pl-6">
                           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                             Daily Action Blocks:
                           </span>
                           {ms.actionableTasks.map((at) => (
                             <div
                               key={at.id}
-                              className="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-white border border-[#e6e3da] text-[11px]"
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 p-1.5 rounded-lg bg-white border border-[#e6e3da] text-[10px] sm:text-[11px]"
                             >
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 min-w-0">
                                 <Clock className="w-3 h-3 text-amber-700 shrink-0" />
-                                <span className="text-slate-800">{at.title}</span>
-                                <span className="text-[9px] font-medium px-1 rounded bg-slate-100 text-slate-600">
+                                <span className="text-slate-800 truncate">{at.title}</span>
+                                <span className="text-[9px] font-medium px-1 rounded bg-slate-100 text-slate-600 shrink-0">
                                   {at.durationMinutes}m
                                 </span>
                               </div>
@@ -315,7 +315,7 @@ export default function GoalsPage() {
                                 onClick={() =>
                                   handleScheduleTask(at.title, at.durationMinutes, at.difficulty)
                                 }
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 text-white text-[10px] font-medium hover:bg-slate-800 shrink-0"
+                                className="self-end sm:self-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 text-white text-[10px] font-medium hover:bg-slate-800 shrink-0"
                               >
                                 <Plus className="w-2.5 h-2.5" />
                                 <span>Schedule</span>
@@ -333,24 +333,24 @@ export default function GoalsPage() {
         })}
       </div>
 
-      {/* New Goal Modal */}
+      {/* New Goal Modal (Bottom Sheet on Mobile) */}
       {isNewGoalModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in-50">
-          <div className="bg-white rounded-2xl border border-[#e6e3da] w-full max-w-md p-6 shadow-xl space-y-5">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in-50">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl border-t sm:border border-[#e6e3da] w-full sm:max-w-md p-5 sm:p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#e6e3da]">
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-amber-800" />
-                <h3 className="font-serif text-lg font-bold text-slate-900">Define Strategic Goal</h3>
+                <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900">Define Strategic Goal</h3>
               </div>
               <button
                 onClick={() => setIsNewGoalModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5 sm:w-4 sm:h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateGoal} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateGoal} className="space-y-3.5 sm:space-y-4 text-xs">
               <div>
                 <label className="block text-slate-700 font-medium mb-1">Goal Title</label>
                 <input
@@ -374,7 +374,7 @@ export default function GoalsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-medium mb-1">Horizon Category</label>
                   <select

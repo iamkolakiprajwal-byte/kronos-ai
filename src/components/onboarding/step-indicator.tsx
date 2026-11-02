@@ -23,18 +23,18 @@ export function StepIndicator({
 
   return (
     <div className="w-full mb-6">
-      <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-slate-900 uppercase tracking-wider text-[11px]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 mb-2 gap-1.5 sm:gap-0">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="font-semibold text-slate-900 uppercase tracking-wider text-[10px] sm:text-[11px]">
             Step {currentStep} of {totalSteps}
           </span>
           <span className="text-slate-300">•</span>
-          <span className="text-slate-600 font-medium">{stepTitle}</span>
+          <span className="text-slate-600 font-medium truncate">{stepTitle}</span>
         </div>
 
         {/* Evaluator Quick Preset Helper */}
-        <div className="hidden sm:flex items-center gap-1.5 text-[11px]">
-          <span className="text-slate-400 font-medium">Auto-fill preset:</span>
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px]">
+          <span className="text-slate-400 font-medium hidden sm:inline">Auto-fill preset:</span>
           <button
             type="button"
             onClick={() => onLoadPreset("student")}

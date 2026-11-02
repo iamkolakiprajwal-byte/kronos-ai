@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   ExternalLink,
+  Menu,
 } from "lucide-react";
 import { useDemo } from "@/context/demo-context";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,7 @@ interface HeaderProps {
   onToggleMobileNav?: () => void;
 }
 
-export function Header({ onOpenQuickTask }: HeaderProps) {
+export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
   const {
     profile,
     notifications,
@@ -58,33 +59,44 @@ export function Header({ onOpenQuickTask }: HeaderProps) {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <header className="border-b border-[#e6e3da] bg-[#fdfcf9]/80 backdrop-blur-md sticky top-0 z-30 px-6 py-3.5 flex items-center justify-between">
+    <header className="border-b border-[#e6e3da] bg-[#fdfcf9]/80 backdrop-blur-md sticky top-0 z-30 px-3.5 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between">
       {/* Left: Greeting & Current Date */}
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="font-serif text-xl font-bold text-slate-900 tracking-tight">
-            {greeting}, {profile.name.split(" ")[0]}
-          </h1>
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            AI Scheduled
-          </span>
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        {onToggleMobileNav && (
+          <button
+            onClick={onToggleMobileNav}
+            className="md:hidden p-1.5 -ml-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 shrink-0"
+            aria-label="Open navigation menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="font-serif text-base sm:text-xl font-bold text-slate-900 tracking-tight truncate">
+              {greeting}, {profile.name.split(" ")[0]}
+            </h1>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              AI Scheduled
+            </span>
+          </div>
+          <p className="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1.5 sm:gap-2 mt-0.5 truncate">
+            <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="truncate">{todayFormatted}</span>
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <span className="text-slate-600 font-medium hidden sm:inline truncate">{profile.institutionOrCompany}</span>
+          </p>
         </div>
-        <p className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
-          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-          <span>{todayFormatted}</span>
-          <span className="text-slate-300">•</span>
-          <span className="text-slate-600 font-medium">{profile.institutionOrCompany}</span>
-        </p>
       </div>
 
       {/* Right: Actions, Notifications, & Quick Task */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         {/* Calendar Sync Pill */}
         <button
           onClick={() => setShowSyncModal(true)}
           className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer shadow-xs",
+            "flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer shadow-xs",
             syncStatus === "conflict"
               ? "bg-amber-100 text-amber-900 border-amber-300 animate-bounce"
               : syncStatus === "syncing"
@@ -96,7 +108,7 @@ export function Header({ onOpenQuickTask }: HeaderProps) {
           {syncStatus === "conflict" ? (
             <>
               <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>1 Conflict</span>
+              <span className="text-[11px] sm:text-xs font-bold text-amber-900">1 Conflict</span>
             </>
           ) : (
             <>
@@ -113,20 +125,29 @@ export function Header({ onOpenQuickTask }: HeaderProps) {
 
         {/* Quick Task Button */}
         {onOpenQuickTask && (
-          <button
-            onClick={onOpenQuickTask}
-            className="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-all active:scale-98"
-          >
-            <Plus className="w-4 h-4 text-amber-300" />
-            <span>New Task</span>
-          </button>
+          <>
+            <button
+              onClick={onOpenQuickTask}
+              className="sm:hidden w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center shadow-xs transition-all active:scale-95"
+              aria-label="Add new task"
+            >
+              <Plus className="w-4 h-4 text-amber-300" />
+            </button>
+            <button
+              onClick={onOpenQuickTask}
+              className="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-all active:scale-98"
+            >
+              <Plus className="w-4 h-4 text-amber-300" />
+              <span>New Task</span>
+            </button>
+          </>
         )}
 
         {/* Notification Bell */}
         <div className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="w-9 h-9 rounded-lg border border-[#e6e3da] bg-white hover:bg-[#f5f3ec] text-slate-700 flex items-center justify-center relative transition-colors"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg border border-[#e6e3da] bg-white hover:bg-[#f5f3ec] text-slate-700 flex items-center justify-center relative transition-colors"
             aria-label="Notifications"
           >
             <Bell className="w-4 h-4" />
@@ -139,7 +160,7 @@ export function Header({ onOpenQuickTask }: HeaderProps) {
 
           {/* Notifications Dropdown Drawer */}
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-[#e6e3da] rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in-50 slide-in-from-top-2 duration-150">
+            <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto right-auto sm:right-0 top-16 sm:top-full mt-1 sm:mt-2 w-auto sm:w-96 bg-white border border-[#e6e3da] rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in-50 slide-in-from-top-2 duration-150">
               <div className="p-3.5 border-b border-[#e6e3da] bg-[#fbfaf7] flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
@@ -192,20 +213,20 @@ export function Header({ onOpenQuickTask }: HeaderProps) {
 
       {/* Calendar Synchronization & Conflict Modal */}
       {showSyncModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in-50">
-          <div className="bg-white rounded-2xl border border-[#e6e3da] w-full max-w-lg p-6 shadow-xl space-y-5">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in-50">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl border-t sm:border border-[#e6e3da] w-full sm:max-w-lg p-5 sm:p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#e6e3da]">
               <div className="flex items-center gap-2">
                 <RefreshCw className="w-4 h-4 text-slate-800" />
-                <h3 className="font-serif text-lg font-bold text-slate-900">
-                  Google Calendar Two-Way Synchronization
+                <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900">
+                  Google Calendar Two-Way Sync
                 </h3>
               </div>
               <button
                 onClick={() => setShowSyncModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5 sm:w-4 sm:h-4" />
               </button>
             </div>
 
