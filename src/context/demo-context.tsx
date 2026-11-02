@@ -425,7 +425,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     ]);
   };
 
-  const sendChatMessage = (userText: string) => {
+  const sendChatMessage = async (userText: string) => {
     if (!userText.trim()) return;
 
     const userMsg: ChatMessage = {
@@ -438,87 +438,163 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setChatMessages((prev) => [...prev, userMsg]);
     setIsAiThinking(true);
 
-    setTimeout(() => {
-      setIsAiThinking(false);
-      const lower = userText.toLowerCase();
+    try {
+      const todayStr = new Date().toISOString().split("T")[0];
 
-      let replyText = "";
-      let suggestions: Partial<Task>[] | undefined;
+      // Prepare context for AI Route Handler
+      const fixedCommitments = calendarEvents
+        .filter((e) => e.isFixed)
+        .map((e) => ({
+          title: e.title,
+          startTime: e.startTime,
+          endTime: e.endTime,
+          isFixed: true,
+        }));
 
-      if (lower.includes("blender") || lower.includes("assignment") || lower.includes("gym")) {
-        replyText =
-          "I understand your goal! You have fixed lectures/commitments earlier today. I found optimal windows: 60m Economics Problem Set at 14:00, 50m Gym workout at 16:00, and 45m Blender modeling at 18:00. This preserves your 23:30 sleep routine.";
-        suggestions = [
-          {
-            title: "Economics Problem Set #3",
-            category: "study",
-            priority: "high",
-            estimatedDuration: 60,
-            startTime: "14:00",
-            endTime: "15:00",
-            tag: "ECON 201",
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: userText,
+          context: {
+            profile,
+            existingTasks: tasks,
+            fixedCommitments,
+            currentDate: todayStr,
           },
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const plan = data.plan;
+
+        // If tasks were extracted, run deterministic constraint solver
+        let verifiedTasks = plan.extractedTasks;
+        if (verifiedTasks && verifiedTasks.length > 0) {
+          try {
+            const schedRes = await fetch("/api/schedule/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                date: todayStr,
+                wakeTime: profile.wakeTime,
+                sleepTime: profile.sleepTime,
+                mostProductivePeriod: profile.mostProductivePeriod,
+                preferredFocusDuration: profile.preferredFocusDuration,
+                preferredBreakDuration: profile.preferredBreakDuration,
+                fixedCommitments: calendarEvents.map((c) => ({
+                  id: c.id,
+                  title: c.title,
+                  startTime: c.startTime,
+                  endTime: c.endTime,
+                })),
+                tasksToSchedule: verifiedTasks.map((vt: any, idx: number) => ({
+                  id: `candidate-${idx}`,
+                  title: vt.title,
+                  category: vt.category,
+                  priority: vt.priority,
+                  estimatedDuration: vt.estimatedDuration,
+                  isFixed: vt.isFixed,
+                  energyLevel: vt.energyLevel || "high",
+                })),
+              }),
+            });
+
+            if (schedRes.ok) {
+              const schedData = await schedRes.json();
+              if (schedData.result?.scheduledPlacements?.length > 0) {
+                // Update verified task start and end times from deterministic scheduler
+                verifiedTasks = schedData.result.scheduledPlacements.map((p: any) => ({
+                  ...p.task,
+                  startTime: p.startTime,
+                  endTime: p.endTime,
+                }));
+              }
+            }
+          } catch (schedErr) {
+            console.warn("Deterministic scheduler client notice:", schedErr);
+          }
+        }
+
+        setIsAiThinking(false);
+        setChatMessages((prev) => [
+          ...prev,
           {
-            title: "Conditioning & Gym Session",
-            category: "personal",
-            priority: "medium",
-            estimatedDuration: 50,
-            startTime: "16:00",
-            endTime: "16:50",
-            tag: "Wellness",
+            id: `msg-ai-${Date.now()}`,
+            sender: "assistant",
+            text: plan.explanation,
+            timestamp: "Just now",
+            suggestedTasks: verifiedTasks,
           },
-          {
-            title: "Blender 3D Modeling Tutorial",
-            category: "personal",
-            priority: "low",
-            estimatedDuration: 45,
-            startTime: "18:00",
-            endTime: "18:45",
-            tag: "Creative",
-          },
-        ];
-      } else if (lower.includes("urgent") || lower.includes("meeting") || lower.includes("4 pm") || lower.includes("4pm")) {
-        replyText =
-          "I've registered an urgent 4:00 PM commitment. Since you had a personal block planned at that time, I've shifted flexible personal items back by 45 minutes to protect your study priorities without overlap.";
-        suggestions = [
-          {
-            title: "Urgent Meeting / Sync",
-            category: "work",
-            priority: "urgent",
-            estimatedDuration: 45,
-            startTime: "16:00",
-            endTime: "16:45",
-            isFixed: true,
-            tag: "Urgent Sync",
-          },
-        ];
-      } else if (lower.includes("reschedule") || lower.includes("missed") || lower.includes("couldn't")) {
-        replyText =
-          "No problem! Unfinished tasks happen. I've re-evaluated your evening. We can shift the remaining 45-minute focus session to 19:30 after dinner, keeping your wind-down time completely intact.";
-      } else {
-        replyText = `Understood: "${userText}". I've verified your availability rules and daily energy curve. Would you like me to allocate a 45-minute focus block in your next open window?`;
-        suggestions = [
-          {
-            title: userText.length > 35 ? userText.slice(0, 32) + "..." : userText,
-            category: role === "student" ? "study" : "work",
-            priority: "medium",
-            estimatedDuration: 45,
-            tag: "Quick Task",
-          },
-        ];
+        ]);
+        return;
       }
+    } catch (err) {
+      console.warn("AI API request fallback to local simulation:", err);
+    }
 
-      setChatMessages((prev) => [
-        ...prev,
+    // Fallback simulation if route call fails or during static build
+    setIsAiThinking(false);
+    const lower = userText.toLowerCase();
+    let replyText = "";
+    let suggestions: Partial<Task>[] | undefined;
+
+    if (lower.includes("blender") || lower.includes("assignment") || lower.includes("gym")) {
+      replyText =
+        "I understand your goal! You have fixed commitments earlier today. I found optimal windows: 60m Economics Problem Set at 14:00, 50m Gym workout at 16:00, and 45m Blender modeling at 18:00. This preserves your sleep routine.";
+      suggestions = [
         {
-          id: `msg-ai-${Date.now()}`,
-          sender: "assistant",
-          text: replyText,
-          timestamp: "Just now",
-          suggestedTasks: suggestions,
+          title: "Complete Economics Problem Set #3",
+          category: "study",
+          priority: "urgent",
+          estimatedDuration: 60,
+          startTime: "14:00",
+          endTime: "15:00",
+          tag: "ECON 201",
         },
-      ]);
-    }, 900);
+        {
+          title: "Conditioning & Gym Session",
+          category: "personal",
+          priority: "medium",
+          estimatedDuration: 50,
+          startTime: "16:00",
+          endTime: "16:50",
+          tag: "Wellness",
+        },
+        {
+          title: "Blender 3D Modeling Practice",
+          category: "personal",
+          priority: "low",
+          estimatedDuration: 45,
+          startTime: "18:00",
+          endTime: "18:45",
+          tag: "Creative",
+        },
+      ];
+    } else {
+      replyText = `Understood: "${userText}". I've verified your availability rules and daily energy curve. Would you like me to allocate a 45-minute focus block in your next open window?`;
+      suggestions = [
+        {
+          title: userText.length > 35 ? userText.slice(0, 32) + "..." : userText,
+          category: role === "student" ? "study" : "work",
+          priority: "medium",
+          estimatedDuration: 45,
+          tag: "Quick Task",
+        },
+      ];
+    }
+
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: `msg-ai-${Date.now()}`,
+        sender: "assistant",
+        text: replyText,
+        timestamp: "Just now",
+        suggestedTasks: suggestions,
+      },
+    ]);
   };
 
   return (

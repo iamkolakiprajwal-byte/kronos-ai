@@ -147,14 +147,15 @@ Progressively implemented via Supabase PostgreSQL migrations with foreign key co
 | **2** | **Onboarding & User Profile** | **Completed** | 13-stage guided Onboarding wizard (`/onboarding`), dynamic step routing for Student, Professional, and Dual-Track, interactive Timetable and Recurring Meetings editors, demo presets, initial schedule preview & approval pipeline. |
 | **3** | **Database & Authentication** | **Next Up** | Supabase client setup, 16 PostgreSQL migration scripts, Row Level Security (RLS) policies, Login and Signup views with demo-mode fallback. |
 | **4** | **AI Assistant & Conversation** | Not Started | Server-side Gemini route handlers, structured intent extraction, preference memory extraction, interactive schedule adjustment dialog. |
-| **5** | **Deterministic Scheduling Engine** | Not Started | TypeScript constraint solver, conflict validation, buffer calculation, dynamic rescheduling on missed tasks. |
-| **6** | **Goals & Habit Management** | Not Started | AI milestone decomposition, Flow Theory focus session timer with post-session reflection, habit automaticity scoring without streak shame. |
-| **7** | **Calendar Two-Way Sync** | Not Started | Shared `CalendarAdapter` interface, Mock Calendar Adapter with sync tokens, conflict detection, Google Calendar adapter structure. |
-| **8** | **Notifications & Voice Input** | Not Started | Service worker, Web Push reminder engine, Web Speech API speech-to-text hook with edit-before-submit modal. |
-| **9** | **Environmental Sustainability** | Not Started | Eco-routine logging (walking/cycling, paperless documentation, power mindfulness). |
-| **10** | **Testing & Optimization** | Not Started | Comprehensive unit tests for scheduler constraints, calendar sync state machine, and UI responsiveness audits. |
-| **11** | **Deployment & Documentation** | Not Started | Vercel production build, environment configuration guide, final demonstration runbook, screenshots. |
-| **12** | **Final Assignment Polish** | Not Started | Final submission verification, code cleanup, and academic presentation package. |
+### 3.2 Roadmap: Accelerated Three-Sprint Model
+
+To ensure a cohesive, robust, and rapid completion, development follows an accelerated three-sprint strategy:
+
+| Sprint | Focus Area | Status | Deliverables |
+|:---|:---|:---|:---|
+| **Sprint 1** | **AI & Core Functionality** | **COMPLETED** | Supabase database schema (16 tables, RLS), Auth screens (`/login`, `/signup`), Gemini & rich offline Mock AI provider abstraction, Zod-validated `/api/ai/chat`, pure TypeScript deterministic scheduling engine (`/api/schedule/generate`), conflict detection, and dynamic rescheduling. |
+| **Sprint 2** | **Productivity & Integrations** | **IN PROGRESS** | Goals and AI roadmaps, habits and Flow Theory focus sessions, calendar management, mock two-way calendar sync with conflict resolution, Google Calendar architecture, smart notifications, browser voice input, and sustainability tracking. |
+| **Sprint 3** | **Testing & Deployment** | **NOT STARTED** | End-to-end integration testing, scheduler test expansion, security/data validation, responsive optimization across devices, Vercel production build, and final documentation. |
 
 ---
 
@@ -166,8 +167,17 @@ Progressively implemented via Supabase PostgreSQL migrations with foreign key co
 ai-time-manager/
 ├── public/
 │   ├── file.svg, globe.svg, next.svg, vercel.svg, window.svg
+├── supabase/
+│   └── migrations/
+│       └── 20261102000000_initial_schema.sql # 16 relational tables with RLS and indexes
+├── tests/
+│   └── scheduler/
+│       └── scheduler.test.ts               # 13/13 passing tests for deterministic engine
 ├── src/
 │   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── login/page.tsx              # Notebook auth login with 1-click persona demo
+│   │   │   └── signup/page.tsx             # Notebook auth registration
 │   │   ├── (dashboard)/
 │   │   │   ├── home/page.tsx               # Main command center: Calendar, Agenda, AI dock
 │   │   │   ├── plan/page.tsx               # Schedule & task management view
@@ -175,6 +185,9 @@ ai-time-manager/
 │   │   │   ├── habits/page.tsx             # Habit formation & Flow Theory timer
 │   │   │   ├── profile/page.tsx            # User profile, routine settings & Onboarding link
 │   │   │   └── layout.tsx                  # Dashboard layout wrapping Sidebar and Header
+│   │   ├── api/
+│   │   │   ├── ai/chat/route.ts            # Server-side conversational AI Route Handler
+│   │   │   └── schedule/generate/route.ts  # Server-side deterministic scheduler Route Handler
 │   │   ├── onboarding/
 │   │   │   └── page.tsx                    # Multi-step Onboarding wizard controller
 │   │   ├── layout.tsx                      # Root HTML layout with DemoProvider
@@ -207,31 +220,51 @@ ai-time-manager/
 │   │       ├── step-review-summary.tsx     # Stage 11: Review summary card with jump-to-edit links
 │   │       └── step-schedule-preview.tsx   # Stage 12: Initial schedule preview & approval
 │   ├── context/
-│   │   └── demo-context.tsx                # Central state provider: roles, tasks, events, onboarding
+│   │   └── demo-context.tsx                # Central state provider: roles, tasks, events, onboarding, AI
 │   ├── lib/
+│   │   ├── ai/
+│   │   │   ├── types.ts                    # AI planning, task extraction, schedule request contracts
+│   │   │   ├── provider.ts                 # AIProvider interface
+│   │   │   ├── gemini-provider.ts          # Structured schema Gemini 2.5 Flash implementation
+│   │   │   ├── mock-provider.ts            # Context-aware offline NLP provider matching user constraints
+│   │   │   ├── memory.ts                   # Structured user preferences & habits memory manager
+│   │   │   └── index.ts                    # Factory dynamically returning live Gemini or Mock AI
+│   │   ├── scheduler/
+│   │   │   ├── types.ts                    # Scheduling engine input/output types & conflict structures
+│   │   │   └── engine.ts                   # Pure TypeScript deterministic constraint-satisfaction solver
+│   │   ├── supabase/
+│   │   │   ├── client.ts                   # Browser Supabase client with offline demo fallback
+│   │   │   └── server.ts                   # Server-side Supabase client with safe demo mocks
 │   │   ├── mock/
 │   │   │   └── demo-data.ts                # Rich datasets for Student, Pro, Both & onboarding presets
 │   │   └── utils.ts                        # Styling utilities (cn) and formatMinutes
 │   └── types/
 │       └── index.ts                        # TypeScript interfaces for all domain entities
 ├── .env.example                            # Template for Gemini, Supabase, Google Calendar, VAPID
-├── CHANGELOG.md                            # Version history (0.1.0, 0.2.0)
+├── CHANGELOG.md                            # Version history (0.1.0, 0.2.0, 0.3.0)
 ├── PROJECT_SPEC.md                         # Detailed functional and non-functional requirements
 ├── README.md                               # Setup, architecture overview, and navigation guide
-├── package.json                            # Next.js 16, React 19, Tailwind CSS v4, Lucide, date-fns
+├── package.json                            # Next.js 16, React 19, Tailwind CSS v4, Lucide, date-fns, zod, supabase
 └── PROJECT_CONTEXT.md                      # Permanent central source of truth
 ```
 
 ### 4.2 Implemented Integrations vs Mock Integrations
 - **Implemented Live in Code**:
-  - Full client state management in `DemoProvider` supporting dynamic role changes, task status toggling, habit streaks, notifications, and onboarding completion.
+  - Full client state management in `DemoProvider` supporting dynamic role changes, task status toggling, habit streaks, notifications, onboarding completion, and AI schedule application.
   - Interactive Timetable Editor supporting add, remove, and time-slot configuration.
   - Interactive Recurring Meetings Editor for work commitments.
   - Flow Theory focus timer with countdown intervals and self-reported engagement reflection.
   - Prominent Monthly Calendar with date math and indicator dots powered by `date-fns`.
+  - Supabase PostgreSQL schema with 16 tables, RLS policies, and index definitions (`supabase/migrations/20261102000000_initial_schema.sql`).
+  - Pure TypeScript Deterministic Constraint-Satisfaction Scheduling Engine (`src/lib/scheduler/engine.ts`) with 13/13 unit tests passed.
+  - Server-side Route Handlers for conversational AI parsing (`/api/ai/chat`) and deterministic scheduling (`/api/schedule/generate`) with Zod schema validation.
+  - Structured Gemini AI integration with fallback to context-aware Mock AI Provider.
+  - User preference memory store with Supabase sync.
+  - Notebook authentication pages (`/login`, `/signup`) with 1-click demo persona buttons.
 - **Mock Integrations (Assignment Evaluation Mode)**:
   - Calendar Adapter currently operates on `MockCalendarAdapter` to prevent privacy breaches or unwanted writes to personal Google accounts.
-  - AI Assistant currently operates with context-aware client simulation and prompt matching, ready for server-side Gemini Route Handler integration in Phase 4.
+  - Offline Mock AI Provider acts when `GEMINI_API_KEY` is not present in `.env.local`.
+  - Supabase client operates with local memory fallback when `NEXT_PUBLIC_SUPABASE_URL` is unconfigured.
 
 ---
 
@@ -342,35 +375,70 @@ ai-time-manager/
 - **Tests Performed**: `npm run build` (passed across 10 routes in 1.3s), HTTP curl check on `/onboarding` (HTTP 200), step routing verified for all 3 user types.
 - **Commit**: `1e05086`
 
+### Session 3: 2026-11-02 — Sprint 1: AI and Core Functionality
+- **Sprint/Phase**: Sprint 1 (AI and Core Functionality)
+- **Work Completed**:
+  - Authored full PostgreSQL migration in `supabase/migrations/20261102000000_initial_schema.sql` spanning 16 tables (`profiles`, `user_preferences`, `availability_rules`, `recurring_events`, `tasks`, `calendar_events`, `goals`, `goal_milestones`, `habits`, `habit_logs`, `chat_sessions`, `chat_messages`, `user_memory`, `notification_jobs`, `calendar_connections`, `push_subscriptions`) with Row-Level Security (`auth.uid() = user_id`) and performance indexes.
+  - Built Supabase client/server singletons with fail-safe demo fallbacks in `src/lib/supabase/client.ts` and `src/lib/supabase/server.ts`.
+  - Created notebook-styled authentication pages in `src/app/(auth)/login/page.tsx` and `src/app/(auth)/signup/page.tsx` with instant 1-click demo logins for Student and Professional personas.
+  - Architected AI Provider abstraction layer:
+    - `src/lib/ai/types.ts`: Strongly typed schemas for `AIPlanResponse`, `ExtractedTask`, and `UserScheduleContext`.
+    - `src/lib/ai/provider.ts`: `AIProvider` interface.
+    - `src/lib/ai/gemini-provider.ts`: Server-side Google Gemini 2.5 Flash implementation with structured JSON schema response enforcement.
+    - `src/lib/ai/mock-provider.ts`: Rich offline NLP context-aware mock provider responding to user commitments without API keys.
+    - `src/lib/ai/index.ts`: Provider factory with auto-selection.
+    - `src/lib/ai/memory.ts`: Persistent key-value memory layer for user preferences and work patterns.
+  - Built server-side Next.js Route Handlers:
+    - `/api/ai/chat`: Zod-validated conversational planning and task extraction endpoint.
+    - `/api/schedule/generate`: Deterministic constraint-satisfaction schedule calculator.
+  - Implemented pure TypeScript Deterministic Scheduling Engine in `src/lib/scheduler/engine.ts`:
+    - Strict collision prevention against fixed commitments (lectures, labs, standups).
+    - Sleep/wake boundary preservation (never schedule tasks beyond bed time or before wake time).
+    - Automatic midday meal/recharge buffer protection (12:00–14:00 window).
+    - Energy curve placement matching (high cognitive difficulty placed in user's peak window).
+    - Hard conflict detection returning explicit unfeasible flags and warnings.
+    - Mid-day dynamic rescheduling honoring current time and preserving completed tasks.
+  - Formulated comprehensive test suite in `tests/scheduler/scheduler.test.ts` with 13/13 passing tests.
+  - Integrated `DemoProvider` context with `/api/ai/chat` and `/api/schedule/generate`.
+- **Problems Encountered & Solutions**:
+  - *TypeScript & Next.js 16 Route Handler type compliance*: Ensured typed Zod parsing and proper `NextResponse.json` error handling.
+- **Files Created/Modified**:
+  - Database: `supabase/migrations/20261102000000_initial_schema.sql`
+  - Supabase: `src/lib/supabase/client.ts`, `src/lib/supabase/server.ts`
+  - Auth: `src/app/(auth)/login/page.tsx`, `src/app/(auth)/signup/page.tsx`
+  - AI: `src/lib/ai/types.ts`, `src/lib/ai/provider.ts`, `src/lib/ai/gemini-provider.ts`, `src/lib/ai/mock-provider.ts`, `src/lib/ai/index.ts`, `src/lib/ai/memory.ts`
+  - Scheduler: `src/lib/scheduler/types.ts`, `src/lib/scheduler/engine.ts`
+  - API Routes: `src/app/api/ai/chat/route.ts`, `src/app/api/schedule/generate/route.ts`
+  - State: `src/context/demo-context.tsx`
+  - Tests: `tests/scheduler/scheduler.test.ts`
+  - Docs: `PROJECT_CONTEXT.md`, `CHANGELOG.md`
+- **Tests Performed**:
+  - `npx tsx tests/scheduler/scheduler.test.ts`: 13/13 unit tests passed.
+  - `npm run build`: 14 routes compiled with 0 errors in Turbopack.
+- **Commit**: Pending (Sprint 1 commit)
+
 ---
 
 ## 9. NEXT ACTION — CONTINUE FROM HERE
 
-- **Current Sprint**: **PHASE 3 — DATABASE AND AUTHENTICATION**
-- **Current Development Status**: Phase 1 and Phase 2 are 100% complete, verified, committed, and green. The application builds cleanly and runs locally with high-fidelity demo support.
-- **Exact Next Task**:
-  Implement Phase 3 (Database and Authentication) using Supabase PostgreSQL:
-  1. Create Supabase client and server configuration in `src/lib/supabase/`:
-     - `src/lib/supabase/client.ts` (Browser client with `@supabase/ssr` or `@supabase/supabase-js`)
-     - `src/lib/supabase/server.ts` (Server Route Handler / Server Component client)
-     - `src/lib/supabase/middleware.ts` (Session refresh middleware)
-  2. Author PostgreSQL migration files in `supabase/migrations/`:
-     - Create tables for: `profiles`, `user_preferences`, `availability_rules`, `recurring_events`, `tasks`, `calendar_events`, `goals`, `goal_milestones`, `habits`, `habit_logs`, `chat_sessions`, `chat_messages`, `user_memory`, `notification_jobs`, `calendar_connections`, `push_subscriptions`.
-     - Write Row Level Security (RLS) policies guaranteeing `auth.uid() = user_id`.
-  3. Create authentication screens in:
-     - `src/app/(auth)/login/page.tsx`
-     - `src/app/(auth)/signup/page.tsx`
-     - Include "Continue as Guest / Demo Mode" toggle so evaluation without live Supabase credentials remains completely seamless.
-  4. Connect `completeOnboarding` and task mutations to Supabase with automatic fallback to local memory state when credentials are not configured.
-- **Relevant Files**:
-  - `src/lib/supabase/client.ts`
-  - `src/lib/supabase/server.ts`
-  - `supabase/migrations/20261102000000_initial_schema.sql`
-  - `src/app/(auth)/login/page.tsx`
-  - `src/app/(auth)/signup/page.tsx`
-  - `.env.example`
-- **Dependencies Required**:
-  - `@supabase/supabase-js`
-  - `@supabase/ssr`
-- **Expected Result**:
-  A fully specified, migration-ready database architecture with RLS policies, clean login/signup screens, and resilient demo-fallback persistence that maintains 100% build health.
+- **Current Sprint**: **SPRINT 2 — PRODUCTIVITY AND INTEGRATIONS**
+- **Current Development Status**: Sprint 1 is 100% complete and verified. The application has a full database migration, resilient Supabase clients, auth routes, Gemini & Mock AI engine, and deterministic scheduler.
+- **Exact Next Tasks for Sprint 2**:
+  1. **Goals and AI Roadmaps**:
+     - Create `src/lib/ai/roadmap.ts`: AI goal decomposition algorithm breaking high-level goals into multi-week milestones and daily actionable tasks.
+     - Enhance `src/app/(dashboard)/goals/page.tsx`: Connect interactive AI roadmap generator, milestone check-off, progress tracking, and 1-click schedule injection.
+  2. **Habits and Focus Sessions**:
+     - Enhance `src/app/(dashboard)/habits/page.tsx`: Full focus session logger, automaticity score calculator based on consistency (not broken streak penalties), and post-session reflection persistence.
+  3. **Calendar Management & Mock Two-Way Sync**:
+     - Create `src/lib/calendar/types.ts`: Typed interface for calendar events, sync status, and adapters.
+     - Create `src/lib/calendar/mock-adapter.ts`: High-fidelity mock adapter with simulated external Google Calendar edits, deletions, sync tokens, and conflict flags.
+     - Create `src/lib/calendar/google-adapter.ts`: Real Google Calendar API v3 architecture stub.
+     - Create Route Handler: `src/app/api/calendar/sync/route.ts` with sync simulation endpoint.
+  4. **Notifications & Voice Input**:
+     - Implement `public/manifest.json` and service worker `public/sw.js` for PWA capabilities.
+     - Create `src/hooks/use-speech-recognition.ts`: Browser Web Speech API hook with live transcript streaming, microphone toggle, and edit-before-submit modal in `assistant-input.tsx`.
+     - Create scheduled reminder processor in `src/lib/notifications/reminder-service.ts`.
+  5. **Environmental Sustainability Features**:
+     - Expand eco-routine tracking and commute logging with carbon offset calculations and daily eco badges in the UI.
+- **Dependencies Required**: None (all native Web APIs and existing dependencies).
+- **Expected Result**: Complete productivity and integrations suite working seamlessly offline and ready for final testing and deployment.

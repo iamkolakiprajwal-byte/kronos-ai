@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.3.0] - 2026-11-02
+
+### Added
+- **Sprint 1 — AI and Core Functionality (Completed & Verified)**:
+  - **Database Migration**: Comprehensive Supabase PostgreSQL schema in `supabase/migrations/20261102000000_initial_schema.sql` covering 16 tables: `profiles`, `user_preferences`, `availability_rules`, `recurring_events`, `tasks`, `calendar_events`, `goals`, `goal_milestones`, `habits`, `habit_logs`, `chat_sessions`, `chat_messages`, `user_memory`, `notification_jobs`, `calendar_connections`, `push_subscriptions` with indexes and RLS policies.
+  - **Supabase Clients**: Browser client (`src/lib/supabase/client.ts`) and server client (`src/lib/supabase/server.ts`) with graceful offline demo-mode fallbacks.
+  - **Authentication Screens**: Minimalist, notebook-styled `/login` and `/signup` pages with instant 1-click demo login buttons for Student and Professional personas.
+  - **AI Provider Abstraction**:
+    - `src/lib/ai/provider.ts`: Typed interface `AIProvider` defining `planDailySchedule`, `parseTasksFromText`, `handleGeneralQuery`.
+    - `src/lib/ai/gemini-provider.ts`: Production Google Gemini API integration utilizing structured JSON schemas (`responseSchema`).
+    - `src/lib/ai/mock-provider.ts`: Context-aware offline NLP provider matching user timetable, routines, and task lists without requiring API keys.
+    - `src/lib/ai/index.ts`: Provider factory dynamically selecting between Gemini and Mock AI.
+    - `src/lib/ai/memory.ts`: User preference memory store with Supabase sync and offline cache.
+  - **Server-Side API Routes**:
+    - `/api/ai/chat`: Zod-validated conversational planning and task extraction endpoint.
+    - `/api/schedule/generate`: Zod-validated deterministic schedule generation and conflict solver endpoint.
+  - **Deterministic Scheduling Engine**:
+    - `src/lib/scheduler/engine.ts`: Pure TypeScript constraint-satisfaction solver enforcing zero overlap with fixed commitments, sleep/wake compliance, meal buffers, energy curve matching, conflict detection, and dynamic mid-day rescheduling.
+    - Comprehensive unit test suite in `tests/scheduler/scheduler.test.ts` with 13/13 passing tests.
+  - **State Integration**: `DemoProvider` connected to invoke server-side `/api/ai/chat` and `/api/schedule/generate` endpoints.
+
 ## [0.2.0] - 2026-11-02
 
 ### Added
