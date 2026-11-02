@@ -1,17 +1,19 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { useDemo } from "@/context/demo-context";
 import {
   User,
   GraduationCap,
   Briefcase,
+  Compass,
   Clock,
   ShieldCheck,
   Leaf,
   Bell,
-  Cpu,
-  Save,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -44,7 +46,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 p-1.5 bg-[#f0ede6] rounded-xl border border-[#e6e3da]">
+        <div className="flex items-center gap-1.5 p-1.5 bg-[#f0ede6] rounded-xl border border-[#e6e3da]">
           <button
             onClick={() => setRole("student")}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
@@ -52,7 +54,7 @@ export default function ProfilePage() {
             }`}
           >
             <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
-            <span>Student Mode</span>
+            <span>Student</span>
           </button>
           <button
             onClick={() => setRole("professional")}
@@ -61,9 +63,43 @@ export default function ProfilePage() {
             }`}
           >
             <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Professional Mode</span>
+            <span>Pro</span>
+          </button>
+          <button
+            onClick={() => setRole("both")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              role === "both" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600"
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Both</span>
           </button>
         </div>
+      </div>
+
+      {/* Onboarding Wizard Action Banner */}
+      <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-900 border border-amber-200 flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4 text-amber-700" />
+          </div>
+          <div>
+            <h3 className="font-serif text-sm font-bold text-slate-900">
+              Interactive Setup & Timetable Wizard
+            </h3>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Re-run the guided onboarding flow to reconfigure your biological routine, semester classes, recurring meetings, or target goals.
+            </p>
+          </div>
+        </div>
+
+        <Link
+          href="/onboarding"
+          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 shrink-0 transition-colors"
+        >
+          <span>Launch Onboarding</span>
+          <ArrowRight className="w-3.5 h-3.5 text-amber-300" />
+        </Link>
       </div>
 
       {/* Routine & Biological Energy Parameters */}

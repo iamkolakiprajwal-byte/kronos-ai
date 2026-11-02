@@ -110,6 +110,60 @@ export interface DailySummary {
   energyForecast: "High" | "Moderate" | "Exhaustion Alert";
 }
 
+export interface TimetableEntry {
+  id: string;
+  dayOfWeek: "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
+  subject: string;
+  startTime: string;
+  endTime: string;
+  locationOrLink?: string;
+  isLabOrSeminar?: boolean;
+}
+
+export interface RecurringMeetingEntry {
+  id: string;
+  dayOfWeek: "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
+  title: string;
+  startTime: string;
+  endTime: string;
+  priority: "high" | "medium" | "low";
+}
+
+export interface OnboardingFormData {
+  userType: UserRole;
+  name: string;
+  email: string;
+  headline: string;
+  institutionOrCompany: string;
+  wakeTime: string;
+  sleepTime: string;
+  availableDays: string[];
+  // Academic
+  course: string;
+  semester: string;
+  subjects: string[];
+  timetable: TimetableEntry[];
+  // Professional
+  jobRole: string;
+  company: string;
+  workStartTime: string;
+  workEndTime: string;
+  recurringMeetings: RecurringMeetingEntry[];
+  // Goals & Habits
+  shortTermGoal: string;
+  longTermGoal: string;
+  existingHabits: string[];
+  desiredHabits: string[];
+  // Preferences
+  preferredFocusDuration: number;
+  preferredBreakDuration: number;
+  mostProductivePeriod: "morning" | "afternoon" | "evening" | "night";
+  planningStyle: "structured" | "flexible" | "time-blocked";
+  // Sustainability
+  sustainabilityOptIn: boolean;
+  ecoActivities: string[];
+}
+
 export interface ChatMessage {
   id: string;
   sender: "user" | "assistant";

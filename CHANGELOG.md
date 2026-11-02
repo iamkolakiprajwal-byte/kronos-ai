@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.0] - 2026-11-02
+
+### Added
+- **Phase 2 Implementation (Completed & Verified)**:
+  - Guided, interactive multi-step Onboarding flow (`/onboarding`) with progress indicator bar, back/continue controls, and step breadcrumbs.
+  - Full support for all 3 target user types: **Student**, **Working Professional**, and **Both (Dual Track)** with dynamic step routing.
+  - Interactive Timetable Editor for students to manage lecture/lab slots with day of week, times, and venue links.
+  - Recurring Meetings & Standups Editor for professionals to protect core working hours and meeting buffers.
+  - Daily biological rhythm setup (wake time, sleep boundary, and peak focus periods: Morning, Afternoon, Evening, Night).
+  - Multi-horizon goal definition (short-term outcomes and strategic capabilities) and habit anchor configuration.
+  - Focus session customization (25m Pomodoro, 50m standard, 90m ultradian) and break duration preferences.
+  - Optional environmental sustainability routines (active cycling/walking commute, paperless notes, power mindfulness).
+  - Summary review screen with jump-to-edit shortcuts.
+  - Deterministic initial schedule preview and approval pipeline activating the user's customized planner.
+  - Single-click evaluation presets for **Student (Aria Chen)**, **Professional (Marcus Reed)**, and **Both (Elena Rostova)**.
+  - Re-run onboarding buttons on the Profile page and in the persistent sidebar.
+
 ## [0.1.0] - 2026-11-02
 
 ### Added

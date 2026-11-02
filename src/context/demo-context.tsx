@@ -10,19 +10,26 @@ import {
   NotificationItem,
   ChatMessage,
   UserRole,
+  OnboardingFormData,
 } from "@/types";
 import {
   studentProfile,
   professionalProfile,
+  dualProfile,
   initialStudentTasks,
   initialProfessionalTasks,
+  initialDualTasks,
   studentCalendarEvents,
   professionalCalendarEvents,
+  dualCalendarEvents,
   studentGoals,
   professionalGoals,
+  dualGoals,
   studentHabits,
   professionalHabits,
+  dualHabits,
   sampleNotifications,
+  studentOnboardingPreset,
 } from "@/lib/mock/demo-data";
 
 interface DemoContextType {
@@ -45,6 +52,9 @@ interface DemoContextType {
   sendChatMessage: (content: string) => void;
   isAiThinking: boolean;
   applySuggestedTasks: (suggested: Partial<Task>[]) => void;
+  onboardingDraft: OnboardingFormData;
+  setOnboardingDraft: React.Dispatch<React.SetStateAction<OnboardingFormData>>;
+  completeOnboarding: (data: OnboardingFormData) => void;
 }
 
 const DemoContext = createContext<DemoContextType | undefined>(undefined);
@@ -74,6 +84,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([initialWelcomeMessage]);
 
+  const [onboardingDraft, setOnboardingDraft] = useState<OnboardingFormData>(studentOnboardingPreset);
+
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);
     if (newRole === "student") {
@@ -90,7 +102,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           timestamp: "Just now",
         },
       ]);
-    } else {
+    } else if (newRole === "professional") {
       setProfile(professionalProfile);
       setTasks(initialProfessionalTasks);
       setCalendarEvents(professionalCalendarEvents);
@@ -104,7 +116,233 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           timestamp: "Just now",
         },
       ]);
+    } else {
+      setProfile(dualProfile);
+      setTasks(initialDualTasks);
+      setCalendarEvents(dualCalendarEvents);
+      setGoals(dualGoals);
+      setHabits(dualHabits);
+      setChatMessages([
+        {
+          id: "msg-welcome-dual",
+          sender: "assistant",
+          text: "Good morning, Elena! Both your Synthetix engineering blocks and UC Berkeley coursework are aligned. Ready to plan your day?",
+          timestamp: "Just now",
+        },
+      ]);
     }
+  };
+
+  const completeOnboarding = (data: OnboardingFormData) => {
+    setRoleState(data.userType);
+
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    const customizedProfile: UserProfile = {
+      id: `user-${Date.now()}`,
+      name: data.name || "Explorer",
+      email: data.email || "user@example.com",
+      avatar:
+        data.userType === "student"
+          ? studentProfile.avatar
+          : data.userType === "professional"
+          ? professionalProfile.avatar
+          : dualProfile.avatar,
+      role: data.userType,
+      headline:
+        data.headline ||
+        (data.userType === "student"
+          ? `${data.course || "Student"} at ${data.institutionOrCompany || "University"}`
+          : data.userType === "professional"
+          ? `${data.jobRole || "Professional"} at ${data.company || "Company"}`
+          : `${data.jobRole || "Professional"} & Graduate Student`),
+      institutionOrCompany:
+        data.institutionOrCompany ||
+        (data.userType === "professional" ? data.company : "Academic / Enterprise"),
+      wakeTime: data.wakeTime || "07:00",
+      sleepTime: data.sleepTime || "23:00",
+      mostProductivePeriod: data.mostProductivePeriod || "morning",
+      preferredFocusDuration: data.preferredFocusDuration || 45,
+      preferredBreakDuration: data.preferredBreakDuration || 10,
+      planningStyle: data.planningStyle || "time-blocked",
+      sustainabilityOptIn: data.sustainabilityOptIn,
+    };
+
+    setProfile(customizedProfile);
+
+    // Build calendar events from timetable and recurring meetings
+    const generatedEvents: CalendarEvent[] = [];
+
+    data.timetable.forEach((tt, idx) => {
+      generatedEvents.push({
+        id: `cal-tt-${idx}`,
+        title: tt.subject,
+        date: todayStr,
+        startTime: tt.startTime,
+        endTime: tt.endTime,
+        category: "academic",
+        isFixed: true,
+        location: tt.locationOrLink,
+        color: "#6366f1",
+      });
+    });
+
+    data.recurringMeetings.forEach((rm, idx) => {
+      generatedEvents.push({
+        id: `cal-rm-${idx}`,
+        title: rm.title,
+        date: todayStr,
+        startTime: rm.startTime,
+        endTime: rm.endTime,
+        category: "meeting",
+        isFixed: true,
+        location: "Virtual Room",
+        color: "#0ea5e9",
+      });
+    });
+
+    if (generatedEvents.length > 0) {
+      setCalendarEvents(generatedEvents);
+    }
+
+    // Build initial tasks
+    const generatedTasks: Task[] = [];
+    if (data.shortTermGoal) {
+      generatedTasks.push({
+        id: `task-onb-1`,
+        title: `Deep Work: ${data.shortTermGoal.slice(0, 42)}`,
+        description: "Milestone focus block created during onboarding setup.",
+        category: data.userType === "student" ? "study" : "work",
+        priority: "high",
+        status: "todo",
+        estimatedDuration: data.preferredFocusDuration,
+        startTime: "14:00",
+        endTime: "15:00",
+        scheduledDate: todayStr,
+        isFixed: false,
+        tag: "Core Focus",
+        energyLevel: "high",
+      });
+    }
+
+    data.timetable.slice(0, 2).forEach((tt, i) => {
+      generatedTasks.push({
+        id: `task-onb-class-${i}`,
+        title: `Attend: ${tt.subject}`,
+        description: `Scheduled commitment in ${tt.locationOrLink || "Room"}.`,
+        category: "study",
+        priority: "high",
+        status: "todo",
+        estimatedDuration: 75,
+        startTime: tt.startTime,
+        endTime: tt.endTime,
+        scheduledDate: todayStr,
+        isFixed: true,
+        tag: "Timetable",
+        energyLevel: "high",
+      });
+    });
+
+    data.recurringMeetings.slice(0, 2).forEach((rm, i) => {
+      generatedTasks.push({
+        id: `task-onb-rm-${i}`,
+        title: rm.title,
+        description: "Recurring sync commitment.",
+        category: "work",
+        priority: rm.priority === "high" ? "high" : "medium",
+        status: "todo",
+        estimatedDuration: 45,
+        startTime: rm.startTime,
+        endTime: rm.endTime,
+        scheduledDate: todayStr,
+        isFixed: true,
+        tag: "Meeting",
+        energyLevel: "medium",
+      });
+    });
+
+    if (generatedTasks.length > 0) {
+      setTasks(generatedTasks);
+    }
+
+    // Build goals
+    const newGoals: Goal[] = [];
+    if (data.shortTermGoal) {
+      newGoals.push({
+        id: `goal-custom-1`,
+        title: data.shortTermGoal,
+        description: "Active priority goal initialized in onboarding.",
+        targetDate: "2026-12-15",
+        priority: "urgent",
+        progress: 15,
+        category: data.userType === "student" ? "academic" : "career",
+        milestones: [
+          { id: "m-c1", title: "Establish weekly baseline & setup", dueDate: "2026-11-10", completed: true },
+          { id: "m-c2", title: "Complete primary deliverable sprint", dueDate: "2026-11-28", completed: false },
+        ],
+      });
+    }
+    if (data.longTermGoal) {
+      newGoals.push({
+        id: `goal-custom-2`,
+        title: data.longTermGoal,
+        description: "Strategic horizon goal initialized in onboarding.",
+        targetDate: "2027-02-28",
+        priority: "high",
+        progress: 10,
+        category: "skills",
+        milestones: [
+          { id: "m-c3", title: "Foundational phase & research", dueDate: "2026-12-05", completed: false },
+          { id: "m-c4", title: "Review & prototype demonstration", dueDate: "2027-01-20", completed: false },
+        ],
+      });
+    }
+    if (newGoals.length > 0) {
+      setGoals(newGoals);
+    }
+
+    // Build habits
+    const newHabits: Habit[] = [];
+    data.desiredHabits.forEach((dh, idx) => {
+      newHabits.push({
+        id: `habit-onb-${idx}`,
+        title: dh,
+        frequency: "daily",
+        cue: `Anchored to morning routine (${data.wakeTime})`,
+        targetDurationMinutes: 25,
+        currentStreak: 1,
+        bestStreak: 1,
+        completedToday: false,
+        automaticityScore: 40,
+        category: "focus",
+      });
+    });
+    if (newHabits.length > 0) {
+      setHabits(newHabits);
+    }
+
+    // Welcome message in assistant
+    setChatMessages([
+      {
+        id: `msg-welcome-onboarded`,
+        sender: "assistant",
+        text: `Welcome aboard, ${data.name}! I have configured your personalized planning surface with your ${data.wakeTime} wake-up target, ${data.preferredFocusDuration}-minute focus sessions, and active commitments. Tell me whenever your plans shift or what you'd like to achieve today!`,
+        timestamp: "Just now",
+      },
+    ]);
+
+    // Notification
+    setNotifications((prev) => [
+      {
+        id: `notif-onb-${Date.now()}`,
+        title: "Personalized Schedule Activated",
+        message: `Welcome, ${data.name}! Your routines, timetable, and focus preferences have been successfully loaded.`,
+        timestamp: "Just now",
+        type: "system",
+        read: false,
+      },
+      ...prev,
+    ]);
   };
 
   const toggleTaskStatus = (id: string) => {
@@ -305,6 +543,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         sendChatMessage,
         isAiThinking,
         applySuggestedTasks,
+        onboardingDraft,
+        setOnboardingDraft,
+        completeOnboarding,
       }}
     >
       {children}

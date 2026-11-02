@@ -126,8 +126,8 @@
 | Phase | Description | Status | Target Deliverable |
 |-------|-------------|--------|---------------------|
 | **1** | Project Foundation & UI Design | **Completed** | Polished App Shell, Notebook Home Screen, Calendar, Agenda, AI Chat Box, Mock Data |
-| **2** | Onboarding & User Profile | **Next Up** | Multi-step interactive onboarding for Student / Professional |
-| **3** | Database & Authentication | Not Started | Supabase schema migrations, RLS policies, Auth routes |
+| **2** | Onboarding & User Profile | **Completed** | Multi-step interactive onboarding for Student / Professional / Both |
+| **3** | Database & Authentication | **Next Up** | Supabase schema migrations, RLS policies, Auth routes |
 | **4** | AI Assistant & Conversation | Not Started | Gemini integration, structured intent parsing, conversational UI |
 | **5** | Deterministic Scheduling Engine | Not Started | Constraint satisfaction engine, conflict detector, dynamic rescheduling |
 | **6** | Goals & Habit Management | Not Started | Milestone generator, flow focus sessions, habit reflection tracker |
@@ -141,29 +141,31 @@
 
 ## D. Development Progress Log
 
-### 2026-11-02 — Phase 1 Completion & System Verification
+### 2026-11-02 — Phase 2 Completion: Interactive Onboarding & User Profile
 - **Actions Completed**:
-  - Initialized Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4 in `/Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager`.
-  - Installed `lucide-react`, `clsx`, `tailwind-merge`, and `date-fns`.
-  - Created central architectural documentation (`PROJECT_CONTEXT.md`, `PROJECT_SPEC.md`, `CHANGELOG.md`, `README.md`, `.env.example`).
-  - Implemented domain TypeScript schemas (`src/types/index.ts`) for Users, Tasks, Calendar Events, Goals, Habits, Notifications, and Chat.
-  - Implemented comprehensive mock demo datasets (`src/lib/mock/demo-data.ts`) with realistic Student ("Aria Chen") and Professional ("Marcus Reed") profiles.
-  - Built interactive Demo Context provider (`src/context/demo-context.tsx`) with instant persona switching, task status toggling, habit tracking, and context-aware simulated AI responses.
-  - Designed notebook-inspired application shell:
-    - Persistent sidebar (`src/components/layout/sidebar.tsx`) with instant persona switcher and clear navigation.
-    - Top header (`src/components/layout/header.tsx`) with time-based greetings, notification drawer with unread count, and "+ New Task" trigger.
-    - Prominent monthly calendar (`src/components/calendar/month-calendar.tsx`) with month/year navigation, today highlight, and category activity dots.
-    - Today's daily agenda (`src/components/dashboard/daily-agenda.tsx`) with progress tracking, focus duration calculations, lock badges for fixed commitments, and task completion.
-    - Quick task modal (`src/components/dashboard/quick-task-modal.tsx`) supporting priority, estimated duration, category, and fixed commitment flags.
-    - AI Assistant dock (`src/components/ai-chat/assistant-input.tsx`) featuring natural language planning, prompt suggestions, and one-click "Apply Proposed Schedule" action.
-    - Assembled cohesive Home screen (`src/app/(dashboard)/home/page.tsx`) and fully-styled destination pages (`/plan`, `/goals`, `/habits`, `/profile`).
-- **Bugs Encountered & Resolved**:
-  - *Next.js 16 Prerender Unstable Date Error*: Turbopack flagged `new Date()` within client component state initialization during static prerender of `/_not-found`. Fixed by decoupling module-level timestamps with a deterministic reference date (`2026-11-02`) and synchronizing client timestamps inside `useEffect` post-mount.
+  - Implemented multi-step Onboarding flow ([src/app/onboarding/page.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/app/onboarding/page.tsx)) with dynamic step indicators and progress percentage tracking.
+  - Fully implemented all 13 required onboarding stages:
+    1. Welcome & Introduction ([step-welcome.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-welcome.tsx))
+    2. Role Selection (Student, Working Professional, Both) ([step-user-type.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-user-type.tsx))
+    3. Personal Information with field validation ([step-personal-info.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-personal-info.tsx))
+    4. Daily Routine & Biological Rhythm: Wake/Sleep targets, peak focus window, active planning days ([step-daily-routine.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-daily-routine.tsx))
+    5. Academic Information & Interactive Timetable Editor for lecture/lab slots ([step-academic-info.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-academic-info.tsx))
+    6. Professional Information & Recurring Meetings Editor ([step-professional-info.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-professional-info.tsx))
+    7. Short-Term & Long-Term Goals ([step-goals.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-goals.tsx))
+    8. Existing Habits (anchors) & Desired Habits ([step-habits.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-habits.tsx))
+    9. Productivity Preferences: Focus block length (25m–90m), break length, and planning style ([step-productivity-preferences.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-productivity-preferences.tsx))
+    10. Environmental Sustainability opt-in and eco-habits ([step-sustainability.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-sustainability.tsx))
+    11. Comprehensive Review Summary with jump-to-edit capabilities ([step-review-summary.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-review-summary.tsx))
+    12. Simulated Initial Schedule Preview & Approval ([step-schedule-preview.tsx](file:///Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager/src/components/onboarding/step-schedule-preview.tsx))
+  - Created single-click Demo Presets for **Student (Aria Chen)**, **Professional (Marcus Reed)**, and **Both (Elena Rostova)** for effortless evaluator testing.
+  - Connected `completeOnboarding` in `DemoProvider` to persist user profile, generate timetable events, schedule goal focus blocks, initialize habits, and set customized AI assistant greetings.
+  - Added "Launch Onboarding" shortcuts on the Profile page and in the persistent sidebar.
 - **Tests Performed**:
-  - `npm run build`: Production build completed successfully across all 7 routes with 0 errors.
-  - `npm run dev`: Dev server running at `http://localhost:3001`.
-  - HTTP curl verifications on `/home`, `/plan`, `/goals`, `/habits`, and `/profile`: All responded with HTTP 200 and complete rendered HTML.
-- **Current Application Status**: Stable, verified Phase 1 frontend prototype ready for Phase 2 onboarding integration.
+  - `npm run build`: Production build completed successfully across all 10 routes with 0 errors.
+  - HTTP curl verification on `/onboarding`: Confirmed HTTP 200 with complete rendered HTML.
+  - Navigation between all steps tested, verifying persistence of draft state.
+  - Dynamic step flow tested for all 3 user types: Student (11 steps), Professional (11 steps), Both (12 steps with dual academic + work sections).
+- **Current Status**: Phase 2 fully complete and verified.
 
 ---
 
@@ -179,25 +181,24 @@
    High-stress individuals (students facing exams, busy professionals) suffer from cognitive overload when presented with dense analytic dashboards. A notebook aesthetic (subtle borders, serene typography, clear hierarchy) reduces scheduling anxiety.
 5. **Why Stable Reference Date for Prerender**:
    Next.js 16 Partial Prerendering strictly forbids non-deterministic calls like `new Date()` in client components during SSR build. Using a reference date with client `useEffect` rehydration guarantees build reproducibility and hydration safety.
+6. **Why Dynamic Step Adaptation for the "Both" User Type**:
+   Rather than forcing rigid separate questionnaires, the onboarding engine dynamically conditionally branches to include both Academic Coursework/Timetables and Professional Working Hours/Standups when `userType === "both"`.
 
 ---
 
 ## F. Known Issues & Limitations
-- Real Google Calendar OAuth and Supabase credentials will be integrated in subsequent phases (Phases 3 and 7); Phase 1 leverages the active `MockCalendarAdapter` sandbox.
+- Real Supabase database migrations and authentication routes will be established in Phase 3; Phase 2 maintains state in client memory/context.
 
 ---
 
 ## G. Next Action — Continue From Here
 
-- **Target Phase**: **PHASE 2 — ONBOARDING & USER PROFILE**
+- **Target Phase**: **PHASE 3 — DATABASE AND AUTHENTICATION**
 - **Specific Tasks**:
-  1. Build multi-step Onboarding wizard (`src/app/onboarding/page.tsx`):
-     - Screen 1: Welcome & Value Proposition.
-     - Screen 2: User Role Selection (Student, Professional, Both).
-     - Screen 3: Biological Routine & Availability (Wake/sleep times, peak focus hours, focus & break intervals).
-     - Screen 4: Academic or Professional Commitments (Timetable, recurring standups, coursework/deliverables).
-     - Screen 5: Core Goals & Desired Habits.
-     - Screen 6: Sustainability Routine Preferences (Eco-commute, digital notes).
-     - Screen 7: AI Analysis & Initial Schedule Preview (Allowing user approval).
-  2. Implement state transition from Onboarding directly into `/home` with user's customized schedule.
-  3. Verify with build and browser testing.
+  1. Set up Supabase client architecture in `src/lib/supabase/` (`client.ts`, `server.ts`, `middleware.ts`).
+  2. Write PostgreSQL migration scripts in `supabase/migrations/` covering:
+     - `profiles`, `user_preferences`, `availability_rules`, `recurring_events`, `tasks`, `calendar_events`, `goals`, `goal_milestones`, `habits`, `habit_logs`, `chat_sessions`, `chat_messages`, `user_memory`, `notification_jobs`, `calendar_connections`, `push_subscriptions`.
+  3. Implement Row Level Security (RLS) policies for user data isolation.
+  4. Build authentication UI screens in `src/app/(auth)/login/` and `src/app/(auth)/signup/`.
+  5. Connect user profile and onboarding data persistence to Supabase with demo-fallback support.
+  6. Run migration verification and test build.

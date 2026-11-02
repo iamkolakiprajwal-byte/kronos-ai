@@ -55,35 +55,47 @@ export function Sidebar() {
       </div>
 
       {/* Role / Persona Switcher for Assignment Review */}
-      <div className="px-5 py-3.5 bg-amber-50/70 border-b border-amber-200/60">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-900/80 mb-2 flex items-center justify-between">
+      <div className="px-5 py-3 bg-amber-50/70 border-b border-amber-200/60">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-900/80 mb-1.5 flex items-center justify-between">
           <span>Active Persona</span>
-          <span className="text-[10px] text-amber-700 font-normal">Switch anytime</span>
+          <span className="text-[10px] text-amber-700 font-normal">3 Tracks</span>
         </div>
-        <div className="grid grid-cols-2 gap-1.5 p-1 bg-amber-100/60 rounded-lg border border-amber-200/60">
+        <div className="grid grid-cols-3 gap-1 p-1 bg-amber-100/60 rounded-lg border border-amber-200/60">
           <button
             onClick={() => setRole("student")}
             className={cn(
-              "flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-all",
+              "flex flex-col items-center justify-center py-1 px-1 rounded-md text-[10px] font-medium transition-all",
               role === "student"
                 ? "bg-white text-slate-900 shadow-xs font-semibold"
                 : "text-amber-900/70 hover:text-slate-900"
             )}
           >
-            <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
+            <GraduationCap className="w-3.5 h-3.5 text-blue-600 mb-0.5" />
             <span>Student</span>
           </button>
           <button
             onClick={() => setRole("professional")}
             className={cn(
-              "flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-all",
+              "flex flex-col items-center justify-center py-1 px-1 rounded-md text-[10px] font-medium transition-all",
               role === "professional"
                 ? "bg-white text-slate-900 shadow-xs font-semibold"
                 : "text-amber-900/70 hover:text-slate-900"
             )}
           >
-            <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
+            <Briefcase className="w-3.5 h-3.5 text-indigo-600 mb-0.5" />
             <span>Pro</span>
+          </button>
+          <button
+            onClick={() => setRole("both")}
+            className={cn(
+              "flex flex-col items-center justify-center py-1 px-1 rounded-md text-[10px] font-medium transition-all",
+              role === "both"
+                ? "bg-white text-slate-900 shadow-xs font-semibold"
+                : "text-amber-900/70 hover:text-slate-900"
+            )}
+          >
+            <Compass className="w-3.5 h-3.5 text-emerald-600 mb-0.5" />
+            <span>Both</span>
           </button>
         </div>
       </div>
@@ -117,6 +129,16 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        <div className="pt-3 mt-3 border-t border-[#e6e3da]">
+          <Link
+            href="/onboarding"
+            className="flex items-center gap-2.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-amber-900 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>Launch Onboarding Flow</span>
+          </Link>
+        </div>
       </nav>
 
       {/* User Footer Profile */}
