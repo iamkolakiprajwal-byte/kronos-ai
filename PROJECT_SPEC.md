@@ -73,10 +73,59 @@ The **AI Time Manager** is an intelligent personal planning assistant engineered
 - **Stage 12 (Schedule Preview & Approval)**: Initial deterministic schedule simulation displaying fixed commitments, study/deep work blocks, lunch buffers, and sleep boundaries, with approval directly activating the planner.
 - **Quick Evaluation Presets**: Single-click auto-fill buttons for Student (Aria Chen), Professional (Marcus Reed), and Both (Elena Rostova).
 
+### 3.8 Browser Voice Input & Web Speech API Dictation
+- Native browser speech-to-text integration via `useSpeechRecognition` hook.
+- Dedicated microphone trigger in the conversational AI assistant dock.
+- Real-time transcript streaming with microphone recording pulse animation.
+- Edit-before-submit modal: users review, correct, or select preset test utterances before triggering schedule calculation.
+- Offline and unsupported browser fallback with sample test utterances.
+
+### 3.9 Notifications & Progressive Web App (PWA)
+- Web App Manifest (`manifest.json`) configuring standalone display, icons, and theme color.
+- Service Worker (`sw.js`) supporting static asset caching, push event listeners, and window focusing on notification clicks.
+- Scheduled Reminder Service (`reminder-service.ts`) scanning for upcoming lectures/meetings (15m reminder) and high-priority study blocks.
+
+### 3.10 Database & Multi-Tenant Authentication Architecture
+- Supabase PostgreSQL schema with 16 relational tables and foreign keys.
+- Row Level Security (RLS) policies enforcing multi-tenant isolation (`auth.uid() = user_id`) on all tables.
+- Notebook-styled `/login` and `/signup` views with 1-click persona demo logins.
+- Fail-safe browser and server Supabase clients with memory fallback when credentials are not supplied.
+
+### 3.11 Sustainability & Carbon Offset Modeling
+- Behavioral carbon savings model (`eco-calculator.ts`):
+  - Active cycling commute: 25g CO₂ saved per minute (~750g per 30m trip).
+  - Walking commute: 20g CO₂ saved per minute (~400g per 20m trip).
+  - Paperless digital notes / study: 15g CO₂ saved per hour.
+  - Screen power-down hour: 30g CO₂ saved per hour.
+  - Plant-based fuel meal: 1200g CO₂ saved per meal.
+- Real-time metrics: Total CO₂ saved in kg, tree absorption equivalence (1 tree = 2000g CO₂ benchmark), and Eco Score (0-100).
+- Interactive 1-click logging directly on the Profile page.
+
 ---
 
 ## 4. Non-Functional Requirements
 - **Performance**: Sub-100ms client interactions, zero unnecessary re-renders.
-- **Aesthetics**: Calm, notebook-inspired visual design, readable serif/sans typography, high contrast, uncluttered layouts.
+- **Aesthetics**: Calm, notebook-inspired visual design (`#faf9f6` paper background, `#e6e3da` warm slate borders, serif headings, ruled accents).
 - **Security**: Server-side credential isolation, Supabase Row Level Security, no client-side API secret leakage.
 - **Reliability**: Deterministic fallbacks for AI and calendar adapters ensuring 100% offline-resilient demo operation.
+
+### 4.2 Responsive Redesign Requirements
+- **Target Breakpoints**:
+  - Mobile Small: 375px (iPhone SE / standard compact smartphone)
+  - Mobile Large: 428px (iPhone Pro Max / modern flagships)
+  - Tablet: 768px (iPad Mini / Portrait tablets)
+  - Tablet Landscape / Small Laptop: 1024px
+  - Desktop: 1280px+ (MacBook, widescreen desktop monitors)
+- **Navigation Adaptation**:
+  - Desktop: Persistent left sidebar (240px) with persona switcher and navigation links.
+  - Mobile & Tablet: Slide-out hamburger navigation drawer or bottom navigation bar with easy thumb reach; sidebar collapses cleanly.
+- **Calendar Adaptation**:
+  - Desktop: Full 7-column month grid with multiple indicator dots and day details.
+  - Mobile: Compact weekly swipe view or adaptive 7-column month grid with reduced font sizes and micro dots to prevent horizontal scrolling or squished boxes.
+- **Daily Agenda & Schedule Adaptation**:
+  - Timeline cards must stack vertically without content clipping on small screens (minimum 375px width).
+  - Fixed lock badges, priority chips, and action buttons must wrap gracefully.
+- **Conversational AI Assistant Dock**:
+  - Desktop: Prominent docked card at the bottom of the home screen.
+  - Mobile: Accessible compact bar with expandable sheet / drawer so it does not permanently occlude agenda items on smaller viewports.
+- **Touch Ergonomics**: Minimum 44x44px touch targets for buttons, toggles, and modal dismiss actions.
