@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useDemo } from "@/context/demo-context";
 import {
   Sparkles,
@@ -19,6 +20,8 @@ import {
   MessageSquare,
   ShieldAlert,
   Zap,
+  TrendingUp,
+  ArrowRight,
 } from "lucide-react";
 import { FocusSessionLog } from "@/types";
 
@@ -97,6 +100,22 @@ export default function HabitsPage() {
 
   return (
     <div className="space-y-4 sm:space-y-8 animate-in fade-in-50 duration-200">
+      {/* Growth Workspace Upgrade Banner */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950">
+        <div className="flex items-center gap-2.5">
+          <TrendingUp className="w-4 h-4 text-amber-700 shrink-0" />
+          <span>
+            Habits and Flow have been integrated into the comprehensive <strong>Growth</strong> workspace with the Habit Discontinuity Hypothesis, 2-minute activations, and cross-domain insights.
+          </span>
+        </div>
+        <Link
+          href="/growth"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 transition-colors shrink-0 shadow-2xs"
+        >
+          <span>Open Growth Workspace</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
       {/* Header */}
       <div className="pb-3 sm:pb-4 border-b border-[#e6e3da] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>

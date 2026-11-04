@@ -88,10 +88,24 @@ export interface Goal {
 
 export interface FocusSessionLog {
   id: string;
+  taskTitle?: string;
   habitId?: string;
   durationMinutes: number;
   completedAt: string;
+  // Flow Theory Pre-Session Check-in
+  perceivedChallenge?: number; // 1 (Too easy) to 5 (Overwhelming)
+  perceivedSkill?: number; // 1 (Novice) to 5 (Mastery)
+  sessionGoal?: string;
+  completionCriteria?: string;
+  // During Session
+  interruptionsCount?: number;
+  // Post-Session Flow Dimensions (1-5)
   flowState: "flow" | "balanced" | "boredom" | "anxiety";
+  absorptionRating?: number; // 1 to 5
+  concentrationRating?: number; // 1 to 5
+  perceivedControl?: number; // 1 to 5
+  enjoymentRating?: number; // 1 to 5
+  timeDistortion?: "faster" | "normal" | "slower";
   reflectionNotes?: string;
 }
 
@@ -117,12 +131,33 @@ export interface Habit {
   title: string;
   frequency: "daily" | "weekdays" | "3x_week" | "weekly";
   cue: string; // e.g. "After morning pour-over coffee"
+  context?: string; // e.g. "At study desk before opening email"
+  minimumVersion?: string; // 2-minute rule version e.g. "Read 1 page"
+  targetGoal?: string; // e.g. "Build steady academic reading rhythm"
   targetDurationMinutes?: number;
   currentStreak: number;
   bestStreak: number;
   completedToday: boolean;
   automaticityScore: number; // 0-100 based on consistency & subjective ease
   category: "focus" | "health" | "learning" | "mindfulness" | "eco";
+  recentHistory?: boolean[]; // last 7 days completion
+}
+
+export interface HabitResetTransition {
+  id: string;
+  title: string; // e.g. "Transition to Fall 2026 Semester", "New Senior Role"
+  category: "semester" | "career" | "relocation" | "schedule" | "health";
+  startDate: string;
+  status: "active" | "completed" | "planning";
+  disruptedRoutines: string[];
+  obsoleteCues: string[];
+  targetHabits: Array<{
+    habitName: string;
+    newAnchorCue: string;
+    minimumVersion: string;
+    status: "established" | "in_progress" | "adapting";
+  }>;
+  aiObservations?: string;
 }
 
 export interface NotificationItem {

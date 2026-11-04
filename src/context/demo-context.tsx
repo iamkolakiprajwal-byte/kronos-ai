@@ -8,6 +8,7 @@ import {
   Goal,
   Milestone,
   Habit,
+  HabitResetTransition,
   NotificationItem,
   ChatMessage,
   UserRole,
@@ -34,6 +35,9 @@ import {
   studentHabits,
   professionalHabits,
   dualHabits,
+  studentHabitTransitions,
+  professionalHabitTransitions,
+  dualHabitTransitions,
   sampleNotifications,
   studentOnboardingPreset,
 } from "@/lib/mock/demo-data";
@@ -52,7 +56,9 @@ interface DemoContextType {
   toggleTaskStatus: (id: string) => void;
   addTask: (task: Omit<Task, "id">) => void;
   deleteTask: (id: string) => void;
+  updateTaskSchedule: (placements: { id: string; startTime: string; endTime: string }[]) => void;
   toggleHabit: (id: string) => void;
+  addHabit: (habit: Omit<Habit, "id" | "currentStreak" | "bestStreak" | "completedToday" | "automaticityScore">) => void;
   markNotificationRead: (id: string) => void;
   chatMessages: ChatMessage[];
   sendChatMessage: (content: string) => void;
@@ -75,7 +81,12 @@ interface DemoContextType {
     flowState: FocusSessionLog["flowState"],
     reflectionNotes?: string
   ) => void;
+  logDetailedFocusSession: (session: Omit<FocusSessionLog, "id" | "completedAt">) => void;
   updateHabitAutomaticity: (habitId: string, delta: number) => void;
+
+  // Growth Workspace: Habit Discontinuity (Habit Reset)
+  habitTransitions: HabitResetTransition[];
+  addHabitTransition: (transition: Omit<HabitResetTransition, "id">) => void;
 
   syncStatus: CalendarSyncStatus;
   lastSyncTime: string | null;
@@ -140,6 +151,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncTime, setLastSyncTime] = useState<string | null>("Just now");
   const [syncConflicts, setSyncConflicts] = useState<SyncConflict[]>([]);
   const [ecoEntries, setEcoEntries] = useState<EcoLogEntry[]>(sampleEcoEntries);
+  const [habitTransitions, setHabitTransitions] = useState<HabitResetTransition[]>(studentHabitTransitions);
 
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);
@@ -149,6 +161,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       setCalendarEvents(studentCalendarEvents);
       setGoals(studentGoals);
       setHabits(studentHabits);
+      setHabitTransitions(studentHabitTransitions);
       setChatMessages([
         {
           id: "msg-welcome-student",
@@ -163,6 +176,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       setCalendarEvents(professionalCalendarEvents);
       setGoals(professionalGoals);
       setHabits(professionalHabits);
+      setHabitTransitions(professionalHabitTransitions);
       setChatMessages([
         {
           id: "msg-welcome-pro",
@@ -177,6 +191,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       setCalendarEvents(dualCalendarEvents);
       setGoals(dualGoals);
       setHabits(dualHabits);
+      setHabitTransitions(dualHabitTransitions);
       setChatMessages([
         {
           id: "msg-welcome-dual",
@@ -422,6 +437,19 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   const deleteTask = (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const updateTaskSchedule = (placements: { id: string; startTime: string; endTime: string }[]) => {
+    const map = new Map(placements.map((p) => [p.id, p]));
+    setTasks((prev) =>
+      prev.map((t) => {
+        const match = map.get(t.id);
+        if (match) {
+          return { ...t, startTime: match.startTime, endTime: match.endTime };
+        }
+        return t;
+      })
+    );
   };
 
   const toggleHabit = (id: string) => {
@@ -757,26 +785,33 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     flowState: FocusSessionLog["flowState"],
     reflectionNotes?: string
   ) => {
-    const newSession: FocusSessionLog = {
-      id: `flog-${Date.now()}`,
+    logDetailedFocusSession({
       habitId: habitId || undefined,
       durationMinutes,
-      completedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       flowState,
       reflectionNotes,
+    });
+  };
+
+  const logDetailedFocusSession = (session: Omit<FocusSessionLog, "id" | "completedAt">) => {
+    const newSession: FocusSessionLog = {
+      ...session,
+      id: `flog-${Date.now()}`,
+      completedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
     setFocusSessions((prev) => [newSession, ...prev]);
 
-    if (habitId) {
+    if (session.habitId) {
       setHabits((prev) =>
         prev.map((h) => {
-          if (h.id === habitId) {
+          if (h.id === session.habitId) {
             return {
               ...h,
               currentStreak: h.currentStreak + 1,
               automaticityScore: Math.min(100, h.automaticityScore + 5),
               completedToday: true,
+              recentHistory: [true, ...(h.recentHistory?.slice(0, 6) || [])],
             };
           }
           return h;
@@ -787,14 +822,35 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setNotifications((prev) => [
       {
         id: `notif-focus-${Date.now()}`,
-        title: "Focus Session Logged",
-        message: `Completed ${durationMinutes}m focus block (${flowState.toUpperCase()} state).`,
+        title: "Flow Session Logged",
+        message: `Completed ${session.durationMinutes}m focus block (${session.flowState.toUpperCase()} state).`,
         timestamp: "Just now",
         type: "habit",
         read: false,
       },
       ...prev,
     ]);
+  };
+
+  const addHabit = (newHabit: Omit<Habit, "id" | "currentStreak" | "bestStreak" | "completedToday" | "automaticityScore">) => {
+    const created: Habit = {
+      ...newHabit,
+      id: `habit-${Date.now()}`,
+      currentStreak: 0,
+      bestStreak: 0,
+      completedToday: false,
+      automaticityScore: 30,
+      recentHistory: [false, false, false, false, false, false, false],
+    };
+    setHabits((prev) => [created, ...prev]);
+  };
+
+  const addHabitTransition = (newTransition: Omit<HabitResetTransition, "id">) => {
+    const created: HabitResetTransition = {
+      ...newTransition,
+      id: `trans-${Date.now()}`,
+    };
+    setHabitTransitions((prev) => [created, ...prev]);
   };
 
   const updateHabitAutomaticity = (habitId: string, delta: number) => {
@@ -954,7 +1010,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         toggleTaskStatus,
         addTask,
         deleteTask,
+        updateTaskSchedule,
         toggleHabit,
+        addHabit,
         markNotificationRead,
         chatMessages,
         sendChatMessage,
@@ -969,7 +1027,10 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         addMilestoneTaskToAgenda,
         focusSessions,
         logFocusSession,
+        logDetailedFocusSession,
         updateHabitAutomaticity,
+        habitTransitions,
+        addHabitTransition,
         syncStatus,
         lastSyncTime,
         syncConflicts,

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   Bell,
   Plus,
@@ -203,6 +204,19 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
             </div>
           )}
         </div>
+
+        {/* User Profile Avatar Link */}
+        <Link
+          href="/profile"
+          className="flex items-center gap-1.5 p-0.5 rounded-lg border border-[#e6e3da] hover:border-slate-400 bg-white transition-all shadow-xs"
+          title="User Profile & Settings"
+        >
+          <img
+            src={profile.avatar}
+            alt={profile.name}
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-md object-cover"
+          />
+        </Link>
 
         {/* Demo Mode Badge */}
         <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-200/80 bg-amber-50 text-[11px] font-medium text-amber-900">

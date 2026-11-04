@@ -3,7 +3,40 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.5.0] - 2026-11-02
+## [0.6.0] - 2026-11-04
+
+### Added
+- **Complete UI/UX Product-Level Redesign & Growth Workspace Integration**:
+  - **4 Dedicated Core Workspaces**:
+    - **Home (`/home`) — Calendar-First Experience**:
+      - Prominently positions the calendar as the visual centerpiece of the page.
+      - Integrated contextual side-inspector showing day-specific agenda allocations, focus summaries, and upcoming multi-day commitments.
+      - Quick shortcut card to conversational AI planning.
+    - **AI (`/ai`) — Conversational Planning Assistant**:
+      - Full-height dedicated planning environment replacing cramped inline chat widgets.
+      - Rich conversation stream with role-specific avatars and intelligent constraint-based proposals.
+      - Interactive schedule proposal cards with 1-click "Apply to Schedule" and "Review in My Day".
+      - Tailored prompt chips carousel for morning study sessions, unexpected meeting shifts, and mid-day catch-ups.
+      - Integrated Web Speech API microphone dictation modal with live speech recognition, editing, and quick test utterances.
+      - Strict casual question guardrail: casual questions ("who are you", "what can you do") trigger conversational replies without generating tasks.
+    - **My Day (`/my-day`) — Daily Execution & Timeline**:
+      - "Up Next" Spotlight Hero Card highlighting the imminent task, duration, tags, and 1-click "Launch Flow Session" and "Mark Done" buttons.
+      - Daily completion percentage meter and focus hours planned vs. completed.
+      - 1-click "Reorganise Remaining Day with AI" button invoking the deterministic constraint solver from current time, adapting remaining flexible tasks around fixed commitments.
+      - Chronological timeline with filter pills (*All, Active, Fixed, Completed*) and Quick Task Modal.
+    - **Growth (`/growth`) — Behavior, Flow & Personal Development**:
+      - **Habits Tab**: Rooted in behavioral science (James Clear / BJ Fogg). Features anchor cues ("After morning tea"), physical context cues ("At study desk"), 2-minute minimum activation versions ("Read 1 problem explanation"), automaticity index progress bars (0-100%), and 7-day completion heat dots.
+      - **Flow Theory Tab**: Rooted in Mihaly Csíkszentmihályi's Flow Theory. Features pre-session check-in rating perceived challenge (1-5) and skill (1-5) with 2D flow quadrant prediction (*Flow Channel, Anxiety, Boredom, Apathy*), immersion timer (20m, 25m, 45m, 50m, 90m), real-time "Log Distraction" counter, and post-session reflection modal evaluating Absorption, Concentration, Control, Enjoyment, and Time Distortion.
+      - **Habit Reset Tab**: Rooted in the Verplanken & Roy (2016) Habit Discontinuity Hypothesis. Tracks major life transitions (new semester, promotion, relocation) that disrupt environmental cues, cataloging disrupted routines, obsolete cues to retire, and replacement anchor habits with status indicators.
+      - **Insights Tab**: Synthesizes habit automaticity metrics, deep work volume, peak cognitive windows, and AI behavioral observations based on logged session data.
+  - **Mobile Touch Gestures & Navigation**:
+    - Bottom Navigation bar with 4 workspace destinations (`Home`, `AI`, `My Day`, `Growth`), active amber indicators, and safe-area padding.
+    - Horizontal swipe navigation (`Home` <-> `AI` <-> `My Day` <-> `Growth`) powered by `useWorkspaceSwipe` hook with swipe progress bar and touch target filtering (ignoring inputs, textareas, sliders, and buttons).
+    - Desktop persistent left sidebar and tablet icon-rail updated with the 4 workspaces and bottom profile link.
+  - **Backward Compatibility & System Hardening**:
+    - Upgraded `/plan` and `/habits` with helpful navigation banners pointing to `/my-day` and `/growth`.
+    - Turbopack prerender hardening: eliminated non-deterministic `new Date()` reads outside `useEffect` during Next.js 16 static compilation.
+    - 37/37 unit tests passing across all 4 test suites; full static export passing across all 19 application routes.
 
 ### Added
 - **Responsive Desktop, Tablet, and Mobile Redesign (Completed & Verified)**:

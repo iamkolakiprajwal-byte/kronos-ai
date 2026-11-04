@@ -76,18 +76,26 @@
 +---------------------------+ +---------------------------+     +-----------------------------+ +---------------------------+
 ```
 
-### 2.1 Frontend Architecture
-- **Framework**: Next.js 16 App Router (`src/app`).
-- **Design System**: Calm notebook-inspired visual theme (`#faf9f6` alabaster background, warm slate borders `#e6e3da`, serif headings, subtle ruled lines, zero visual clutter).
-- **Persistent Shell**: Sidebar navigation (`src/components/layout/sidebar.tsx`), top header with time-based greeting, date badge, notification bell, calendar sync pill, and `+ New Task` trigger (`src/components/layout/header.tsx`).
-- **Core Views**:
-  - `/home`: Month calendar with scheduled activity indicators, today's agenda with lock indicators for fixed commitments, progress metrics, and docked AI assistant.
-  - `/plan`: Detailed daily and weekly filterable task schedules (All, Active, Urgent, Completed).
-  - `/goals`: Short and long-term milestones with AI roadmap decomposition, New Goal modal, and 1-click agenda scheduling.
-  - `/habits`: Habit automaticity tracking, Csíkszentmihályi Flow timer (20m, 25m, 45m, 50m, 90m), and post-session reflection log.
-  - `/profile`: Biological routine parameters, academic/work details, calendar connection mode, and interactive Environmental Sustainability dashboard.
-  - `/onboarding`: 13-stage guided onboarding wizard with dynamic step routing and single-click demo presets.
-  - `/login` & `/signup`: Minimalist notebook authentication screens with 1-click persona demo buttons.
+### 2.1 Frontend Architecture & Workspace Model
+- **Framework**: Next.js 16 App Router (`src/app`) with Turbopack and React 19.
+- **Design System**: Calm notebook-inspired visual theme (`#faf9f6` alabaster background, warm slate borders `#e6e3da`, editorial serif headings, subtle ruled lines, zero visual clutter).
+- **Core Workspace Architecture (4 Dedicated Environments)**:
+  - **Home (`/home`) — Calendar-First Experience**: Month/Week calendar centerpiece, day-specific inspector, upcoming commitment milestones, and quick AI planning callout.
+  - **AI Assistant (`/ai`) — Dedicated Conversational Planning**: Full-height conversational interface, prompt carousel, constraint-solved schedule proposals with 1-click apply, Web Speech API dictation modal, and strict casual vs. actionable intent differentiation.
+  - **My Day (`/my-day`) — Daily Execution & Timeline**: Up Next spotlight hero card, daily progress meter, 1-click "Reorganise Remaining Day with AI" dynamic mid-day solver, chronological timeline with filters (*All, Active, Fixed, Completed*), and quick task creation.
+  - **Growth (`/growth`) — Behavior, Flow & Insights**: 4 specialized behavioral tabs:
+    1. *Habits*: Anchor cues, physical context cues, 2-minute minimum activation versions, non-punitive automaticity index (0-100%), and 7-day completion heat dots.
+    2. *Flow*: Mihaly Csíkszentmihályi Flow Theory timer with pre-session challenge/skill balance check, distraction logger, and post-session reflection modal evaluating Absorption, Concentration, Control, Enjoyment, and Time Distortion.
+    3. *Habit Reset*: Bas Verplanken's Habit Discontinuity Hypothesis wizard tracking life transitions (new semester, career shift, relocation), cataloging disrupted routines, obsolete cues to retire, and replacement anchor habits.
+    4. *Insights*: Cross-domain behavioral analytics synthesizing habit consistency, deep work volume, optimal cognitive windows, and data-backed AI recommendations.
+- **Navigation & Mobile Touch Gestures**:
+  - Bottom Navigation bar on mobile (`md:hidden`) for the 4 workspaces (`Home`, `AI`, `My Day`, `Growth`) with active amber dot and safe-area inset padding.
+  - Horizontal swipe navigation (`useWorkspaceSwipe`) between the 4 workspaces with indicator bar and touch-filtering for inputs, buttons, and sliders.
+  - Persistent left sidebar on desktop (`lg:w-64`) with Kronos AI branding, active persona switcher, and bottom profile link; collapsible icon-rail on tablets (`md:w-20`).
+- **Backward Compatibility & Utilities**:
+  - `/plan` and `/habits` maintained with navigation upgrade banners pointing to `/my-day` and `/growth`.
+  - `/goals` and `/profile` accessible via header and sidebar.
+  - `/onboarding` 13-stage wizard with 1-click evaluation presets.
 
 ### 2.2 Backend Architecture
 - Next.js Route Handlers located in `src/app/api/...`.
@@ -154,8 +162,11 @@ Progressively implemented via Supabase PostgreSQL migrations with foreign key co
 | Feature / Subsystem | Status | Exact Details |
 |:---|:---|:---|
 | **Notebook UI Shell & Design System** | **Implemented and tested** | `#faf9f6` paper palette, `#e6e3da` borders, serif titles, sticky header, persistent sidebar. |
-| **Home Dashboard & Daily Agenda** | **Implemented and tested** | Daily chronological agenda, fixed commitment locks, duration badges, progress bar, task status toggles. |
-| **Month Calendar Planner** | **Implemented and tested** | Month/year navigation, today jumper, multi-color activity indicator dots powered by `date-fns`. |
+| **Workspace 1: Home (`/home`)** | **Implemented and tested** | Calendar-first experience. Month/Week calendar is the centerpiece; right inspector displays day-specific agenda allocations, focus hours summary, upcoming commitments, and instant AI callout. |
+| **Workspace 2: AI Assistant (`/ai`)** | **Implemented and tested** | Dedicated conversational planning companion with speech dictation, suggested prompt chips carousel, constraint-solved schedule proposals with 1-click apply, and casual question guardrails. |
+| **Workspace 3: My Day (`/my-day`)** | **Implemented and tested** | Daily execution and timeline workspace with "Up Next" spotlight hero card, daily completion percentage meter, 1-click "Reorganise Remaining Day with AI" mid-day solver, chronological agenda, and quick task modal. |
+| **Workspace 4: Growth (`/growth`)** | **Implemented and tested** | Comprehensive behavioral development workspace featuring 4 tabs: (1) Habits with anchor cues, 2-min versions, and automaticity indexing; (2) Csíkszentmihályi Flow Theory timer with challenge/skill check-in, distraction logger, and reflection modal; (3) Habit Reset leveraging the Habit Discontinuity Hypothesis for life transitions; (4) Behavioral Insights cross-domain analytics. |
+| **Mobile Navigation & Gesture Swipe** | **Implemented and tested** | 4-destination bottom navigation bar (`Home`, `AI`, `My Day`, `Growth`) with active amber dot; horizontal swipe gesture navigation (`useWorkspaceSwipe`) between workspaces with safe-area padding and input-filtering. |
 | **Quick Task Creation Modal** | **Implemented and tested** | Duration presets (25m, 45m, 60m, 90m), priority select, category tagging. |
 | **13-Stage Onboarding Wizard** | **Implemented and tested** | Multi-step navigation with progress bar, dynamic routing for Student/Pro/Both, interactive timetable editor, interactive recurring meetings editor, 1-click evaluation presets (`Aria Chen`, `Marcus Reed`, `Elena Rostova`), initial schedule preview & approval pipeline. |
 | **Authentication Screens (`/login`, `/signup`)** | **Implemented and tested** | Minimalist notebook auth screens with 1-click persona demo logins and demo mode toggles. |
@@ -165,15 +176,13 @@ Progressively implemented via Supabase PostgreSQL migrations with foreign key co
 | **Context-Aware Offline AI (`MockAIProvider`)** | **Implemented and tested** | Active default AI engine. Understands natural language daily planning ("two assignments, study econ, gym, blender"), urgent interruptions, rescheduled sessions, schedule status inquiries, and conversational questions (with zero hallucinated tasks). |
 | **Deterministic Scheduling Engine** | **Implemented and tested** | Pure TypeScript constraint-satisfaction solver (`src/lib/scheduler/engine.ts`). Enforces zero overlap over fixed commitments, sleep boundaries, lunch buffers, peak energy matching, conflict detection, and dynamic rescheduling. 13/13 unit tests passed. |
 | **Strategic Goals & AI Roadmaps** | **Implemented and tested** | Multi-horizon goal decomposition (`src/lib/ai/roadmap.ts`, `/api/goals/decompose`), New Goal modal, milestone checkboxes with live progress calculation, 1-click AI breakdown, and "Schedule in Today's Agenda" insertion. 7/7 unit tests passed. |
-| **Habits & Flow Theory Focus Sessions** | **Implemented and tested** | Csíkszentmihályi Flow timer (20m, 25m, 45m, 50m, 90m presets), post-session reflection modal evaluating immersion state (*Flow, Steady, Boredom, Anxiety*), habit automaticity scoring without streak shame, reflection history log. |
 | **Calendar Adapter Architecture** | **Implemented and tested** | Shared `CalendarAdapter` interface, sync token state machine, event push/delete. 9/9 unit tests passed. |
 | **Two-Way Calendar Sync (Mock Evaluation)** | **Mock implementation** | Interactive Google Calendar two-way sync simulation with incremental tokens, simulated remote changes, conflict detection, and side-by-side conflict resolution modal in the header. |
 | **Google Calendar API v3 Live Sync** | **Blocked by missing credentials** | Production adapter architecture (`src/lib/calendar/google-adapter.ts`) implemented with OAuth2 and RFC 3339 date handling; automatically falls back to `MockCalendarAdapter` when OAuth credentials are not supplied. |
-| **Browser Voice Input** | **Implemented and tested** | Browser Web Speech API hook (`useSpeechRecognition`) with microphone toggle, real-time transcription, and edit-before-submit modal in `assistant-input.tsx`. |
+| **Browser Voice Input** | **Implemented and tested** | Browser Web Speech API hook (`useSpeechRecognition`) with microphone toggle, real-time transcription, and edit-before-submit modal in `assistant-input.tsx` and `/ai`. |
 | **Notifications & Scheduled Reminders** | **Implemented and tested** | Service worker (`sw.js`), Web App Manifest (`manifest.json`), scheduled reminder scanner for classes and urgent tasks (`reminder-service.ts`). |
 | **Environmental Sustainability Dashboard** | **Implemented and tested** | Behavioral carbon savings model (`eco-calculator.ts`), live CO₂ saved (kg), tree absorption equivalents, active commute minutes, eco score (0-100), and 1-click eco action loggers. 8/8 unit tests passed. |
 | **Multi-Persona Demo Switching** | **Implemented and tested** | Instant client role switching (*Student: Aria Chen*, *Professional: Marcus Reed*, *Both: Elena Rostova*) with dynamic timetable, goals, and habits. |
-| **Responsive Mobile, Tablet & Desktop Layouts** | **Implemented and tested** | Full responsive support across Desktop (>=1024px), Tablet (768px-1023px icon rail), and Mobile (320px-767px fixed bottom nav + slide drawer). Week/Month calendar toggle, mobile bottom-sheet modals, >44px touch targets. Tested across 320px, 375px, 390px, 430px, 768px, 1024px, 1366px, 1920px. |
 
 ---
 
@@ -203,12 +212,15 @@ ai-time-manager/
 │   │   │   ├── login/page.tsx              # Notebook auth login with 1-click persona demo
 │   │   │   └── signup/page.tsx             # Notebook auth registration
 │   │   ├── (dashboard)/
-│   │   │   ├── home/page.tsx               # Main command center: Calendar, Agenda, AI dock
-│   │   │   ├── plan/page.tsx               # Schedule & task management view
+│   │   │   ├── home/page.tsx               # Workspace 1: Calendar-first command center
+│   │   │   ├── ai/page.tsx                 # Workspace 2: Dedicated Conversational Planning Companion
+│   │   │   ├── my-day/page.tsx             # Workspace 3: Daily Execution, Spotlight card & mid-day reschedule
+│   │   │   ├── growth/page.tsx             # Workspace 4: Habits, Flow Theory, Habit Reset & Insights
+│   │   │   ├── plan/page.tsx               # Schedule & task management view (with My Day migration banner)
 │   │   │   ├── goals/page.tsx              # Interactive Goals, AI Roadmap & task scheduler
-│   │   │   ├── habits/page.tsx             # Habit formation & Flow Theory timer & reflection log
+│   │   │   ├── habits/page.tsx             # Habits view (with Growth migration banner)
 │   │   │   ├── profile/page.tsx            # User profile, routine settings & Eco Tracker
-│   │   │   └── layout.tsx                  # Dashboard layout wrapping Sidebar and Header
+│   │   │   └── layout.tsx                  # Dashboard layout with Sidebar, Header & Workspace Swipe
 │   │   ├── api/
 │   │   │   ├── ai/chat/route.ts            # Server-side conversational AI Route Handler
 │   │   │   ├── calendar/sync/route.ts      # Server-side Google Calendar sync Route Handler
@@ -223,13 +235,31 @@ ai-time-manager/
 │   ├── components/
 │   │   ├── layout/
 │   │   │   ├── sidebar.tsx                 # Responsive sidebar (desktop 256px, tablet 80px rail, mobile drawer)
-│   │   │   ├── header.tsx                  # Top bar with greeting, GCal sync pill, hamburger & conflict modal
-│   │   │   └── bottom-nav.tsx              # Fixed mobile bottom navigation bar (Home, Plan, Goals, Habits, Profile)
+│   │   │   ├── header.tsx                  # Top bar with greeting, GCal sync pill, avatar link & conflict modal
+│   │   │   └── bottom-nav.tsx              # Fixed mobile bottom navigation bar (Home, AI, My Day, Growth)
 │   │   ├── calendar/
 │   │   │   └── month-calendar.tsx          # Month/year planner with color-coded activity dots
 │   │   ├── dashboard/
 │   │   │   ├── daily-agenda.tsx            # Chronological agenda, progress bar, fixed/flexible locks
 │   │   │   └── quick-task-modal.tsx        # Quick task modal with duration presets
+│   │   ├── ai-chat/
+│   │   │   └── assistant-input.tsx         # Voice dictation & conversational chat component
+│   │   └── onboarding/                     # 13-stage Onboarding step components
+│   ├── context/
+│   │   └── demo-context.tsx                # Central state machine supporting all personas, transitions & sync
+│   ├── hooks/
+│   │   ├── use-speech-recognition.ts       # Browser Web Speech API hook
+│   │   └── use-workspace-swipe.ts          # Horizontal mobile workspace swipe gesture controller
+│   ├── lib/
+│   │   ├── ai/                             # Gemini & Mock AI providers, roadmap decomposition & memory
+│   │   ├── calendar/                       # Shared adapter, MockCalendarAdapter & GoogleCalendarAdapter
+│   │   ├── mock/demo-data.ts               # Student, Pro & Dual track initial profiles, habits & transitions
+│   │   ├── notifications/                  # Service worker registration & reminder scheduler
+│   │   ├── scheduler/                      # Pure deterministic TypeScript constraint-satisfaction engine
+│   │   ├── sustainability/                 # Carbon offset & eco metric calculation engine
+│   │   └── utils.ts                        # Styling, time conversion & cn helpers
+│   └── types/
+│       └── index.ts                        # TypeScript domain definitions (Workspaces, Flow, Transitions, Habits)
 │   │   ├── ai-chat/
 │   │   │   └── assistant-input.tsx         # AI assistant dock with Web Speech API voice dictation
 │   │   └── onboarding/

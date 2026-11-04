@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useDemo } from "@/context/demo-context";
 import { formatMinutes } from "@/lib/utils";
 import {
@@ -13,6 +14,8 @@ import {
   Lock,
   Trash2,
   Sparkles,
+  ArrowRight,
+  Sun,
 } from "lucide-react";
 
 export default function PlanPage() {
@@ -28,6 +31,22 @@ export default function PlanPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-in fade-in-50 duration-200">
+      {/* Migration Notice Banner */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950">
+        <div className="flex items-center gap-2.5">
+          <Sun className="w-4 h-4 text-amber-700 shrink-0" />
+          <span>
+            Looking for daily execution? Check out the new <strong>My Day</strong> workspace with live spotlight focus and mid-day AI reorganisation.
+          </span>
+        </div>
+        <Link
+          href="/my-day"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 transition-colors shrink-0 shadow-2xs"
+        >
+          <span>Open My Day</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-[#e6e3da]">
         <div>

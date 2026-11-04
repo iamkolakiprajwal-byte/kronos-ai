@@ -5,10 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDays,
-  CheckSquare,
-  Target,
   Sparkles,
+  Sun,
+  TrendingUp,
   User,
+  Settings,
   GraduationCap,
   Briefcase,
   Compass,
@@ -23,14 +24,14 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ElementType;
+  badge?: string;
 }
 
 export const navItems: NavItem[] = [
   { name: "Home", href: "/home", icon: CalendarDays },
-  { name: "Plan", href: "/plan", icon: CheckSquare },
-  { name: "Goals", href: "/goals", icon: Target },
-  { name: "Habits", href: "/habits", icon: Sparkles },
-  { name: "Profile", href: "/profile", icon: User },
+  { name: "AI", href: "/ai", icon: Sparkles, badge: "Assistant" },
+  { name: "My Day", href: "/my-day", icon: Sun },
+  { name: "Growth", href: "/growth", icon: TrendingUp },
 ];
 
 export function Sidebar() {
@@ -147,19 +148,26 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* User Footer Profile */}
+      {/* User Footer Profile & Settings */}
       <div className="p-3 lg:p-4 border-t border-[#e6e3da] bg-[#f8f6f0]">
-        <div className="flex items-center justify-center lg:justify-start gap-3">
-          <img
-            src={profile.avatar}
-            alt={profile.name}
-            className="w-8 h-8 lg:w-9 lg:h-9 rounded-full object-cover border border-[#d2cebf] shrink-0"
-          />
-          <div className="hidden lg:block min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-900 truncate">{profile.name}</p>
-            <p className="text-xs text-slate-500 truncate">{profile.headline}</p>
+        <Link
+          href="/profile"
+          className="flex items-center justify-center lg:justify-between gap-3 p-1.5 -m-1.5 rounded-xl hover:bg-[#ede9df] transition-colors group"
+          title="Profile & Settings"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <img
+              src={profile.avatar}
+              alt={profile.name}
+              className="w-8 h-8 lg:w-9 lg:h-9 rounded-full object-cover border border-[#d2cebf] shrink-0"
+            />
+            <div className="hidden lg:block min-w-0">
+              <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-amber-900">{profile.name}</p>
+              <p className="text-xs text-slate-500 truncate">{profile.headline}</p>
+            </div>
           </div>
-        </div>
+          <Settings className="w-4 h-4 text-slate-400 group-hover:text-slate-700 hidden lg:block shrink-0" />
+        </Link>
       </div>
     </aside>
   );
@@ -171,6 +179,7 @@ interface MobileDrawerProps {
 }
 
 export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
+  const pathname = usePathname();
   const { role, setRole, profile } = useDemo();
 
   if (!isOpen) return null;
@@ -205,7 +214,11 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
         </div>
 
         {/* User Card */}
-        <div className="p-4 bg-white border-b border-[#e6e3da] flex items-center gap-3">
+        <Link
+          href="/profile"
+          onClick={onClose}
+          className="p-4 bg-white border-b border-[#e6e3da] flex items-center gap-3 hover:bg-amber-50/40 transition-colors"
+        >
           <img
             src={profile.avatar}
             alt={profile.name}
@@ -215,7 +228,8 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
             <p className="text-sm font-semibold text-slate-900 truncate">{profile.name}</p>
             <p className="text-xs text-slate-500 truncate">{profile.institutionOrCompany}</p>
           </div>
-        </div>
+          <Settings className="w-4 h-4 text-slate-400" />
+        </Link>
 
         {/* Persona Switcher */}
         <div className="p-4 border-b border-[#e6e3da] bg-amber-50/60">
@@ -263,6 +277,33 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               <span>Both</span>
             </button>
           </div>
+        </div>
+
+        {/* Workspaces List in Drawer */}
+        <div className="p-3 border-b border-[#e6e3da] space-y-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 block mb-1">
+            Workspaces
+          </span>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href || (item.href === "/home" && pathname === "/");
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors",
+                  isActive
+                    ? "bg-slate-900 text-white shadow-xs"
+                    : "text-slate-700 hover:bg-slate-100"
+                )}
+              >
+                <Icon className={cn("w-4 h-4", isActive ? "text-amber-300" : "text-slate-500")} />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
         </div>
 
         {/* Links */}
