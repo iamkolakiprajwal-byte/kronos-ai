@@ -177,22 +177,22 @@ export default function HomePage() {
       : dualSuggestedBlocks;
 
   return (
-    <div className="space-y-7 sm:space-y-10 animate-in fade-in-50 duration-200 pb-16 md:pb-12">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in-50 duration-200 pb-16 md:pb-12">
       {/* Editorial Canvas Briefing */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-[#e8e2d5]">
-        <div className="space-y-1.5 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-sans font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#f2eee6] text-[#687050] border border-[#e4ded2]">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-[#e8e2d5]">
+        <div className="space-y-1 sm:space-y-1.5 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <span className="text-[9px] sm:text-[10px] font-sans font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#f2eee6] text-[#687050] border border-[#e4ded2]">
               {isSelectedToday ? "Today's Agenda" : "Inspecting Selected Day"}
             </span>
-            <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[#f8f6f0] text-[#545049] border border-[#e4ded2]">
+            <span className="text-[9px] sm:text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[#f8f6f0] text-[#545049] border border-[#e4ded2]">
               {role === "student" ? "Stanford Junior Year" : role === "professional" ? "CloudScale Sprint 42" : "Synthetix + Berkeley MS"}
             </span>
-            <span className="text-[10px] text-[#8a8479]">
+            <span className="text-[9px] sm:text-[10px] text-[#8a8479]">
               • {profile.planningStyle} rhythm
             </span>
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal text-[#201e1b] tracking-tight">
+          <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-normal text-[#201e1b] tracking-tight">
             {format(selectedDate, "EEEE, MMMM d")}
           </h1>
           <p className="text-xs sm:text-sm text-[#545049] font-sans leading-relaxed max-w-2xl">
@@ -204,18 +204,18 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Quick Workspace Shortcuts */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Quick Workspace Shortcuts (Desktop only; mobile uses primary bottom nav) */}
+        <div className="hidden sm:flex items-center gap-2 shrink-0">
           <Link
             href="/ai"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#f2eee6] text-[#201e1b] border border-[#e8e2d5] text-xs font-medium transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#f2eee6] text-[#201e1b] border border-[#e8e2d5] text-xs font-medium transition-colors shadow-2xs"
           >
             <Sparkles className="w-3.5 h-3.5 text-[#b37e2a]" />
             <span>AI Assistant</span>
           </Link>
           <Link
             href="/my-day"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] text-xs font-medium shadow-2xs transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] text-xs font-medium shadow-2xs transition-colors"
           >
             <Sun className="w-3.5 h-3.5 text-[#e8decb]" />
             <span>Open My Day</span>

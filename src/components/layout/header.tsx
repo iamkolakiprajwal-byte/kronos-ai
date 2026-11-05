@@ -69,11 +69,11 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
     <>
       {/* Playful Construction Notice Banner */}
       {showMaintenanceBanner && (
-        <aside className="bg-[#201e1b] text-[#f8f6f0] px-3.5 py-1.5 flex items-center justify-between text-xs border-b border-[#38342f] z-40 relative select-none animate-in fade-in-50">
-          <div className="flex items-center gap-2 mx-auto min-w-0 px-2">
-            <span className="text-sm">🚧</span>
+        <aside className="bg-[#201e1b] text-[#f8f6f0] px-3 py-1.5 flex items-center justify-between text-xs border-b border-[#38342f] z-40 relative select-none animate-in fade-in-50">
+          <div className="flex items-center gap-1.5 mx-auto min-w-0 px-1">
+            <span className="text-xs">🚧</span>
             <p className="text-[11px] sm:text-xs font-medium text-[#e8decb] truncate">
-              <strong>Kronos Under Active Renovation:</strong> Quantum-aligning study blocks & brewing emergency espresso ☕. Mind the floating timeblocks!
+              <strong>Renovation:</strong> Aligning timeblocks & brewing espresso ☕
             </p>
           </div>
           <button
@@ -87,13 +87,13 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
         </aside>
       )}
 
-      <header className="border-b border-[#e8e2d5] bg-[#fbf9f5]/85 backdrop-blur-md sticky top-0 z-30 px-4 sm:px-6 md:px-8 py-3 flex items-center justify-between">
+      <header className="border-b border-[#e8e2d5] bg-[#fbf9f5]/90 backdrop-blur-md sticky top-0 z-30 px-3.5 sm:px-6 md:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2.5 sm:gap-4">
         {/* Left: Mobile Avatar & Desktop Greeting */}
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0">
           {onToggleMobileNav && (
             <button
               onClick={onToggleMobileNav}
-              className="md:hidden w-11 h-11 min-w-[44px] min-h-[44px] rounded-full border border-[#d5cdbd] overflow-hidden flex items-center justify-center shrink-0 cursor-pointer active:scale-95 transition-all shadow-2xs hover:border-[#201e1b]"
+              className="md:hidden w-9 h-9 min-w-[36px] min-h-[36px] rounded-full border border-[#d5cdbd] overflow-hidden flex items-center justify-center shrink-0 cursor-pointer active:scale-95 transition-all shadow-2xs hover:border-[#201e1b]"
               aria-label="Open profile and settings"
               title="Profile & Settings"
             >
@@ -109,10 +109,10 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
 
           {/* Mobile Header Title */}
           <div className="md:hidden min-w-0">
-            <span className="font-serif text-sm font-semibold text-[#201e1b] truncate block leading-tight">
+            <span className="font-serif text-sm font-semibold text-[#201e1b] truncate block leading-none">
               {profile.name.split(" ")[0]}
             </span>
-            <span className="text-[10px] text-[#8a8479] truncate block leading-tight">
+            <span className="text-[10px] text-[#8a8479] truncate block mt-0.5 leading-tight">
               {todayFormatted.split(",")[0]}, {todayFormatted.split(",")[1]}
             </span>
           </div>
@@ -138,8 +138,8 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
           </div>
         </div>
 
-        {/* Right: Persona Dropdown, Sync, Quick Task & Notifications */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        {/* Right: Persona Dropdown, Sync & Notifications */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Persona Track Dropdown (Compact & Rarely Used) */}
           <div className="relative">
             <button
@@ -147,7 +147,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                 setShowRoleDropdown(!showRoleDropdown);
                 setShowNotifications(false);
               }}
-              className="flex items-center gap-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-[36px] px-2.5 py-1.5 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-[#201e1b] transition-all shadow-2xs cursor-pointer text-xs font-medium"
+              className="h-9 px-2.5 sm:px-3 rounded-full border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-[#201e1b] transition-all shadow-2xs cursor-pointer text-xs font-medium flex items-center gap-1.5"
               title="Switch Persona Track (Student / Pro / Dual)"
               aria-label="Switch Persona Track"
             >
@@ -158,7 +158,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
               ) : (
                 <Compass className="w-3.5 h-3.5 text-[#687050]" />
               )}
-              <span className="font-semibold text-xs capitalize hidden xs:inline">
+              <span className="font-semibold text-[11px] sm:text-xs capitalize">
                 {role === "student" ? "Student" : role === "professional" ? "Pro" : "Dual"}
               </span>
               <ChevronDown className="w-3 h-3 text-[#8a8479]" />
@@ -258,73 +258,65 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
               </div>
             )}
           </div>
-        {/* Calendar Sync Pill */}
-        <button
-          onClick={() => setShowSyncModal(true)}
-          className={cn(
-            "flex items-center justify-center gap-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-[36px] px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer shadow-2xs",
-            syncStatus === "conflict"
-              ? "bg-[#faece7] text-[#b85437] border-[#f3cec3] animate-bounce"
-              : syncStatus === "syncing"
-              ? "bg-[#f1f3ea] text-[#687050] border-[#dce1d4]"
-              : "bg-white text-[#545049] border-[#e8e2d5] hover:bg-[#f2eee6] hover:text-[#201e1b]"
-          )}
-          title="Click to view Google Calendar sync status"
-        >
-          {syncStatus === "conflict" ? (
-            <>
-              <AlertTriangle className="w-3.5 h-3.5 text-[#b85437] shrink-0" />
-              <span className="text-[11px] sm:text-xs font-semibold text-[#b85437]">1 Conflict</span>
-            </>
-          ) : (
-            <>
-              <RefreshCw
-                className={cn(
-                  "w-3.5 h-3.5 text-[#8a8479] shrink-0",
-                  syncStatus === "syncing" && "animate-spin text-[#687050]"
-                )}
-              />
-              <span className="hidden sm:inline">
-                Demo GCal: {syncStatus === "syncing" ? "Syncing..." : "Synced"}
-              </span>
-            </>
-          )}
-        </button>
+          {/* Calendar Sync Button (Sleek circle on mobile, pill on desktop) */}
+          <button
+            onClick={() => setShowSyncModal(true)}
+            className={cn(
+              "h-9 px-2 sm:px-3 rounded-full text-xs font-medium border transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5",
+              syncStatus === "conflict"
+                ? "bg-[#faece7] text-[#b85437] border-[#f3cec3] animate-bounce"
+                : syncStatus === "syncing"
+                ? "bg-[#f1f3ea] text-[#687050] border-[#dce1d4]"
+                : "bg-white text-[#545049] border-[#e8e2d5] hover:bg-[#f2eee6] hover:text-[#201e1b]"
+            )}
+            title="Click to view Google Calendar sync status"
+            aria-label="Calendar sync status"
+          >
+            {syncStatus === "conflict" ? (
+              <>
+                <AlertTriangle className="w-3.5 h-3.5 text-[#b85437] shrink-0" />
+                <span className="text-[11px] font-semibold text-[#b85437] hidden xs:inline">1 Conflict</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw
+                  className={cn(
+                    "w-3.5 h-3.5 text-[#8a8479] shrink-0",
+                    syncStatus === "syncing" && "animate-spin text-[#687050]"
+                  )}
+                />
+                <span className="hidden md:inline text-[11px]">
+                  Demo GCal: {syncStatus === "syncing" ? "Syncing..." : "Synced"}
+                </span>
+              </>
+            )}
+          </button>
 
-        {/* Quick Task Button */}
-        {onOpenQuickTask && (
-          <>
+          {/* Optional Desktop Quick Task Button (Mobile uses Google Keep style FAB) */}
+          {onOpenQuickTask && (
             <button
               onClick={onOpenQuickTask}
-              className="sm:hidden w-11 h-11 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-white flex items-center justify-center shadow-xs transition-all active:scale-95 cursor-pointer"
-              aria-label="Add new task"
-            >
-              <Plus className="w-4 h-4 text-[#e8decb]" />
-            </button>
-            <button
-              onClick={onOpenQuickTask}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] rounded-xl text-xs font-medium shadow-2xs transition-all active:scale-98 cursor-pointer"
+              className="hidden lg:inline-flex items-center gap-1.5 h-9 px-3.5 bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] rounded-full text-xs font-medium shadow-2xs transition-all active:scale-98 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5 text-[#e8decb]" />
               <span>New Task</span>
             </button>
-          </>
-        )}
+          )}
 
-        {/* Notification Bell */}
-        <div className="relative">
-          <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="w-11 h-11 sm:w-9 sm:h-9 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] flex items-center justify-center relative transition-colors shadow-2xs cursor-pointer"
-            aria-label="Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#b85437] text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
-                {unreadCount}
-              </span>
-            )}
-          </button>
+          {/* Notification Bell */}
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="w-9 h-9 rounded-full border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] flex items-center justify-center relative transition-colors shadow-2xs cursor-pointer"
+              aria-label="Notifications"
+            >
+              <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#b85437] text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
 
           {/* Notifications Dropdown Drawer */}
           {showNotifications && (
