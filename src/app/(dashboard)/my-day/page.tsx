@@ -191,11 +191,19 @@ export default function MyDayPage() {
               <Sun className="w-4 h-4 text-[#e8decb]" />
             </div>
             <h1 className="font-serif text-xl sm:text-2xl font-normal text-[#201e1b] tracking-tight">
-              My Day — Daily Execution
+              {role === "student"
+                ? "My Day — Academic Study & Class Execution"
+                : role === "professional"
+                ? "My Day — Deep Work & Engineering Execution"
+                : "My Day — Work & Degree Commitment Execution"}
             </h1>
           </div>
           <p className="text-[11px] sm:text-xs text-[#8a8479] mt-0.5">
-            Real-time daily agenda • Live task execution • Dynamic mid-day schedule adjustment
+            {role === "student"
+              ? "Stanford Timetable • Midterm Buffers • Walk-Time Windows"
+              : role === "professional"
+              ? "CloudScale Sprint 42 • Deep Work Ratio • Hard 6 PM Boundary"
+              : "Synthetix Eng (Day) + UC Berkeley MS (Evening) • Overlap Protected"}
           </p>
         </div>
 

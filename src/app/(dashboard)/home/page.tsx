@@ -15,6 +15,10 @@ import {
   ChevronRight,
   Lock,
   Zap,
+  GraduationCap,
+  Briefcase,
+  Compass,
+  Check,
 } from "lucide-react";
 import { useDemo } from "@/context/demo-context";
 import { MonthCalendar } from "@/components/calendar/month-calendar";
@@ -22,6 +26,7 @@ import { cn } from "@/lib/utils";
 
 export default function HomePage() {
   const {
+    role,
     selectedDate,
     setSelectedDate,
     calendarEvents,
@@ -46,19 +51,10 @@ export default function HomePage() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 4);
 
-  // Horizontally browsable suggested schedule blocks (Regain pattern)
-  const suggestedBlocks = [
+  // Persona-specific suggested schedule blocks
+  const studentSuggestedBlocks = [
     {
-      id: "sug-1",
-      title: "Afternoon Deep Work",
-      time: "2:00 PM – 3:15 PM",
-      days: "Mon – Fri",
-      category: "Focus Window",
-      tag: "Peak Energy",
-      action: "/ai",
-    },
-    {
-      id: "sug-2",
+      id: "sug-s-1",
       title: "ECON 201 Lecture",
       time: "09:00 AM – 10:15 AM",
       days: "Mon, Wed",
@@ -67,7 +63,7 @@ export default function HomePage() {
       action: "/my-day",
     },
     {
-      id: "sug-3",
+      id: "sug-s-2",
       title: "CS 106B Lab Session",
       time: "11:00 AM – 12:30 PM",
       days: "Mon, Thu",
@@ -76,15 +72,109 @@ export default function HomePage() {
       action: "/my-day",
     },
     {
-      id: "sug-4",
-      title: "Evening Habit Anchor",
-      time: "6:30 PM – 6:45 PM",
+      id: "sug-s-3",
+      title: "Library Deep Study Block",
+      time: "02:00 PM – 03:15 PM",
+      days: "Mon – Fri",
+      category: "Study Window",
+      tag: "Peak Focus",
+      action: "/ai",
+    },
+    {
+      id: "sug-s-4",
+      title: "Evening Flashcard Recall",
+      time: "06:30 PM – 06:45 PM",
       days: "Daily",
-      category: "Habit Reset",
+      category: "Habit Anchor",
+      tag: "Retention",
+      action: "/growth?tab=habits",
+    },
+  ];
+
+  const proSuggestedBlocks = [
+    {
+      id: "sug-p-1",
+      title: "Morning Team Standup",
+      time: "09:30 AM – 10:00 AM",
+      days: "Mon – Fri",
+      category: "Fixed Sync",
+      tag: "Engineering",
+      action: "/my-day",
+    },
+    {
+      id: "sug-p-2",
+      title: "Architecture RFC Deep Work",
+      time: "10:30 AM – 12:00 PM",
+      days: "Mon, Wed, Fri",
+      category: "Deep Code",
+      tag: "Focus Window",
+      action: "/ai",
+    },
+    {
+      id: "sug-p-3",
+      title: "Distributed Cache Review",
+      time: "02:00 PM – 03:00 PM",
+      days: "Tue, Thu",
+      category: "Code Review",
+      tag: "Architecture",
+      action: "/my-day",
+    },
+    {
+      id: "sug-p-4",
+      title: "6 PM Shutdown Boundary",
+      time: "06:00 PM – 06:15 PM",
+      days: "Daily",
+      category: "Work Boundary",
       tag: "Wellbeing",
       action: "/growth?tab=habits",
     },
   ];
+
+  const dualSuggestedBlocks = [
+    {
+      id: "sug-d-1",
+      title: "Synthetix Platform Standup",
+      time: "10:00 AM – 10:45 AM",
+      days: "Mon – Fri",
+      category: "Company Sync",
+      tag: "Synthetix AI",
+      action: "/my-day",
+    },
+    {
+      id: "sug-d-2",
+      title: "Thesis Literature Synthesis",
+      time: "02:00 PM – 03:15 PM",
+      days: "Mon, Wed",
+      category: "Graduate Research",
+      tag: "UC Berkeley",
+      action: "/ai",
+    },
+    {
+      id: "sug-d-3",
+      title: "Berkeley CS 288 Seminar",
+      time: "06:00 PM – 07:30 PM",
+      days: "Mon, Thu",
+      category: "Evening Seminar",
+      tag: "Academic",
+      action: "/my-day",
+    },
+    {
+      id: "sug-d-4",
+      title: "Context Switch Meditation",
+      time: "05:45 PM – 06:00 PM",
+      days: "Daily",
+      category: "Mental Reset",
+      tag: "Dual Balance",
+      action: "/growth?tab=habits",
+    },
+  ];
+
+  const suggestedBlocks =
+    role === "student"
+      ? studentSuggestedBlocks
+      : role === "professional"
+      ? proSuggestedBlocks
+      : dualSuggestedBlocks;
 
   return (
     <div className="space-y-7 sm:space-y-10 animate-in fade-in-50 duration-200 pb-16 md:pb-12">
@@ -95,6 +185,9 @@ export default function HomePage() {
             <span className="text-[10px] font-sans font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#f2eee6] text-[#687050] border border-[#e4ded2]">
               {isSelectedToday ? "Today's Agenda" : "Inspecting Selected Day"}
             </span>
+            <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[#f8f6f0] text-[#545049] border border-[#e4ded2]">
+              {role === "student" ? "Stanford Junior Year" : role === "professional" ? "CloudScale Sprint 42" : "Synthetix + Berkeley MS"}
+            </span>
             <span className="text-[10px] text-[#8a8479]">
               • {profile.planningStyle} rhythm
             </span>
@@ -103,8 +196,11 @@ export default function HomePage() {
             {format(selectedDate, "EEEE, MMMM d")}
           </h1>
           <p className="text-xs sm:text-sm text-[#545049] font-sans leading-relaxed max-w-2xl">
-            {selectedDayEvents.length} fixed commitment{selectedDayEvents.length === 1 ? "" : "s"} and{" "}
-            {selectedDayTasks.length} prioritized study/work block{selectedDayTasks.length === 1 ? "" : "s"} balanced around your peak energy hours.
+            {role === "student"
+              ? `${selectedDayEvents.length} fixed classes/labs and ${selectedDayTasks.length} prioritized study blocks balanced around your peak energy hours.`
+              : role === "professional"
+              ? `${selectedDayEvents.length} stakeholder syncs and ${selectedDayTasks.length} engineering deliverables balanced with protected deep work.`
+              : `${selectedDayEvents.length} commitments across job & evening classes, balanced with context transition buffers.`}
           </p>
         </div>
 
@@ -286,8 +382,153 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Right Column (5 cols): Suggested Schedule & Upcoming Commitments */}
+        {/* Right Column (5 cols): Persona Horizon, Suggested Schedule & Upcoming Commitments */}
         <div className="lg:col-span-5 space-y-5">
+          {/* Persona Track Horizon Feature Widget */}
+          {role === "student" && (
+            <div className="bg-[#fdfcf9] rounded-3xl border border-[#e8e2d5] p-5 sm:p-6 shadow-2xs space-y-3.5">
+              <div className="flex items-center justify-between pb-2 border-b border-[#e8e2d5]">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-[#536b54]" />
+                  <h3 className="font-serif text-base font-normal text-[#201e1b]">Enrolled Courses & Milestones</h3>
+                </div>
+                <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[#edf2ec] text-[#536b54] border border-[#d6e0d5]">
+                  16 Units
+                </span>
+              </div>
+
+              <div className="space-y-2.5">
+                <div className="p-3 rounded-2xl bg-white border border-[#e8e2d5] flex items-start justify-between gap-3 shadow-2xs">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-[#201e1b]">CS 106B</span>
+                      <span className="text-[10px] text-[#8a8479]">Gates B02</span>
+                    </div>
+                    <p className="text-[11px] text-[#545049] mt-0.5">Programming Abstractions • Lab Thu</p>
+                  </div>
+                  <span className="text-[10px] font-medium text-[#b85437] bg-[#faece7] border border-[#f3cec3] px-2 py-0.5 rounded-md whitespace-nowrap">
+                    Midterm: 12d
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-white border border-[#e8e2d5] flex items-start justify-between gap-3 shadow-2xs">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-[#201e1b]">ECON 201</span>
+                      <span className="text-[10px] text-[#8a8479]">Cubberley 110</span>
+                    </div>
+                    <p className="text-[11px] text-[#545049] mt-0.5">Intermediate Micro • Prof. Duggan</p>
+                  </div>
+                  <span className="text-[10px] font-medium text-[#b37e2a] bg-[#fbf5e7] border border-[#f4e2ba] px-2 py-0.5 rounded-md whitespace-nowrap">
+                    P-Set 3: Fri
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-white border border-[#e8e2d5] flex items-start justify-between gap-3 shadow-2xs">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-[#201e1b]">STATS 116</span>
+                      <span className="text-[10px] text-[#8a8479]">Hewlett 200</span>
+                    </div>
+                    <p className="text-[11px] text-[#545049] mt-0.5">Theory of Probability • Diaconis</p>
+                  </div>
+                  <span className="text-[10px] font-medium text-[#536b54] bg-[#edf2ec] border border-[#d6e0d5] px-2 py-0.5 rounded-md whitespace-nowrap">
+                    Quiz 2: Wed
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-1 text-[11px] text-[#8a8479] flex items-center justify-between border-t border-[#f2eee6]">
+                <span>Target Term GPA: 3.85</span>
+                <span className="font-mono text-[10px]">Stanford Junior Year</span>
+              </div>
+            </div>
+          )}
+
+          {role === "professional" && (
+            <div className="bg-[#fdfcf9] rounded-3xl border border-[#e8e2d5] p-5 sm:p-6 shadow-2xs space-y-3.5">
+              <div className="flex items-center justify-between pb-2 border-b border-[#e8e2d5]">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-[#b85437]" />
+                  <h3 className="font-serif text-base font-normal text-[#201e1b]">Sprint 42 Capacity & Flow</h3>
+                </div>
+                <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[#faece7] text-[#b85437] border border-[#f3cec3]">
+                  Platform Rel
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="p-3 rounded-2xl bg-white border border-[#e8e2d5] shadow-2xs">
+                  <span className="text-[10px] text-[#8a8479] font-medium uppercase tracking-wider block">Meeting Load</span>
+                  <span className="text-lg font-serif font-semibold text-[#201e1b] mt-0.5 block">3.5 hrs</span>
+                  <span className="text-[10px] text-[#b85437]">3 syncs scheduled</span>
+                </div>
+                <div className="p-3 rounded-2xl bg-white border border-[#e8e2d5] shadow-2xs">
+                  <span className="text-[10px] text-[#8a8479] font-medium uppercase tracking-wider block">Deep Work Flow</span>
+                  <span className="text-lg font-serif font-semibold text-[#536b54] mt-0.5 block">4.5 hrs</span>
+                  <span className="text-[10px] text-[#536b54]">62% ratio (optimal)</span>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <div className="p-2.5 rounded-xl bg-white border border-[#e8e2d5] text-xs flex items-center justify-between shadow-2xs">
+                  <span className="font-medium text-[#201e1b] truncate">Distributed Cache RFC</span>
+                  <span className="text-[10px] text-[#b37e2a] font-mono shrink-0">Review Due 5 PM</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white border border-[#e8e2d5] text-xs flex items-center justify-between shadow-2xs">
+                  <span className="font-medium text-[#201e1b] truncate">Raft Consensus Benchmark</span>
+                  <span className="text-[10px] text-[#536b54] font-mono shrink-0">In Progress</span>
+                </div>
+              </div>
+
+              <div className="pt-1 text-[11px] text-[#8a8479] flex items-center justify-between border-t border-[#f2eee6]">
+                <span>Hard Shutdown: 6:00 PM</span>
+                <span className="font-mono text-[10px]">CloudScale Systems</span>
+              </div>
+            </div>
+          )}
+
+          {role === "both" && (
+            <div className="bg-[#fdfcf9] rounded-3xl border border-[#e8e2d5] p-5 sm:p-6 shadow-2xs space-y-3.5">
+              <div className="flex items-center justify-between pb-2 border-b border-[#e8e2d5]">
+                <div className="flex items-center gap-2">
+                  <Compass className="w-4 h-4 text-[#687050]" />
+                  <h3 className="font-serif text-base font-normal text-[#201e1b]">Work-Study Allocation Split</h3>
+                </div>
+                <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[#f1f3ea] text-[#687050] border border-[#dce1d4]">
+                  Dual Track
+                </span>
+              </div>
+
+              {/* Split progress bar */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] font-medium text-[#545049]">
+                  <span>Synthetix Eng: 4.5h (55%)</span>
+                  <span>Berkeley MS: 3.5h (45%)</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-[#e8e2d5] overflow-hidden flex">
+                  <div className="h-full bg-[#201e1b]" style={{ width: "55%" }} title="Work 55%" />
+                  <div className="h-full bg-[#536b54]" style={{ width: "45%" }} title="Study 45%" />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-[#edf2ec] border border-[#d6e0d5] text-xs space-y-1">
+                <div className="flex items-center gap-1.5 font-semibold text-[#536b54]">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Zero Schedule Collisions</span>
+                </div>
+                <p className="text-[11px] text-[#545049]">
+                  10 AM Synthetix demo and 6 PM Berkeley seminar are buffered by a 45-minute mental transition.
+                </p>
+              </div>
+
+              <div className="pt-1 text-[11px] text-[#8a8479] flex items-center justify-between border-t border-[#f2eee6]">
+                <span>Context Switches: 2 Planned</span>
+                <span className="font-mono text-[10px]">Synthetix + Berkeley</span>
+              </div>
+            </div>
+          )}
+
           {/* Horizontally Browsable Suggested Activities (Regain Pattern) */}
           <div className="bg-[#fdfcf9] rounded-3xl border border-[#e8e2d5] p-5 sm:p-6 shadow-2xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-[#e8e2d5]">

@@ -57,55 +57,6 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Role / Persona Switcher */}
-      <div className="px-3 lg:px-4 py-3 bg-[#f5f1e8]/60 border-b border-[#e8e2d5]">
-        <div className="hidden lg:flex text-[10px] font-semibold uppercase tracking-wider text-[#8a8479] mb-1.5 items-center justify-between">
-          <span>Persona Track</span>
-          <span className="text-[10px] text-[#687050] font-medium capitalize">{role}</span>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-1 p-1 bg-[#ede7dc]/60 rounded-xl border border-[#e4ded2]">
-          <button
-            onClick={() => setRole("student")}
-            title="Student Track (Aria Chen)"
-            className={cn(
-              "flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-medium transition-all cursor-pointer",
-              role === "student"
-                ? "bg-white text-[#201e1b] shadow-2xs font-semibold"
-                : "text-[#545049] hover:text-[#201e1b]"
-            )}
-          >
-            <GraduationCap className="w-3.5 h-3.5 text-[#536b54] mb-0.5" />
-            <span className="hidden lg:inline">Student</span>
-          </button>
-          <button
-            onClick={() => setRole("professional")}
-            title="Professional Track (Marcus Reed)"
-            className={cn(
-              "flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-medium transition-all cursor-pointer",
-              role === "professional"
-                ? "bg-white text-[#201e1b] shadow-2xs font-semibold"
-                : "text-[#545049] hover:text-[#201e1b]"
-            )}
-          >
-            <Briefcase className="w-3.5 h-3.5 text-[#b85437] mb-0.5" />
-            <span className="hidden lg:inline">Pro</span>
-          </button>
-          <button
-            onClick={() => setRole("both")}
-            title="Dual Track (Elena Rostova)"
-            className={cn(
-              "flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-medium transition-all cursor-pointer",
-              role === "both"
-                ? "bg-white text-[#201e1b] shadow-2xs font-semibold"
-                : "text-[#545049] hover:text-[#201e1b]"
-            )}
-          >
-            <Compass className="w-3.5 h-3.5 text-[#687050] mb-0.5" />
-            <span className="hidden lg:inline">Both</span>
-          </button>
-        </div>
-      </div>
-
       {/* Main Navigation */}
       <nav className="flex-1 px-2.5 lg:px-3.5 py-4 space-y-1.5 overflow-y-auto">
         <div className="hidden lg:block text-[10px] font-semibold uppercase tracking-wider text-[#8a8479] px-3 mb-2">
@@ -251,54 +202,6 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           </div>
           <Settings className="w-4 h-4 text-[#8a8479]" />
         </Link>
-
-        {/* Persona Switcher */}
-        <div className="p-4 border-b border-[#e8e2d5] bg-[#f5f1e8]/60">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-[#8a8479] block mb-2">
-            Demonstration Track:
-          </span>
-          <div className="grid grid-cols-3 gap-1 p-1 bg-[#ede7dc]/70 rounded-xl border border-[#e4ded2]">
-            <button
-              onClick={() => {
-                setRole("student");
-                onClose();
-              }}
-              className={cn(
-                "py-1.5 rounded-lg text-[10px] font-medium flex flex-col items-center gap-0.5 transition-all cursor-pointer",
-                role === "student" ? "bg-white text-[#201e1b] shadow-2xs font-semibold" : "text-[#545049]"
-              )}
-            >
-              <GraduationCap className="w-3.5 h-3.5 text-[#536b54]" />
-              <span>Student</span>
-            </button>
-            <button
-              onClick={() => {
-                setRole("professional");
-                onClose();
-              }}
-              className={cn(
-                "py-1.5 rounded-lg text-[10px] font-medium flex flex-col items-center gap-0.5 transition-all cursor-pointer",
-                role === "professional" ? "bg-white text-[#201e1b] shadow-2xs font-semibold" : "text-[#545049]"
-              )}
-            >
-              <Briefcase className="w-3.5 h-3.5 text-[#b85437]" />
-              <span>Pro</span>
-            </button>
-            <button
-              onClick={() => {
-                setRole("both");
-                onClose();
-              }}
-              className={cn(
-                "py-1.5 rounded-lg text-[10px] font-medium flex flex-col items-center gap-0.5 transition-all cursor-pointer",
-                role === "both" ? "bg-white text-[#201e1b] shadow-2xs font-semibold" : "text-[#545049]"
-              )}
-            >
-              <Compass className="w-3.5 h-3.5 text-[#687050]" />
-              <span>Both</span>
-            </button>
-          </div>
-        </div>
 
         {/* Quick Action: New Task */}
         <div className="p-3 border-b border-[#e8e2d5]">

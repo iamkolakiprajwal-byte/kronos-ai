@@ -26,18 +26,22 @@ import { useDemo } from "@/context/demo-context";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { cn } from "@/lib/utils";
 
-const suggestedPrompts = [
+const studentPrompts = [
   {
     title: "Morning Study & Gym",
     prompt: "I need to complete two assignments, study economics for 1 hour, and hit the gym at 5 PM.",
   },
   {
-    title: "Build Reading Habit",
-    prompt: "Help me build a consistent 15-minute academic reading habit every morning.",
+    title: "CS 106B Lab Prep",
+    prompt: "Schedule 90 minutes of algorithm review before my CS lab at 11 AM.",
   },
   {
-    title: "Meeting Reschedule",
-    prompt: "I have an unexpected 4 PM sync. Please reschedule my afternoon work blocks.",
+    title: "ECON 201 Midterm",
+    prompt: "Break down my ECON 201 exam review over the next 3 days.",
+  },
+  {
+    title: "Build Reading Habit",
+    prompt: "Help me build a consistent 15-minute academic reading habit every morning.",
   },
   {
     title: "Break Down Thesis",
@@ -45,11 +49,61 @@ const suggestedPrompts = [
   },
   {
     title: "Catch Up Routine",
-    prompt: "I missed my morning deep work session. How can I reorganise the rest of today realistically?",
+    prompt: "I missed my morning study block. Reorganise the rest of today realistically around my afternoon class.",
+  },
+];
+
+const proPrompts = [
+  {
+    title: "Protect 2h Deep Code",
+    prompt: "Protect a 2-hour uninterrupted deep coding block this morning for Raft consensus development.",
   },
   {
-    title: "Energy-Aligned Block",
-    prompt: "Find a 45-minute high-focus window for thesis writing before my evening classes.",
+    title: "Meeting Reschedule",
+    prompt: "I have an unexpected 4 PM stakeholder sync. Please reschedule my afternoon work blocks.",
+  },
+  {
+    title: "Sprint 42 Retro Prep",
+    prompt: "Find a 45-minute window before 5 PM to compile architecture metrics for tomorrow's retro.",
+  },
+  {
+    title: "Distributed Cache RFC",
+    prompt: "Schedule a 60-minute focused window to review distributed cache pull request comments.",
+  },
+  {
+    title: "6 PM Shutdown Routine",
+    prompt: "Ensure all my tasks conclude before 6:00 PM so I can disconnect cleanly.",
+  },
+  {
+    title: "Incident Postmortem",
+    prompt: "Block 45 minutes for the European cluster failover mitigation document.",
+  },
+];
+
+const dualPrompts = [
+  {
+    title: "Work Demo & Evening Class",
+    prompt: "I have a 10 AM Synthetix demo and a 6 PM Berkeley seminar. Fit 1 hour of thesis writing between them.",
+  },
+  {
+    title: "Resolve Schedule Collision",
+    prompt: "Check if my client meeting at 5:30 PM collides with my evening graduate lecture.",
+  },
+  {
+    title: "Thesis Deep Work Window",
+    prompt: "Find a 45-minute high-focus window for my MS data science thesis after finishing my work shift.",
+  },
+  {
+    title: "Weekend Catchup Plan",
+    prompt: "Structure a realistic Saturday study plan to review Berkeley lecture notes without burning out.",
+  },
+  {
+    title: "Context Switch Reset",
+    prompt: "Add a 15-minute mental buffer between my afternoon coding tasks and evening coursework.",
+  },
+  {
+    title: "Decompress Boundary",
+    prompt: "Schedule an evening wind-down transition block after finishing master's study.",
   },
 ];
 
@@ -74,6 +128,13 @@ export default function AIPage() {
   const [voiceDraft, setVoiceDraft] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const suggestedPrompts =
+    role === "student"
+      ? studentPrompts
+      : role === "professional"
+      ? proPrompts
+      : dualPrompts;
 
   const {
     isSupported: isSpeechSupported,
