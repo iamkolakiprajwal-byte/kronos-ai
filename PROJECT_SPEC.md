@@ -25,12 +25,19 @@ The **AI Time Manager** is an intelligent personal planning assistant engineered
 
 ## 3. Functional Requirements
 
-### 3.1 Primary Navigation
-- **Home**: The central command notebook. Month calendar with scheduled activity indicators, today's time-stamped agenda, upcoming commitments, daily progress summary, quick task creation, and accessible AI chat dock.
-- **Plan**: Daily and weekly schedule views, task management (add, edit, prioritize, estimate duration, tag as flexible or fixed, mark done).
-- **Goals**: Short-term and long-term goals, AI roadmap decomposition into milestones and actionable weekly tasks.
-- **Habits**: Daily habit tracker with cue/context recognition, streak grace periods, and flow focus timer.
-- **Profile**: Personal schedule (wake/sleep times), academic/work timetable, availability rules, AI preferences, sustainability options.
+### 3.1 Primary Workspaces & Mobile App-Like Navigation Architecture
+- **Persistent Bottom Dock Navigation**: Fixed bottom navigation dock (`BottomNav`) providing instant access to the four primary destinations (`Home`, `AI`, `My Day`, `Growth`) with minimum 48px touch targets and device safe-area padding. Zero requirement to open menus for primary navigation.
+- **Horizontal Swipe Navigation**: Two-way horizontal swiping (`Home` $\leftrightarrow$ `AI` $\leftrightarrow$ `My Day` $\leftrightarrow$ `Growth`) with iOS edge-back protection ($<28\text{px}$) and form element pass-through.
+- **Regain-Inspired Screen Composition**:
+  - **Minimal Mobile Top Header**: Clean 44px user avatar button (opens secondary profile/persona drawer), discreet sync status, notification bell, and quick action.
+  - **Home (`/home`)**: Personal planner feel. Editorial date briefing, central architectural calendar with daily rhythm, horizontally browsable suggested schedule blocks with snap scrolling and pagination dots (`•••`), and docked bottom pill CTA: `Plan my day with AI`.
+  - **AI (`/ai`)**: Dedicated conversational planning assistant. Translates natural language into deterministic schedule blocks. Horizontally browsable prompt chips, clean proposal cards with 1-tap `Apply Proposed Schedule to My Day`, speech dictation modal, and 100dvh mobile height adaptation with keyboard resilience.
+  - **My Day (`/my-day`)**: Daily execution workspace. Features dominant **Focus Spotlight Ring** dial with live task details, duration countdown, and play button; daily progress summary pill; horizontally browsable upcoming queue; open vertical timeline; dynamic mid-day reschedule action; and docked bottom pill CTA: `Start focus session`.
+  - **Growth (`/growth`)**: Behavior, Flow & Development workspace with non-competing top segmented pill control:
+    - **Habits Tab**: Clear/Fogg cue anchoring, 2-minute minimum activation versions, empirical 7-day completion rate, cue consistency tracking, and optional self-reported automaticity on the validated 1–5 Self-Report Habit Index (SRHI) scale. Avoids presenting unvalidated percentages as cognitive measurements. Contextual CTA: `Add new habit`.
+    - **Flow Theory Tab**: Mihaly Csíkszentmihályi Challenge–Skill Check-In with 2D quadrant evaluation (*Flow Channel, Anxiety, Boredom, Apathy*), adaptive recommendations, circular persistent background focus timer across workspaces, distraction logger, and post-session reflection modal. Contextual CTA: `Start focus interval` / `Pause focus interval`.
+    - **Habit Reset Tab**: Bas Verplanken & Wendy Wood Habit Discontinuity Hypothesis. Captures life transitions, catalogs obsolete cues and disrupted routines, and materializes new anchor habits directly into active habits collection. Contextual CTA: `Log life discontinuity`.
+    - **Insights Tab**: Empirical analytics computed directly from focus sessions log (zero vs interrupted absorption ratings) and highest adherence & cue consistency habit metrics.
 
 ### 3.2 AI Assistant Capabilities
 - Conversational schedule generation from natural language prompts.
@@ -50,15 +57,32 @@ The **AI Time Manager** is an intelligent personal planning assistant engineered
 - Demo mode utilizing a complete `MockCalendarAdapter` to prevent privacy breaches during review.
 
 ### 3.5 Habit & Flow Support
-- Distinguishes repeated actions from automatic habit formation.
-- Flow focus session timer with distraction-free layout and self-reported engagement reflection.
+- Distinguishes repeated action frequency from cognitive automaticity:
+  - **7-Day Completion Rate**: Empirical execution adherence over rolling 7 days.
+  - **Anchor Cue Consistency**: Adherence to designated contextual triggering anchors.
+  - **Self-Reported Automaticity (SRHI)**: 1–5 scale based on Verplanken & Orbell / Gardner measuring conscious deliberation vs automaticity.
+- Flow focus session timer with distraction-free layout and self-reported engagement reflection (Csíkszentmihályi model).
 - Compassionate recovery after broken streaks.
 
 ### 3.6 Environmental Sustainability (Optional Module)
 - Opt-in eco-friendly routines (walking/cycling commute, zero-paper study, energy conservation).
 - Realistic personal impact tracking without exaggerated carbon metrics.
 
-### 3.7 Onboarding Experience Flow
+### 3.7 Local Storage Persistence & Data Protection
+- Zero external database costs: All application entities persist locally in browser `localStorage`.
+- Schema versioning (`KRONOS_STORAGE_VERSION = 1`).
+- Forward migration (`migrateState`) preserving existing user tasks, habits, and focus logs when schema structures evolve.
+- Pre-migration safety backup (`KRONOS_BACKUP_KEY`) and corrupt data fallback (`KRONOS_CORRUPT_BACKUP_KEY`).
+- One-click backup restoration (`restorePreMigrationBackup`).
+- Full JSON export and import for portable evaluation.
+
+### 3.8 Zero-Cost Demo Environment Integrity
+- Transparent UI labeling across all screens:
+  - Header: `Demo GCal: Synced` (MockCalendarAdapter simulated v3 API; zero Google OAuth credentials needed).
+  - AI Assistant: `Offline Demo Intelligence (MockAIProvider)` running pure TypeScript deterministic constraint solving.
+  - Profile: Explicit integration architecture cards identifying demo adapters and zero-cost local operation.
+
+### 3.9 Onboarding Experience Flow
 - **Stage 1 (Welcome)**: Introduction to adaptive, realistic time management philosophy.
 - **Stage 2 (User Type)**: Choice of Student, Working Professional, or Both (Dual Track).
 - **Stage 3 (Personal Info)**: Full name, email address, headline/title, and institution or enterprise.
@@ -101,11 +125,32 @@ The **AI Time Manager** is an intelligent personal planning assistant engineered
 - Real-time metrics: Total CO₂ saved in kg, tree absorption equivalence (1 tree = 2000g CO₂ benchmark), and Eco Score (0-100).
 - Interactive 1-click logging directly on the Profile page.
 
+### 3.12 Zero-Cost Local Persistence & Prototype Architecture
+- **Browser LocalStorage Subsystem (`src/lib/storage/index.ts`)**:
+  - Zero-cost architecture requiring no paid Supabase or live cloud databases for assignment evaluation.
+  - Schema versioned (`KRONOS_STORAGE_VERSION = 1`) with key `kronos_ai_local_state_v1`.
+  - Persists all entities across browser sessions: `role`, `profile`, `tasks`, `calendarEvents`, `goals`, `habits`, `habitTransitions`, `focusSessions`, `chatMessages`, `notifications`, `ecoEntries`, and `selectedDateStr`.
+  - SSR-safe hydration lifecycle and automatic reactive change persistence in `DemoContext`.
+  - Diagnostics tracking byte size, entity counts, and last saved timestamps.
+  - Full JSON backup export and import facility.
+- **Demo Data Control Center & Baseline Reset**:
+  - Dedicated "Local Persistence & Demo Control Center" card in `/profile` with live diagnostics and guarded reset modal.
+  - 1-click restore to pristine demo baselines for **Student (Aria Chen)**, **Professional (Marcus Reed)**, or **Dual Track (Elena Rostova)**.
+  - Quick-reset triggers in desktop sidebar footer and mobile navigation drawer.
+- **Offline Mock AI Provider with Deterministic Solver Routing**:
+  - Strict intent classification separating casual conversation (`general_query`), daily planning (`create_daily_schedule`), task rescheduling (`reschedule_task`), priority updates (`change_priority`), habit formation (`create_habit`), and milestone roadmaps (`goal_decomposition`).
+  - Casual questions answered conversationally without unintended schedule mutations.
+  - Candidate tasks routed through deterministic constraint solver before proposal presentation.
+  - Dedicated 1-click proposal cards for tasks, habits, and goals.
+
 ---
 
 ## 4. Non-Functional Requirements
 - **Performance**: Sub-100ms client interactions, zero unnecessary re-renders.
-- **Aesthetics**: Calm, notebook-inspired visual design (`#faf9f6` paper background, `#e6e3da` warm slate borders, serif headings, ruled accents).
+- **Visual Identity & Aesthetics**: Calm, warm, sophisticated editorial aesthetic inspired by Regain and timeless print journals:
+  - **Typography**: Instrument Serif & Lora for expressive headings, Manrope for humanist body/interface text, JetBrains Mono for timestamps.
+  - **Palette**: Warm Ivory (`#f8f6f0`), Parchment (`#f2eee6`), Deep Warm Charcoal (`#201e1b`), Muted Sage (`#536b54`), Warm Terracotta (`#b85437`), Olive (`#687050`), and Ochre (`#b37e2a`).
+  - **Surface Architecture**: Open canvas with hairline dividers (`#e8e2d5`), generous whitespace, and zero card-soup or nested container clutter.
 - **Security**: Server-side credential isolation, Supabase Row Level Security, no client-side API secret leakage.
 - **Reliability**: Deterministic fallbacks for AI and calendar adapters ensuring 100% offline-resilient demo operation.
 

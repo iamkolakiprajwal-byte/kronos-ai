@@ -3,6 +3,227 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.1] - 2026-11-05
+
+### Fixed — Mobile Keyboard, Autofill Suppression & Chat / Task Action Remediation
+- **Complete Suppression of Annoying Password / Card Autofill Popup**:
+  - Eliminated the Google Chrome / Android Autofill Assistant toolbar (`[Key] [Card] [Pin]`) appearing above the mobile virtual keyboard.
+  - Converted chat search input to `type="search"` with WebKit appearance normalization, which explicitly excludes inputs from Android/Chromium Credential Manager.
+  - Added strict autofill suppression attributes across forms and modal inputs:
+    - `<form autoComplete="off" data-form-type="other" noValidate>`
+    - `<input autoComplete="off" autoCorrect="off" autoCapitalize="sentences" spellCheck={false} data-form-type="other" data-lpignore="true">`
+  - Applied across `AIPage`, `QuickTaskModal`, `GrowthPage` (Habit & Transition creators), and `AssistantInput`.
+- **AI Chat Mobile Experience & Keyboard Usability**:
+  - Replaced the long, confusing placeholder (`Type your schedule request (e.g. 'Study econo...`) with a concise prompt: `"Ask Kronos to plan your day..."`, making empty vs. typed input immediately clear.
+  - Added `enterKeyHint="send"` so mobile keyboards (Gboard, iOS) display an active blue "Send" key instead of a "Next" (`->`) arrow, submitting prompts directly on Enter.
+  - Relocated 1-tap suggested prompt chips (`Morning Study & Gym`, `Build Reading Habit`, etc.) directly above the composer input for immediate one-touch dispatch on mobile without scrolling.
+  - Send button now provides active visual states, touch feedback, and $\ge 44\times 44\text{px}$ touch targets.
+  - Made `/api/ai/chat` request validation robust with schema defaults to guarantee zero-fail response handling across all profile configurations.
+- **Dynamic Mobile Virtual Keyboard & Viewport Docking (`src/components/layout/bottom-nav.tsx`)**:
+  - Implemented focus-aware viewport detection in `BottomNav`.
+  - When any input or textarea is active on mobile, the persistent bottom navigation bar smoothly slides down out of view (`translate-y-full opacity-0 pointer-events-none`), preventing viewport squeeze, double-bars, and 65px of wasted screen real estate.
+  - When the keyboard is dismissed / input is blurred, the bottom dock seamlessly returns.
+- **Ubiquitous Mobile "New Task" Creation Workflow**:
+  - Added a dedicated `+ New Task` action button in the AI workspace header (`src/app/(dashboard)/ai/page.tsx`).
+  - Added a prominent `+ New Task` button at the top of the mobile drawer menu (`src/components/layout/sidebar.tsx`).
+  - Elevated `openQuickTask`, `closeQuickTask`, and `isQuickTaskOpen` into `DemoContext` so any component or screen can open the unified modal anywhere.
+  - Ensured all modal actions update `localStorage` state and propagate instantly across Home, My Day, and AI workspaces.
+
+## [1.1.0] - 2026-11-05
+
+### Added & Corrected — Final Pre-Deployment Check, Visual Polish & Mobile Layout Fixes
+- **Comprehensive Headless Chrome Browser QA Suite (`scripts/manual-qa-suite.mjs`)**:
+  - Executed automated browser QA testing in Google Chrome across all 7 target viewports: `320px`, `375px`, `390px`, `430px`, `768px`, `1024px`, and `1440px`.
+  - Audited all 5 workspaces (`/home`, `/ai`, `/my-day`, `/growth`, `/profile`) with **64 / 64 browser checks passing**.
+  - Confirmed 0 browser console errors, 0 unhandled page exceptions, and 0 horizontal scroll overflows.
+- **Defects Identified & Resolved During Browser QA**:
+  - *Profile Card Horizontal Overflow (320px)*: Fixed child flex container expanding past 320px viewport in `src/app/(dashboard)/profile/page.tsx` by applying `w-full min-w-0` to the profile overview container.
+  - *SSR / Client Hydration Mismatch in Profile*: Resolved React hydration error caused by reading dynamic `localStorage` timestamps during initial render; introduced a `mounted` lifecycle guard to ensure deterministic server HTML and client hydration.
+  - *Calendar Month Header & Toolbar*: Verified readable Month & Year (`November 2026`) with 123px width on mobile, functional "Week View" / "Full Month" toggle, and today/period navigation.
+  - *Bottom Navigation Touch Targets*: Verified all 4 primary navigation targets (`Home`, `AI`, `My Day`, `Growth`) meet or exceed $44\times 44\text{px}$ ($60\times 53\text{px}$ measured).
+  - *Interactive State Persistence*: Verified task completion toggling, timer intervals, tab switching, and complete state persistence across hard page refreshes.
+- **Mobile Month Name Visibility & Calendar Header Overhaul (`src/components/calendar/month-calendar.tsx`)**:
+  - Fixed mobile month name truncation where "November 2026" was clipped down to a single character ("N") due to cramped toolbar sharing on 320px–390px screens.
+  - Redesigned calendar header into a clean, unconstrained responsive layout:
+    - *Mobile*: Row 1 presents the full Month & Year in expressive serif typography along with the Today button and `< >` navigator; Row 2 houses the full-width, touch-friendly "Week View" / "Full Month" segmented switcher.
+    - *Desktop*: Seamlessly flows into a single balanced horizontal bar with generous whitespace.
+    - Updated calendar legend with responsive stacking and explicit selected-date briefing.
+- **Elimination of Overlapping Floating Elements (`home/page.tsx`, `my-day/page.tsx`, `growth/page.tsx`)**:
+  - Removed duplicate fixed floating pills (`bottom-[68px]`) across Home, My Day, and Growth workspaces that collided with the persistent Bottom Navigation dock and obstructed bottom agenda items during scrolling.
+  - Replaced floating overlays with clean contextual inline action buttons:
+    - *My Day*: "Start Focus Session" and "Reschedule Day" integrated directly inside the central Focus Spotlight Card without blocking viewport content.
+    - *Home*: Eliminated redundant floating AI pill in favor of the persistent bottom dock AI destination and the in-card "Plan with AI" action.
+    - *Growth*: Integrated contextual creation actions directly within each tab view.
+- **Enhanced Breathing Space & Minimalist Layout Polish**:
+  - Increased inter-section vertical rhythm from `space-y-6 sm:space-y-8` to `space-y-7 sm:space-y-10` with relaxed bottom padding (`pb-16 md:pb-12`).
+  - Added text truncation safeguards to the mobile workspace swipe indicator bar (`src/app/(dashboard)/layout.tsx`) to avoid crowding indicator dots on compact screens.
+  - Streamlined AI Assistant header title on mobile (`src/app/(dashboard)/ai/page.tsx`) to avoid horizontal truncation.
+- **Scientific Habit Automaticity Correction (`src/types/index.ts`, `src/app/(dashboard)/growth/page.tsx`, `src/app/(dashboard)/habits/page.tsx`, `src/lib/mock/demo-data.ts`)**:
+  - Removed arbitrary, unvalidated 0–100% automaticity calculations.
+  - Separated habit tracking into three distinct, scientifically grounded metrics:
+    1. **7-Day Completion Adherence**: Empirical weekly completion rate (`completedDays / 7 * 100`).
+    2. **Anchor Cue Consistency**: Adherence to the contextual anchor cue (`cueConsistencyScore` 0–100%).
+    3. **Self-Reported Automaticity (SRHI)**: 1–5 scale based on the Self-Report Habit Index (Verplanken & Orbell, Gardner) allowing users to report subjective automaticity (1: High deliberation $\rightarrow$ 5: Feels automatic) without presenting synthetic calculations as cognitive measurements.
+  - Added interactive 1–5 SRHI rating controls directly on habit cards in Growth and Habits workspaces.
+- **LocalStorage Schema Evolution & Backup Safety Subsystem (`src/lib/storage/index.ts`)**:
+  - Implemented `migrateState(raw)`: Forward-migrates older schema shapes, legacy habits, and tasks while preserving user custom data.
+  - Implemented pre-migration backup (`KRONOS_BACKUP_KEY`): Automatically preserves existing state prior to migration or structural upgrade.
+  - Implemented corrupted data backup (`KRONOS_CORRUPT_BACKUP_KEY`): Protects unparseable raw storage strings from accidental overwrite.
+  - Implemented `restorePreMigrationBackup()`: One-click recovery of the pre-migration snapshot.
+  - Added "Pre-Migration Safety Backup" banner and restore action in `/profile` when backup is present.
+- **Explicit Zero-Cost Demo Environment Labeling**:
+  - Header: Updated Google Calendar sync pill to `Demo GCal: Synced` and added explicit evaluation notice in `SyncModal` confirming zero external OAuth requirement.
+  - AI Workspace: Updated header badge to `Offline Demo Intelligence (MockAIProvider)` and clarified local deterministic scheduling in welcome card.
+  - Profile Page: Added dedicated `Calendar Sync Mode (MockCalendarAdapter)` and `AI Intelligence Mode (MockAIProvider)` architecture cards clarifying zero-cost local operation.
+- **Comprehensive Verification Suite (`tests/e2e/e2e-scenarios.test.ts`)**:
+  - Expanded Scenario E to verify legacy schema migration, custom task preservation, backup creation, and backup restoration.
+  - **50 / 50 E2E tests passing** in `tests/e2e/e2e-scenarios.test.ts`.
+  - **130 / 130 total automated tests passing** across all 8 suites via `npm test`.
+  - Zero TypeScript errors (`npx tsc --noEmit`).
+  - Next.js 16.4.3 Turbopack production build verified (`npm run build`, all 19 routes compiled).
+
+### Added & Completed — End-to-End Integration, Data Persistence & Prototype Readiness
+- **Zero-Cost Local Data Persistence Subsystem (`src/lib/storage/index.ts`)**:
+  - Implemented safe client-side state persistence with `KRONOS_STORAGE_KEY = "kronos_ai_local_state_v1"` and `KRONOS_STORAGE_VERSION = 1`.
+  - Persists all entities across browser sessions and hard page refreshes: `role`, `profile`, `tasks`, `calendarEvents`, `goals`, `habits`, `habitTransitions`, `focusSessions`, `chatMessages`, `notifications`, `ecoEntries`, and `selectedDateStr`.
+  - SSR-guarded hydration lifecycle on client mount with automatic change persistence in `DemoContext`.
+  - Safe error recovery falling back cleanly to pristine demo baseline upon version mismatch or corrupted JSON.
+  - Storage diagnostics function tracking byte size, item count, and last saved timestamps.
+  - Complete JSON backup export and import facility for demonstration transfers.
+- **Demo Data Control Center & Baseline Reset**:
+  - Added "Local Persistence & Demo Control Center" card in `/profile` displaying live diagnostics, backup actions, and a guarded reset workflow.
+  - Persona baseline reset options: 1-click restore to Aria Chen (Student), Marcus Reed (Professional), or Elena Rostova (Dual Track).
+  - Quick-reset triggers in desktop sidebar footer and mobile navigation drawer.
+- **Enhanced Zero-Cost Offline Mock AI Provider (`src/lib/ai/mock-provider.ts`)**:
+  - Strict intent classification separating casual conversation (`general_query`), daily planning (`create_daily_schedule`), task rescheduling (`reschedule_task`), priority updates (`change_priority`), habit formation (`create_habit`), and milestone roadmaps (`goal_decomposition`).
+  - Casual questions (e.g. *"What are you doing?"*, *"Who are you?"*) answered conversationally with zero extracted tasks and zero unintended agenda mutations.
+  - Ambiguous reschedule queries (e.g. *"Move my assignment"*) flag `requiresClarification = true` with interactive selection options.
+  - Priority change parsing extracting target task and adjusting priority tags without altering time slots.
+  - Deterministic solver routing: AI-suggested candidate tasks pass through `/api/schedule/generate` before proposal presentation.
+- **AI Workspace Proposal Cards & 1-Click Handshakes (`src/app/(dashboard)/ai/page.tsx`)**:
+  - Interactive proposal cards for suggested schedule timeblocks (`Apply Proposed Schedule to My Day`).
+  - Dedicated Tiny Habits proposal card (`Anchor Habit to Growth Workspace`) with anchor cue, 2-minute starter rule, and category.
+  - Dedicated Goal Roadmap proposal card (`Integrate Goal to Roadmap`) with chronological milestone checklist.
+  - Interactive chip buttons for quick clarification responses.
+  - Smart `applySuggestedTasks` logic updating existing tasks (for rescheduling / priority changes) or appending new activities.
+- **Full Month Calendar on Top (`src/app/(dashboard)/home/page.tsx`)**:
+  - Positioned full monthly calendar at the top of the Home workspace with `mobileView="month"` showing all weeks across mobile and desktop.
+- **Automated Verification Suite (`tests/e2e/e2e-scenarios.test.ts`)**:
+  - 40 new end-to-end tests covering Scenarios A through E:
+    - *Scenario A*: Daily planning workflow (chat prompt -> intent parsed -> deterministic placements -> agenda synchronization).
+    - *Scenario B*: Schedule changes (dynamic reschedule -> fixed commitments protected -> strictly future placement -> past time prevented).
+    - *Scenario C*: Habit formation (habit created -> Growth workspace anchor -> 7-day adherence automaticity score).
+    - *Scenario D*: Focus session persistence (Csikszentmihalyi flow model -> time distortion -> reflection logging).
+    - *Scenario E*: Storage persistence & demo reset (versioning -> diagnostics -> persona baseline restore).
+  - **122 / 122 total automated tests passing** across 8 test suites via `npm test`.
+  - All 19 Next.js 16 (Turbopack) routes compiling cleanly in `npm run build`.
+  - Puppeteer audit: 0 horizontal overflows across all 9 target viewports (320px to 1440px) on all workspaces.
+
+## [0.9.0] - 2026-11-04
+
+### Added & Redesigned — Regain Mobile App-Like Navigation & Screen Composition
+- **Mobile Navigation Model**:
+  - **Fixed Persistent Bottom Navigation Dock**: 4 primary destinations (`Home`, `AI`, `My Day`, `Growth`) with $\ge 48\text{px}$ touch targets, active charcoal pill indicator, and safe-area padding (`pb-[max(0.6rem,env(safe-area-inset-bottom))]`).
+  - **Minimal Mobile Top Header**: Replaced web-like hamburger header on mobile with a clean 44px circular profile avatar (opening profile/persona drawer), subtle date, and discreet notification/sync icons. Zero requirement to open menus for primary navigation.
+  - **Horizontal Workspace Swipe**: Native swipe gestures (`Home` $\leftrightarrow$ `AI` $\leftrightarrow$ `My Day` $\leftrightarrow$ `Growth`) with edge back gesture protection ($<28\text{px}$ exclusion) and input/control pass-through.
+- **Regain-Inspired Screen Composition**:
+  - **Home**:
+    - Central visual: Open architectural calendar surface with daily rhythm.
+    - Horizontally browsable suggested schedule blocks (`overflow-x-auto snap-x`) with subtle pagination dots (`•••`).
+    - Bottom-anchored primary action pill: `Plan my day with AI` docked cleanly above bottom dock.
+  - **AI (Planning Companion)**:
+    - Dedicated conversational screen with `100dvh` keyboard-resilient layout.
+    - Horizontally browsable prompt suggestion chips.
+    - Clean schedule proposal cards with 1-tap `Apply Proposed Schedule to My Day`.
+    - Bottom-anchored message composer with voice dictation (`Mic`).
+  - **My Day (Daily Execution)**:
+    - Dominant central visual: **Focus Spotlight Ring** dial with duration, scheduled time, and 1-tap green/terracotta play button (matching Regain's central timer ring).
+    - Secondary summary pill: Daily progress (`completed of total blocks done • remaining time`).
+    - Horizontally browsable upcoming tasks queue with snap scrolling and pagination dots.
+    - Clean open vertical execution timeline with 1-click status checkboxes and priority badges.
+    - Dynamic mid-day reschedule action.
+    - Bottom-anchored primary action pill: `Start focus session`.
+  - **Growth (Behavior, Flow & Insights)**:
+    - Top segmented pill control (`Habits`, `Flow Theory`, `Habit Reset`, `Insights`) non-competing with bottom nav.
+    - Dominant central visual in Flow tab: Circular persistent focus timer dial with countdown, progress ring, and Challenge–Skill Check-In.
+    - Cue-anchored habits with 2-minute activations and automaticity tracking.
+    - Life discontinuity reset transitions and empirical distraction resistance insights.
+    - Contextual bottom-anchored primary actions (`Start focus interval`, `Add new habit`, `Log life discontinuity`).
+- **Automated Verification**:
+  - 0 horizontal overflows across 9 viewports (320px to 1440px) verified via Puppeteer.
+  - Header and bottom nav touch targets meet $\ge 44\text{px}$ accessibility standards.
+  - 82/82 automated tests passing across 7 test suites. All 19 Next.js routes compile cleanly.
+
+## [0.8.0] - 2026-11-04
+
+### Added & Redesigned
+- **Complete Visual Identity & Global Design System Overhaul**:
+  - **Distinctive Typography System**:
+    - Integrated **Instrument Serif** and **Lora** via Google Fonts and `next/font/google` for large, expressive, literary headings.
+    - Integrated **Manrope** for clean, spacious, humanist UI typography and body text.
+    - Integrated monospace font stack for timestamp badges.
+  - **Warm Editorial Color Palette**:
+    - Replaced generic cold slate/blue SaaS palette with warm, organic, tactile tones:
+      - Canvas & Parchment: Warm Ivory (`#f8f6f0`), Parchment (`#f2eee6`), Ecru (`#e8e2d5`).
+      - Ink & Typography: Deep Warm Charcoal (`#201e1b`), Muted Charcoal (`#545049`), Warm Stone (`#8a8479`).
+      - Accents: Muted Sage (`#536b54`) for completion/growth, Warm Terracotta (`#b85437`) for focus/urgency, Olive (`#687050`) for routines/habits, and Warm Honey/Ochre (`#b37e2a`) for sparks.
+      - Hairline Dividers: Delicate `#e8e2d5` and `#e4ded2` lines replacing thick container borders.
+  - **De-Cardification & Open Architecture**:
+    - Substantially reduced boxed containers, heavy rounded cards, and nested card borders.
+    - Shifted visual structure to whitespace, typographic contrast, vertical timeline connectors, and subtle parchment washes.
+  - **Global Application Shell Redesign**:
+    - **Header**: Quiet, uncluttered greeting with serif typography, subtle sage *"AI Scheduled"* pill, refined date briefing, and minimal action buttons.
+    - **Sidebar**: Architectural editorial layout with tactile 3-track persona switcher (Student, Pro, Both), quiet active indicators, and refined profile settings anchor.
+    - **Mobile Bottom Navigation**: Warm parchment bar with deep charcoal active indicators and safe-area padding.
+  - **Home Workspace Redesign**:
+    - **Editorial Canvas Briefing**: Large expressive serif date heading (*"Monday, November 2"*) and clear overview of commitments and focus blocks.
+    - **Architectural Month Calendar**: Open, uncluttered monthly surface with Instrument Serif / Lora header, delicate sage/terracotta/olive indicator dots, and smooth Week/Month toggle.
+    - **Quiet AI Planning Bridge**: Replaced loud yellow promo banner with a warm, conversational parchment strip.
+    - **Open Agenda Timeline**: Streamlined chronological list without enclosed card borders, featuring clean completion checkboxes, duration badges, and direct Quick Task triggers.
+    - **Upcoming Horizon**: Minimalist upcoming commitments list with warm olive/parchment chips.
+
+## [0.7.0] - 2026-11-04
+
+### Fixed & Remediated
+- **Reference Date Synchronization**:
+  - Unified demo environment on single authoritative reference date: `DEMO_REFERENCE_DATE = "2026-11-02"` (`Monday, November 2, 2026`).
+  - Anchored initial mock schedule, `selectedDate`, MonthCalendar navigation, and AI schedule generation to the authoritative date.
+  - Resolved date desynchronization where AI tasks were placed on machine local time (`2026-11-04`) while calendar displayed `2026-11-02`.
+- **Persistent Focus Timer Engine**:
+  - Re-architected flow timer from local component state into global `DemoContext`.
+  - Implemented epoch timestamp calculation (`targetEndTimestamp = Date.now() + secondsLeft * 1000`) with visibility change and window focus listeners.
+  - Timer persists seamlessly across workspace navigation (`/growth` <-> `/my-day` <-> `/ai` <-> `/home`) and background browser tab switches without losing elapsed seconds or resetting.
+- **Mid-Day Reschedule & Past-Time Protection**:
+  - Fixed `handleDynamicReschedule` in `src/app/(dashboard)/my-day/page.tsx` to pass `currentTime: effectiveTime` (respecting current hours/minutes or wake time), preventing tasks from being scheduled in the past.
+  - Added explicit conflict alerts when remaining hours before bedtime (23:00) are insufficient for scheduled workload.
+- **Scientific Accuracy & Behavioral Science**:
+  - Renamed predictive interface to **Challenge–Skill Check-In**, rooted in Mihaly Csíkszentmihályi's Flow Theory.
+  - Added real-time adaptive recommendations:
+    - *High Challenge ($\ge 4$) + Low Skill ($\le 2$)*: Anxiety alert with 1-click option to switch to a 20-minute activation sprint.
+    - *Low Challenge ($\le 2$) + High Skill ($\ge 4$)*: Boredom alert with recommendation to introduce tighter time constraints or advanced sub-tasks.
+    - *Balanced Demands ($\ge 3$)*: Flow Channel confirmation banner.
+    - *Unclear Goal / Completion Criteria*: Prompt highlighting flow requirement for unambiguous immediate feedback.
+  - **Habit Reset Transition Materialization**:
+    - Created automatic bridge between `HabitResetTransition` target habits and active `habits` collection in `DemoContext`.
+    - Initialized new transition habits with non-punitive baseline automaticity (25%), anchor cues, and duplicate prevention.
+  - **Empirical Analytics in Insights**:
+    - Replaced hardcoded distraction resistance scores (4.6/5 vs 2.8/5) with authentic computation from `focusSessions` log.
+    - Added honest insufficient-data empty state when fewer than 2 flow reflection sessions are recorded.
+    - Fixed `habits[0]` bug by dynamically sorting habits by `automaticityScore` descending.
+- **Mobile Responsiveness & Gesture Protection**:
+  - **Zero Horizontal Overflow**: Verified $0\text{px}$ overflow across all 9 target viewports (320px, 360px, 375px, 390px, 414px, 430px, 768px, 1024px, 1440px).
+  - Eliminated 551px minimum width bottleneck on `/home` by hiding redundant banner action buttons on small screens.
+  - Fixed `/ai` chat layout on mobile using dynamic viewport units (`100dvh`), docking input field cleanly above mobile bottom navigation without double scrollbars.
+  - Upgraded mobile header touch targets (Menu toggle, Google Calendar sync button, Quick Task button, Notification bell) to meet or exceed $\ge 44\times 44\text{px}$.
+  - Added iOS edge back/forward gesture protection in `useWorkspaceSwipe` (ignoring swipes with `startX < 28px` or `> innerWidth - 28px`) and 450ms cooldown debounce.
+- **Testing & Verification**:
+  - Created 3 new test suites:
+    - `tests/scheduler/reschedule.test.ts` (12 tests): Mid-day rescheduling at 10:00 AM, 3:00 PM, and 7:00 PM; past-time protection; overbooked capacity detection.
+    - `tests/habits/habit-reset.test.ts` (13 tests): Habit Reset materialization, duplicate prevention, non-punitive automaticity computation.
+    - `tests/growth/flow-timer.test.ts` (20 tests): Timestamp-based elapsed time calculation, pause/resume mechanics, reflection logging.
+  - Total automated unit test suite expanded from 37 to **82 passing tests** across 7 test files (`npm test` passes 100%).
+  - Full Next.js production build (`npm run build`) completed cleanly with Turbopack and static generation across all 19 application routes.
+
 ## [0.6.0] - 2026-11-04
 
 ### Added

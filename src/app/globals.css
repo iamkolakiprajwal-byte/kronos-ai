@@ -1,32 +1,70 @@
 @import "tailwindcss";
 
+@theme {
+  --font-serif: "Instrument Serif", var(--font-lora), "Lora", Georgia, serif;
+  --font-sans: var(--font-manrope), "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
+
+  --color-ivory: #f8f6f0;
+  --color-parchment: #f2eee6;
+  --color-parchment-deep: #e8e2d5;
+  --color-charcoal: #201e1b;
+  --color-charcoal-muted: #545049;
+  --color-charcoal-subtle: #8a8479;
+  
+  --color-border-hairline: #e4ded2;
+  --color-border-warm: #d5cdbd;
+  
+  --color-sage: #536b54;
+  --color-sage-light: #edf2ec;
+  --color-sage-dark: #3a4c3b;
+
+  --color-terracotta: #b85437;
+  --color-terracotta-light: #faece7;
+  --color-terracotta-dark: #8f3e26;
+
+  --color-olive: #687050;
+  --color-olive-light: #f1f3ea;
+
+  --color-ochre: #b37e2a;
+  --color-ochre-light: #fbf5e7;
+}
+
 @layer base {
   :root {
-    --background: #faf9f6; /* Warm paper / notebook alabaster */
+    --background: #f7f5f0; /* Warm ivory canvas */
     --surface: #ffffff;
-    --surface-hover: #f5f4ef;
-    --border: #e6e3da;
-    --border-strong: #d2cebf;
-    --foreground: #1f2937;
-    --foreground-muted: #576274;
-    --foreground-subtle: #8a94a6;
+    --surface-hover: #f3efe7;
+    --border: #e4ded2;
+    --border-strong: #d5cdbd;
+    --foreground: #201e1b;
+    --foreground-muted: #545049;
+    --foreground-subtle: #8a8479;
     
-    --primary: #1e3a8a; /* Deep calm indigo */
-    --primary-light: #eff6ff;
-    --accent-amber: #d97706;
-    --accent-amber-light: #fffbeb;
-    --accent-emerald: #059669;
-    --accent-emerald-light: #ecfdf5;
-    --accent-rose: #e11d48;
-    --accent-rose-light: #fff1f2;
+    --primary: #201e1b;
+    --primary-light: #f2eee6;
+    --accent-sage: #536b54;
+    --accent-sage-light: #edf2ec;
+    --accent-terracotta: #b85437;
+    --accent-terracotta-light: #faece7;
+    --accent-olive: #687050;
+    --accent-olive-light: #f1f3ea;
+    --accent-ochre: #b37e2a;
+    --accent-ochre-light: #fbf5e7;
   }
 
   body {
     background-color: var(--background);
     color: var(--foreground);
+    font-family: var(--font-sans);
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: var(--font-serif);
+    letter-spacing: -0.015em;
   }
 }
 
@@ -36,10 +74,10 @@
   background-size: 100% 2.25rem;
 }
 
-/* Custom minimal scrollbar */
+/* Minimal calm scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -47,12 +85,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #d8d2c4;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #bab2a0;
 }
 
 /* Hide scrollbar for clean horizontal tab chips */
@@ -71,4 +109,13 @@ button, a, input, select, textarea {
 
 .pb-safe {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Clean search inputs to match text inputs seamlessly across WebKit / Chromium */
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
 }

@@ -20,19 +20,107 @@ import {
   Moon,
   Trees,
   CheckCircle2,
+  Database,
+  RotateCcw,
+  Download,
+  Upload,
+  Check,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { calculateEcoImpact } from "@/lib/sustainability/eco-calculator";
+import { getStorageDiagnostics } from "@/lib/storage";
 
 export default function ProfilePage() {
-  const { profile, role, setRole, ecoEntries, logEcoActivity } = useDemo();
+  const {
+    profile,
+    role,
+    setRole,
+    ecoEntries,
+    logEcoActivity,
+    resetDemoData,
+    exportData,
+    importData,
+    restoreBackup,
+    tasks,
+    habits,
+    calendarEvents,
+    focusSessions,
+  } = useDemo();
+
   const [ecoNotice, setEcoNotice] = useState<string | null>(null);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importJsonText, setImportJsonText] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const ecoImpact = calculateEcoImpact(ecoEntries);
+  const diagnostics = mounted
+    ? getStorageDiagnostics()
+    : { isAvailable: true, totalBytes: 0, lastSaved: null, itemCount: 0, hasCustomData: false, hasBackup: false };
 
   const handleQuickLog = (activity: any, minutes: number, label: string) => {
     logEcoActivity(activity, minutes);
     setEcoNotice(`Logged ${label}! Updated your sustainability score.`);
     setTimeout(() => setEcoNotice(null), 4000);
+  };
+
+  const handleConfirmReset = (targetRole?: any) => {
+    resetDemoData(targetRole || role);
+    setIsResetModalOpen(false);
+    setResetNotice(`Application state reset to pristine demo baseline (${targetRole || role} persona).`);
+    setTimeout(() => setResetNotice(null), 5000);
+  };
+
+  const handleExportBackup = () => {
+    try {
+      const json = exportData();
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `kronos-backup-${role}-${new Date().toISOString().split("T")[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setExportNotice("Backup file downloaded successfully!");
+      setTimeout(() => setExportNotice(null), 4000);
+    } catch {
+      setExportNotice("Failed to export backup.");
+      setTimeout(() => setExportNotice(null), 4000);
+    }
+  };
+
+  const handleImportSubmit = () => {
+    if (!importJsonText.trim()) return;
+    setImportError(null);
+    const success = importData(importJsonText.trim());
+    if (success) {
+      setIsImportOpen(false);
+      setImportJsonText("");
+      setResetNotice("Backup data restored successfully!");
+      setTimeout(() => setResetNotice(null), 5000);
+    } else {
+      setImportError("Invalid Kronos backup JSON format. Please verify the file content.");
+    }
+  };
+
+  const handleRestoreSafetyBackup = () => {
+    if (!restoreBackup) return;
+    const success = restoreBackup();
+    if (success) {
+      setResetNotice("Pre-migration safety backup restored successfully!");
+      setTimeout(() => setResetNotice(null), 5000);
+    } else {
+      setResetNotice("No pre-migration safety backup found in storage.");
+      setTimeout(() => setResetNotice(null), 4000);
+    }
   };
 
   return (
@@ -47,9 +135,29 @@ export default function ProfilePage() {
         </p>
       </div>
 
+      {/* Dynamic Feedback Banner */}
+      {(resetNotice || exportNotice || ecoNotice) && (
+        <div className="p-3.5 rounded-2xl bg-[#edf2ec] border border-[#d6e0d5] text-[#536b54] text-xs flex items-center justify-between gap-3 animate-in fade-in-50">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-[#536b54]" />
+            <span className="font-medium">{resetNotice || exportNotice || ecoNotice}</span>
+          </div>
+          <button
+            onClick={() => {
+              setResetNotice(null);
+              setExportNotice(null);
+              setEcoNotice(null);
+            }}
+            className="text-[10px] text-[#536b54] hover:underline font-semibold cursor-pointer shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Profile Overview Card */}
       <div className="bg-white rounded-2xl border border-[#e6e3da] p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 w-full min-w-0">
           <img
             src={profile.avatar}
             alt={profile.name}
@@ -262,21 +370,289 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Calendar Connection Info Card */}
-      <div className="bg-white rounded-2xl border border-[#e6e3da] p-4 sm:p-6 shadow-xs space-y-3 sm:space-y-4">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <h3 className="font-serif text-sm font-bold text-slate-900">
-            Calendar Integration Mode
-          </h3>
+      {/* AI & Calendar Architecture Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Calendar Connection Info Card */}
+        <div className="bg-white rounded-2xl border border-[#e6e3da] p-4 sm:p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#536b54]" />
+              <h3 className="font-serif text-sm font-bold text-[#201e1b]">
+                Calendar Sync Mode
+              </h3>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#f2eee6] text-[#687050] font-medium border border-[#e8e2d5]">
+              Demo Adapter
+            </span>
+          </div>
+          <p className="text-xs text-[#545049] leading-relaxed">
+            Running on <strong className="text-[#201e1b]">MockCalendarAdapter</strong> for academic prototype evaluation. No external Google OAuth account or cloud API credentials are used. Two-way synchronization, external conflict alerts, and agenda rescheduling are simulated locally.
+          </p>
+          <div className="p-2.5 rounded-xl bg-[#faf7f0] border border-[#e8e2d5] text-[11px] text-[#545049]">
+            ✓ Interactive conflict simulation available via the <span className="font-semibold text-[#201e1b]">Demo GCal</span> button in the header.
+          </div>
         </div>
-        <p className="text-xs text-slate-600 leading-relaxed">
-          Currently running on <span className="font-semibold text-slate-900">MockCalendarAdapter</span> for academic evaluation. No personal Google accounts are connected or modified without explicit OAuth configuration.
-        </p>
-        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200/80 text-[11px] text-amber-900">
-          ✓ Two-way sync simulation active with conflict resolution modal in the top header.
+
+        {/* AI Engine Architecture Card */}
+        <div className="bg-white rounded-2xl border border-[#e6e3da] p-4 sm:p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[#b37e2a]" />
+              <h3 className="font-serif text-sm font-bold text-[#201e1b]">
+                AI Intelligence Mode
+              </h3>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#fdf2ee] text-[#b85437] font-medium border border-[#f2cfc2]">
+              Offline Provider
+            </span>
+          </div>
+          <p className="text-xs text-[#545049] leading-relaxed">
+            Running on <strong className="text-[#201e1b]">MockAIProvider</strong> for zero-cost demonstration. Natural language intent classification and deterministic schedule generation run locally without external OpenAI or Anthropic API billing.
+          </p>
+          <div className="p-2.5 rounded-xl bg-[#faf7f0] border border-[#e8e2d5] text-[11px] text-[#545049]">
+            ✓ Deterministic interval-scheduling engine places tasks around protected fixed commitments.
+          </div>
         </div>
       </div>
+
+      {/* Local Storage Persistence & Demo Controls Card */}
+      <div className="bg-white rounded-2xl border border-[#e8e2d5] p-4 sm:p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-[#e8e2d5]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#201e1b] text-[#f8f6f0] flex items-center justify-center shrink-0 shadow-2xs">
+              <Database className="w-4 h-4 text-[#e8decb]" />
+            </div>
+            <div>
+              <h3 className="font-serif text-sm sm:text-base font-semibold text-[#201e1b]">
+                Local Persistence & Demo Control Center
+              </h3>
+              <p className="text-[11px] text-[#8a8479]">
+                Zero external database costs — state persists across browser restarts in localStorage with migration & backup protection.
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#edf2ec] text-[#536b54] text-[10px] font-semibold border border-[#d6e0d5] self-start sm:self-auto">
+            <Check className="w-3 h-3" />
+            LocalStorage Active (v1)
+          </span>
+        </div>
+
+        {/* Safety Backup Alert if available */}
+        {mounted && diagnostics.hasBackup && (
+          <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/90 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in-50">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+              <span className="text-amber-900 leading-relaxed">
+                <strong>Pre-Migration Backup Detected:</strong> An earlier version of your customized schedule is safely preserved in storage.
+              </span>
+            </div>
+            <button
+              onClick={handleRestoreSafetyBackup}
+              className="px-3 py-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-semibold shadow-2xs transition-colors shrink-0 cursor-pointer self-start sm:self-auto"
+            >
+              Restore Safety Backup
+            </button>
+          </div>
+        )}
+
+        {/* Diagnostics Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+          <div className="p-3 rounded-xl bg-[#fbf9f5] border border-[#e8e2d5]">
+            <span className="text-[10px] uppercase font-bold text-[#8a8479] block tracking-wider">
+              Agenda Tasks
+            </span>
+            <span className="font-serif text-lg font-bold text-[#201e1b] mt-0.5 block">
+              {tasks.length}
+            </span>
+          </div>
+          <div className="p-3 rounded-xl bg-[#fbf9f5] border border-[#e8e2d5]">
+            <span className="text-[10px] uppercase font-bold text-[#8a8479] block tracking-wider">
+              Active Habits
+            </span>
+            <span className="font-serif text-lg font-bold text-[#201e1b] mt-0.5 block">
+              {habits.length}
+            </span>
+          </div>
+          <div className="p-3 rounded-xl bg-[#fbf9f5] border border-[#e8e2d5]">
+            <span className="text-[10px] uppercase font-bold text-[#8a8479] block tracking-wider">
+              Focus Logs
+            </span>
+            <span className="font-serif text-lg font-bold text-[#201e1b] mt-0.5 block">
+              {focusSessions.length}
+            </span>
+          </div>
+          <div className="p-3 rounded-xl bg-[#fbf9f5] border border-[#e8e2d5]">
+            <span className="text-[10px] uppercase font-bold text-[#8a8479] block tracking-wider">
+              Last Saved
+            </span>
+            <span className="font-serif text-xs font-semibold text-[#545049] mt-1 block truncate">
+              {diagnostics.lastSaved || "Just now"}
+            </span>
+          </div>
+        </div>
+
+        {/* Action Controls */}
+        <div className="pt-2 flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleExportBackup}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-xs font-medium text-[#201e1b] shadow-2xs transition-colors cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-[#536b54]" />
+              <span>Export State (JSON)</span>
+            </button>
+            <button
+              onClick={() => setIsImportOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-xs font-medium text-[#201e1b] shadow-2xs transition-colors cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5 text-[#8a8479]" />
+              <span>Import State</span>
+            </button>
+            {mounted && diagnostics.hasBackup && (
+              <button
+                onClick={handleRestoreSafetyBackup}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-xs font-medium text-amber-900 shadow-2xs transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                <span>Restore Safety Backup</span>
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => setIsResetModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#fdf2ee] hover:bg-[#fae4dc] border border-[#f2cfc2] text-[#b85437] text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Demo Baseline</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Demo Reset Confirmation Modal */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#201e1b]/40 backdrop-blur-xs animate-in fade-in-50">
+          <div className="bg-[#fbf9f5] rounded-3xl border border-[#e8e2d5] w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#fdf2ee] border border-[#f2cfc2] flex items-center justify-center text-[#b85437] shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-serif text-lg font-normal text-[#201e1b]">
+                  Reset Demo State?
+                </h3>
+                <p className="text-xs text-[#545049] mt-1 leading-relaxed">
+                  This will clear custom tasks, focus session reflections, and chat messages in your browser and restore the pristine assignment demo baseline.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-[#e8e2d5]">
+              <span className="text-[10px] uppercase font-bold text-[#8a8479] tracking-wider block">
+                Choose Persona Baseline to Restore:
+              </span>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <button
+                  onClick={() => handleConfirmReset("student")}
+                  className="p-2.5 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-center font-medium text-[#201e1b] cursor-pointer transition-colors"
+                >
+                  <span className="block font-semibold">Student</span>
+                  <span className="text-[10px] text-[#8a8479]">Aria Chen</span>
+                </button>
+                <button
+                  onClick={() => handleConfirmReset("professional")}
+                  className="p-2.5 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-center font-medium text-[#201e1b] cursor-pointer transition-colors"
+                >
+                  <span className="block font-semibold">Pro</span>
+                  <span className="text-[10px] text-[#8a8479]">Marcus Reed</span>
+                </button>
+                <button
+                  onClick={() => handleConfirmReset("both")}
+                  className="p-2.5 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-center font-medium text-[#201e1b] cursor-pointer transition-colors"
+                >
+                  <span className="block font-semibold">Dual</span>
+                  <span className="text-[10px] text-[#8a8479]">Elena Rostova</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3">
+              <button
+                onClick={() => setIsResetModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-medium text-[#545049] hover:bg-[#f2eee6] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleConfirmReset(role)}
+                className="px-4 py-2 rounded-xl bg-[#b85437] hover:bg-[#9e442b] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              >
+                Confirm Reset ({role})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import JSON Modal */}
+      {isImportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#201e1b]/40 backdrop-blur-xs animate-in fade-in-50">
+          <div className="bg-[#fbf9f5] rounded-3xl border border-[#e8e2d5] w-full max-w-lg p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#e8e2d5]">
+              <div className="flex items-center gap-2">
+                <Upload className="w-4 h-4 text-[#536b54]" />
+                <h3 className="font-serif text-base sm:text-lg font-normal text-[#201e1b]">
+                  Import Kronos Backup JSON
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setIsImportOpen(false);
+                  setImportError(null);
+                }}
+                className="text-xs text-[#8a8479] hover:text-[#201e1b]"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <p className="text-xs text-[#545049]">
+              Paste exported Kronos JSON backup below to restore your exact tasks, habits, and focus history:
+            </p>
+
+            <textarea
+              value={importJsonText}
+              onChange={(e) => setImportJsonText(e.target.value)}
+              rows={8}
+              placeholder="Paste JSON content here..."
+              className="w-full p-3 rounded-2xl bg-white border border-[#e8e2d5] text-xs font-mono text-[#201e1b] focus:outline-hidden focus:ring-2 focus:ring-[#201e1b]/10 resize-none"
+            />
+
+            {importError && (
+              <p className="text-xs text-[#b85437] font-medium">{importError}</p>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => {
+                  setIsImportOpen(false);
+                  setImportError(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-medium text-[#545049] hover:bg-[#f2eee6] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImportSubmit}
+                disabled={!importJsonText.trim()}
+                className="px-4 py-2 rounded-xl bg-[#201e1b] hover:bg-[#38342f] disabled:opacity-40 text-white text-xs font-semibold shadow-2xs cursor-pointer"
+              >
+                Restore Backup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

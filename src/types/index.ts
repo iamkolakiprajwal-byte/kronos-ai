@@ -86,6 +86,21 @@ export interface Goal {
   milestones: Milestone[];
 }
 
+export interface ActiveTimerState {
+  taskTitle: string;
+  habitId?: string;
+  totalMinutes: number;
+  secondsLeft: number;
+  isRunning: boolean;
+  interruptionsCount: number;
+  targetEndTimestamp?: number;
+  perceivedChallenge: number;
+  perceivedSkill: number;
+  sessionGoal: string;
+  completionCriteria: string;
+  sessionCompleted: boolean;
+}
+
 export interface FocusSessionLog {
   id: string;
   taskTitle?: string;
@@ -138,9 +153,13 @@ export interface Habit {
   currentStreak: number;
   bestStreak: number;
   completedToday: boolean;
-  automaticityScore: number; // 0-100 based on consistency & subjective ease
-  category: "focus" | "health" | "learning" | "mindfulness" | "eco";
+  totalCompletions?: number;
   recentHistory?: boolean[]; // last 7 days completion
+  weeklyCompletionRate?: number; // 0-100% adherence (completed days / 7)
+  cueConsistencyScore?: number; // 0-100% anchor cue adherence
+  selfReportedAutomaticity?: number; // Optional 1-5 Self-Report Habit Index rating (1=Deliberate effort, 5=Fully automatic)
+  automaticityScore: number; // Backward-compatible alias reflecting weeklyCompletionRate
+  category: "focus" | "health" | "learning" | "mindfulness" | "eco";
 }
 
 export interface HabitResetTransition {
@@ -244,4 +263,19 @@ export interface ChatMessage {
     payload: string;
   }>;
   suggestedTasks?: Partial<Task>[];
+  suggestedHabit?: {
+    title: string;
+    cue: string;
+    category: "focus" | "learning" | "health" | "mindfulness" | "eco";
+    frequency: "daily" | "weekdays" | "3x_week" | "weekly";
+    minimumVersion?: string;
+    targetDurationMinutes?: number;
+  };
+  suggestedGoal?: {
+    title: string;
+    category: "academic" | "career" | "skills" | "personal";
+    priority: Priority;
+    targetTimeline: string;
+    milestones: Array<{ title: string; dueDate?: string }>;
+  };
 }

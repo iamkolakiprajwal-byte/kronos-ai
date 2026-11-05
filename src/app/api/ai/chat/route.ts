@@ -6,18 +6,32 @@ import { saveUserMemory } from "@/lib/ai/memory";
 const chatRequestSchema = z.object({
   prompt: z.string().min(1, "Prompt cannot be empty"),
   context: z.object({
-    profile: z.object({
-      id: z.string(),
-      name: z.string(),
-      role: z.enum(["student", "professional", "both"]),
-      wakeTime: z.string(),
-      sleepTime: z.string(),
-      mostProductivePeriod: z.enum(["morning", "afternoon", "evening", "night"]),
-      preferredFocusDuration: z.number(),
-      preferredBreakDuration: z.number(),
-      planningStyle: z.enum(["structured", "flexible", "time-blocked"]),
-      sustainabilityOptIn: z.boolean(),
-    }),
+    profile: z
+      .object({
+        id: z.string().default("user-demo"),
+        name: z.string().default("Aria"),
+        role: z.enum(["student", "professional", "both"]).default("student"),
+        wakeTime: z.string().default("07:00"),
+        sleepTime: z.string().default("23:00"),
+        mostProductivePeriod: z.enum(["morning", "afternoon", "evening", "night"]).default("morning"),
+        preferredFocusDuration: z.number().default(45),
+        preferredBreakDuration: z.number().default(10),
+        planningStyle: z.enum(["structured", "flexible", "time-blocked"]).default("time-blocked"),
+        sustainabilityOptIn: z.boolean().default(false),
+      })
+      .passthrough()
+      .default({
+        id: "user-demo",
+        name: "Aria",
+        role: "student",
+        wakeTime: "07:00",
+        sleepTime: "23:00",
+        mostProductivePeriod: "morning",
+        preferredFocusDuration: 45,
+        preferredBreakDuration: 10,
+        planningStyle: "time-blocked",
+        sustainabilityOptIn: false,
+      }),
     existingTasks: z.array(z.any()).default([]),
     fixedCommitments: z
       .array(
@@ -25,11 +39,11 @@ const chatRequestSchema = z.object({
           title: z.string(),
           startTime: z.string(),
           endTime: z.string(),
-          isFixed: z.boolean(),
-        })
+          isFixed: z.boolean().default(true),
+        }).passthrough()
       )
       .default([]),
-    currentDate: z.string(),
+    currentDate: z.string().default("2026-11-02"),
   }),
 });
 

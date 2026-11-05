@@ -60,9 +60,14 @@ export const dualProfile: UserProfile = {
   sustainabilityOptIn: true,
 };
 
-// Reference date for demo data
-const REFERENCE_DATE = "2026-11-02";
-const todayStr = REFERENCE_DATE;
+// Authoritative reference date for consistent demo and evaluation environment
+export const DEMO_REFERENCE_DATE = "2026-11-02";
+export const REFERENCE_DATE = DEMO_REFERENCE_DATE;
+export const todayStr = DEMO_REFERENCE_DATE;
+
+export function getDemoReferenceDate(): Date {
+  return new Date(`${DEMO_REFERENCE_DATE}T00:00:00`);
+}
 
 // Dates offset helper based on fixed reference date
 const getDateOffset = (offsetDays: number) => {
@@ -461,7 +466,10 @@ export const studentHabits: Habit[] = [
     currentStreak: 12,
     bestStreak: 19,
     completedToday: true,
-    automaticityScore: 78,
+    weeklyCompletionRate: 86,
+    cueConsistencyScore: 90,
+    selfReportedAutomaticity: 4,
+    automaticityScore: 86,
     category: "learning",
     recentHistory: [true, true, true, false, true, true, true],
   },
@@ -477,7 +485,10 @@ export const studentHabits: Habit[] = [
     currentStreak: 8,
     bestStreak: 14,
     completedToday: true,
-    automaticityScore: 82,
+    weeklyCompletionRate: 86,
+    cueConsistencyScore: 85,
+    selfReportedAutomaticity: 4,
+    automaticityScore: 86,
     category: "eco",
     recentHistory: [true, true, true, true, false, true, true],
   },
@@ -493,7 +504,10 @@ export const studentHabits: Habit[] = [
     currentStreak: 5,
     bestStreak: 11,
     completedToday: false,
-    automaticityScore: 65,
+    weeklyCompletionRate: 57,
+    cueConsistencyScore: 70,
+    selfReportedAutomaticity: 3,
+    automaticityScore: 57,
     category: "focus",
     recentHistory: [false, true, true, true, false, true, false],
   },
@@ -509,7 +523,10 @@ export const studentHabits: Habit[] = [
     currentStreak: 4,
     bestStreak: 7,
     completedToday: false,
-    automaticityScore: 54,
+    weeklyCompletionRate: 43,
+    cueConsistencyScore: 60,
+    selfReportedAutomaticity: 2,
+    automaticityScore: 43,
     category: "mindfulness",
     recentHistory: [true, false, true, false, true, false, false],
   },
@@ -528,7 +545,10 @@ export const professionalHabits: Habit[] = [
     currentStreak: 14,
     bestStreak: 24,
     completedToday: true,
-    automaticityScore: 85,
+    weeklyCompletionRate: 86,
+    cueConsistencyScore: 92,
+    selfReportedAutomaticity: 5,
+    automaticityScore: 86,
     category: "focus",
     recentHistory: [true, true, true, true, true, false, true],
   },
@@ -544,7 +564,10 @@ export const professionalHabits: Habit[] = [
     currentStreak: 9,
     bestStreak: 15,
     completedToday: true,
-    automaticityScore: 72,
+    weeklyCompletionRate: 86,
+    cueConsistencyScore: 75,
+    selfReportedAutomaticity: 4,
+    automaticityScore: 86,
     category: "health",
     recentHistory: [true, true, false, true, true, true, true],
   },
@@ -560,7 +583,10 @@ export const professionalHabits: Habit[] = [
     currentStreak: 21,
     bestStreak: 30,
     completedToday: true,
-    automaticityScore: 92,
+    weeklyCompletionRate: 100,
+    cueConsistencyScore: 95,
+    selfReportedAutomaticity: 5,
+    automaticityScore: 100,
     category: "eco",
     recentHistory: [true, true, true, true, true, true, true],
   },
@@ -770,7 +796,10 @@ export const dualHabits: Habit[] = [
     currentStreak: 10,
     bestStreak: 16,
     completedToday: true,
-    automaticityScore: 80,
+    weeklyCompletionRate: 86,
+    cueConsistencyScore: 85,
+    selfReportedAutomaticity: 4,
+    automaticityScore: 86,
     category: "focus",
     recentHistory: [true, true, true, false, true, true, true],
   },
@@ -786,7 +815,10 @@ export const dualHabits: Habit[] = [
     currentStreak: 14,
     bestStreak: 21,
     completedToday: true,
-    automaticityScore: 88,
+    weeklyCompletionRate: 100,
+    cueConsistencyScore: 90,
+    selfReportedAutomaticity: 5,
+    automaticityScore: 100,
     category: "eco",
     recentHistory: [true, true, true, true, true, true, true],
   },

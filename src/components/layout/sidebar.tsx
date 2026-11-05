@@ -8,7 +8,6 @@ import {
   Sparkles,
   Sun,
   TrendingUp,
-  User,
   Settings,
   GraduationCap,
   Briefcase,
@@ -16,6 +15,8 @@ import {
   Clock,
   X,
   ChevronRight,
+  RotateCcw,
+  Plus,
 } from "lucide-react";
 import { useDemo } from "@/context/demo-context";
 import { cn } from "@/lib/utils";
@@ -36,79 +37,79 @@ export const navItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { role, setRole, profile } = useDemo();
+  const { role, setRole, profile, resetDemoData, openQuickTask } = useDemo();
 
   return (
-    <aside className="hidden md:flex md:w-20 lg:w-64 border-r border-[#e6e3da] bg-[#fbfaf8] flex-col h-screen sticky top-0 select-none transition-all duration-200 shrink-0">
+    <aside className="hidden md:flex md:w-20 lg:w-64 border-r border-[#e8e2d5] bg-[#fbf9f5] flex-col h-screen sticky top-0 select-none transition-all duration-200 shrink-0">
       {/* Brand Header */}
-      <div className="p-4 lg:p-6 border-b border-[#e6e3da] flex items-center justify-center lg:justify-start gap-3">
-        <div className="w-9 h-9 rounded-xl bg-slate-900 text-amber-100 flex items-center justify-center shadow-xs shrink-0">
-          <Clock className="w-5 h-5 text-amber-200" />
+      <div className="p-4 lg:p-6 border-b border-[#e8e2d5] flex items-center justify-center lg:justify-start gap-3">
+        <div className="w-9 h-9 rounded-xl bg-[#201e1b] text-[#f8f6f0] flex items-center justify-center shadow-2xs shrink-0">
+          <Clock className="w-4 h-4 text-[#e8decb]" />
         </div>
         <div className="hidden lg:block min-w-0">
-          <span className="font-serif font-bold text-lg text-slate-900 tracking-tight flex items-center gap-1.5">
-            Kronos AI
-            <span className="text-[10px] uppercase font-sans font-semibold tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-800 border border-amber-200">
-              Demo
+          <span className="font-serif text-xl font-normal text-[#201e1b] tracking-tight flex items-center gap-2">
+            Kronos
+            <span className="text-[9px] uppercase font-sans font-semibold tracking-wider px-1.5 py-0.5 rounded-sm bg-[#f2eee6] text-[#687050] border border-[#e4ded2]">
+              Planner
             </span>
           </span>
-          <p className="text-xs text-slate-500 font-sans truncate">Intelligent Time Planner</p>
+          <p className="text-[11px] text-[#8a8479] font-sans truncate">Adaptive Personal Time</p>
         </div>
       </div>
 
       {/* Role / Persona Switcher */}
-      <div className="px-3 lg:px-5 py-3 bg-amber-50/70 border-b border-amber-200/60">
-        <div className="hidden lg:flex text-[11px] font-semibold uppercase tracking-wider text-amber-900/80 mb-1.5 items-center justify-between">
-          <span>Active Persona</span>
-          <span className="text-[10px] text-amber-700 font-normal">3 Tracks</span>
+      <div className="px-3 lg:px-4 py-3 bg-[#f5f1e8]/60 border-b border-[#e8e2d5]">
+        <div className="hidden lg:flex text-[10px] font-semibold uppercase tracking-wider text-[#8a8479] mb-1.5 items-center justify-between">
+          <span>Persona Track</span>
+          <span className="text-[10px] text-[#687050] font-medium capitalize">{role}</span>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-1 p-1 bg-amber-100/60 rounded-lg border border-amber-200/60">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-1 p-1 bg-[#ede7dc]/60 rounded-xl border border-[#e4ded2]">
           <button
             onClick={() => setRole("student")}
             title="Student Track (Aria Chen)"
             className={cn(
-              "flex flex-col items-center justify-center py-1 px-1 rounded-md text-[10px] font-medium transition-all",
+              "flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-medium transition-all cursor-pointer",
               role === "student"
-                ? "bg-white text-slate-900 shadow-xs font-semibold"
-                : "text-amber-900/70 hover:text-slate-900"
+                ? "bg-white text-[#201e1b] shadow-2xs font-semibold"
+                : "text-[#545049] hover:text-[#201e1b]"
             )}
           >
-            <GraduationCap className="w-3.5 h-3.5 text-blue-600 mb-0.5" />
+            <GraduationCap className="w-3.5 h-3.5 text-[#536b54] mb-0.5" />
             <span className="hidden lg:inline">Student</span>
           </button>
           <button
             onClick={() => setRole("professional")}
             title="Professional Track (Marcus Reed)"
             className={cn(
-              "flex flex-col items-center justify-center py-1 px-1 rounded-md text-[10px] font-medium transition-all",
+              "flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-medium transition-all cursor-pointer",
               role === "professional"
-                ? "bg-white text-slate-900 shadow-xs font-semibold"
-                : "text-amber-900/70 hover:text-slate-900"
+                ? "bg-white text-[#201e1b] shadow-2xs font-semibold"
+                : "text-[#545049] hover:text-[#201e1b]"
             )}
           >
-            <Briefcase className="w-3.5 h-3.5 text-indigo-600 mb-0.5" />
+            <Briefcase className="w-3.5 h-3.5 text-[#b85437] mb-0.5" />
             <span className="hidden lg:inline">Pro</span>
           </button>
           <button
             onClick={() => setRole("both")}
             title="Dual Track (Elena Rostova)"
             className={cn(
-              "flex flex-col items-center justify-center py-1 px-1 rounded-md text-[10px] font-medium transition-all",
+              "flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-medium transition-all cursor-pointer",
               role === "both"
-                ? "bg-white text-slate-900 shadow-xs font-semibold"
-                : "text-amber-900/70 hover:text-slate-900"
+                ? "bg-white text-[#201e1b] shadow-2xs font-semibold"
+                : "text-[#545049] hover:text-[#201e1b]"
             )}
           >
-            <Compass className="w-3.5 h-3.5 text-emerald-600 mb-0.5" />
+            <Compass className="w-3.5 h-3.5 text-[#687050] mb-0.5" />
             <span className="hidden lg:inline">Both</span>
           </button>
         </div>
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 px-2.5 lg:px-4 py-4 space-y-1 overflow-y-auto">
-        <div className="hidden lg:block text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-3 mb-2">
-          Navigation
+      <nav className="flex-1 px-2.5 lg:px-3.5 py-4 space-y-1.5 overflow-y-auto">
+        <div className="hidden lg:block text-[10px] font-semibold uppercase tracking-wider text-[#8a8479] px-3 mb-2">
+          Workspaces
         </div>
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -119,55 +120,75 @@ export function Sidebar() {
               href={item.href}
               title={item.name}
               className={cn(
-                "flex items-center justify-center lg:justify-start gap-3 px-2 lg:px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors group",
+                "flex items-center justify-center lg:justify-start gap-3 px-2 lg:px-3 py-2 rounded-xl text-xs font-medium transition-all group",
                 isActive
-                  ? "bg-slate-900 text-white shadow-xs font-semibold"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-[#f0ede6]"
+                  ? "bg-[#201e1b] text-[#f8f6f0] shadow-2xs font-semibold"
+                  : "text-[#545049] hover:text-[#201e1b] hover:bg-[#f2eee6]"
               )}
             >
               <Icon
                 className={cn(
                   "w-4 h-4 transition-colors shrink-0",
-                  isActive ? "text-amber-300" : "text-slate-400 group-hover:text-slate-700"
+                  isActive ? "text-[#e8decb]" : "text-[#8a8479] group-hover:text-[#201e1b]"
                 )}
               />
               <span className="hidden lg:inline flex-1">{item.name}</span>
+              {item.badge && !isActive && (
+                <span className="hidden lg:inline text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#f2eee6] text-[#8a8479] font-medium">
+                  {item.badge}
+                </span>
+              )}
             </Link>
           );
         })}
 
-        <div className="pt-3 mt-3 border-t border-[#e6e3da]">
+        <div className="pt-3 mt-3 border-t border-[#e8e2d5]">
           <Link
             href="/onboarding"
-            title="Launch Onboarding Flow"
-            className="flex items-center justify-center lg:justify-start gap-2.5 px-2 lg:px-3.5 py-2 rounded-xl text-xs font-semibold text-amber-900 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 transition-colors"
+            title="Launch Onboarding Wizard"
+            className="flex items-center justify-center lg:justify-start gap-2.5 px-2 lg:px-3 py-2 rounded-xl text-xs font-medium text-[#545049] hover:text-[#201e1b] hover:bg-[#f2eee6] transition-colors"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-            <span className="hidden lg:inline">Launch Onboarding</span>
+            <Sparkles className="w-3.5 h-3.5 text-[#b37e2a] shrink-0" />
+            <span className="hidden lg:inline">Guided Onboarding</span>
           </Link>
         </div>
       </nav>
 
       {/* User Footer Profile & Settings */}
-      <div className="p-3 lg:p-4 border-t border-[#e6e3da] bg-[#f8f6f0]">
+      <div className="p-3 lg:p-3.5 border-t border-[#e8e2d5] bg-[#f8f6f0] space-y-2">
         <Link
           href="/profile"
-          className="flex items-center justify-center lg:justify-between gap-3 p-1.5 -m-1.5 rounded-xl hover:bg-[#ede9df] transition-colors group"
+          className="flex items-center justify-center lg:justify-between gap-3 p-1.5 -m-1.5 rounded-xl hover:bg-[#eeeae0] transition-colors group"
           title="Profile & Settings"
         >
           <div className="flex items-center gap-3 min-w-0">
             <img
               src={profile.avatar}
               alt={profile.name}
-              className="w-8 h-8 lg:w-9 lg:h-9 rounded-full object-cover border border-[#d2cebf] shrink-0"
+              className="w-8 h-8 rounded-full object-cover border border-[#d5cdbd] shrink-0"
             />
             <div className="hidden lg:block min-w-0">
-              <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-amber-900">{profile.name}</p>
-              <p className="text-xs text-slate-500 truncate">{profile.headline}</p>
+              <p className="text-xs font-semibold text-[#201e1b] truncate group-hover:text-[#b85437]">
+                {profile.name}
+              </p>
+              <p className="text-[11px] text-[#8a8479] truncate">{profile.headline}</p>
             </div>
           </div>
-          <Settings className="w-4 h-4 text-slate-400 group-hover:text-slate-700 hidden lg:block shrink-0" />
+          <Settings className="w-3.5 h-3.5 text-[#8a8479] group-hover:text-[#201e1b] hidden lg:block shrink-0" />
         </Link>
+
+        <button
+          onClick={() => {
+            if (typeof window !== "undefined" && window.confirm(`Reset Kronos demo state to pristine baseline for ${profile.name}?`)) {
+              resetDemoData();
+            }
+          }}
+          className="w-full hidden lg:flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[10px] text-[#8a8479] hover:text-[#b85437] hover:bg-[#f2eee6] transition-colors cursor-pointer"
+          title="Reset sample data back to baseline"
+        >
+          <RotateCcw className="w-3 h-3" />
+          <span>Reset Demo Data</span>
+        </button>
       </div>
     </aside>
   );
@@ -180,7 +201,7 @@ interface MobileDrawerProps {
 
 export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
   const pathname = usePathname();
-  const { role, setRole, profile } = useDemo();
+  const { role, setRole, profile, resetDemoData, openQuickTask } = useDemo();
 
   if (!isOpen) return null;
 
@@ -188,26 +209,26 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
     <div className="fixed inset-0 z-50 md:hidden animate-in fade-in-50 duration-150">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-[#201e1b]/40 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
       {/* Drawer Card */}
-      <div className="fixed inset-y-0 left-0 w-72 max-w-[80vw] bg-[#fbfaf8] border-r border-[#e6e3da] shadow-2xl flex flex-col z-50 animate-in slide-in-from-left duration-200">
+      <div className="fixed inset-y-0 left-0 w-72 max-w-[80vw] bg-[#fbf9f5] border-r border-[#e8e2d5] shadow-2xl flex flex-col z-50 animate-in slide-in-from-left duration-200">
         {/* Drawer Header */}
-        <div className="p-4 border-b border-[#e6e3da] flex items-center justify-between bg-white">
+        <div className="p-4 border-b border-[#e8e2d5] flex items-center justify-between bg-white">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-slate-900 text-amber-100 flex items-center justify-center shadow-xs">
-              <Clock className="w-4 h-4 text-amber-200" />
+            <div className="w-8 h-8 rounded-xl bg-[#201e1b] text-[#f8f6f0] flex items-center justify-center shadow-xs">
+              <Clock className="w-4 h-4 text-[#e8decb]" />
             </div>
             <div>
-              <span className="font-serif font-bold text-base text-slate-900">Kronos AI</span>
-              <p className="text-[10px] text-slate-500">Personal Planner</p>
+              <span className="font-serif text-lg text-[#201e1b]">Kronos</span>
+              <p className="text-[10px] text-[#8a8479]">Personal Planner</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+            className="p-1.5 rounded-lg text-[#8a8479] hover:text-[#201e1b] hover:bg-[#f2eee6]"
           >
             <X className="w-4 h-4" />
           </button>
@@ -217,37 +238,37 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
         <Link
           href="/profile"
           onClick={onClose}
-          className="p-4 bg-white border-b border-[#e6e3da] flex items-center gap-3 hover:bg-amber-50/40 transition-colors"
+          className="p-4 bg-white border-b border-[#e8e2d5] flex items-center gap-3 hover:bg-[#f8f6f0] transition-colors"
         >
           <img
             src={profile.avatar}
             alt={profile.name}
-            className="w-10 h-10 rounded-full object-cover border border-[#d2cebf]"
+            className="w-10 h-10 rounded-full object-cover border border-[#d5cdbd]"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-900 truncate">{profile.name}</p>
-            <p className="text-xs text-slate-500 truncate">{profile.institutionOrCompany}</p>
+            <p className="text-xs font-semibold text-[#201e1b] truncate">{profile.name}</p>
+            <p className="text-[11px] text-[#8a8479] truncate">{profile.institutionOrCompany}</p>
           </div>
-          <Settings className="w-4 h-4 text-slate-400" />
+          <Settings className="w-4 h-4 text-[#8a8479]" />
         </Link>
 
         {/* Persona Switcher */}
-        <div className="p-4 border-b border-[#e6e3da] bg-amber-50/60">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block mb-2">
-            Switch Demonstration Track:
+        <div className="p-4 border-b border-[#e8e2d5] bg-[#f5f1e8]/60">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[#8a8479] block mb-2">
+            Demonstration Track:
           </span>
-          <div className="grid grid-cols-3 gap-1 p-1 bg-amber-100/70 rounded-xl border border-amber-200">
+          <div className="grid grid-cols-3 gap-1 p-1 bg-[#ede7dc]/70 rounded-xl border border-[#e4ded2]">
             <button
               onClick={() => {
                 setRole("student");
                 onClose();
               }}
               className={cn(
-                "py-1.5 rounded-lg text-[11px] font-semibold flex flex-col items-center gap-0.5 transition-all",
-                role === "student" ? "bg-white text-slate-900 shadow-xs" : "text-amber-900"
+                "py-1.5 rounded-lg text-[10px] font-medium flex flex-col items-center gap-0.5 transition-all cursor-pointer",
+                role === "student" ? "bg-white text-[#201e1b] shadow-2xs font-semibold" : "text-[#545049]"
               )}
             >
-              <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
+              <GraduationCap className="w-3.5 h-3.5 text-[#536b54]" />
               <span>Student</span>
             </button>
             <button
@@ -256,11 +277,11 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                 onClose();
               }}
               className={cn(
-                "py-1.5 rounded-lg text-[11px] font-semibold flex flex-col items-center gap-0.5 transition-all",
-                role === "professional" ? "bg-white text-slate-900 shadow-xs" : "text-amber-900"
+                "py-1.5 rounded-lg text-[10px] font-medium flex flex-col items-center gap-0.5 transition-all cursor-pointer",
+                role === "professional" ? "bg-white text-[#201e1b] shadow-2xs font-semibold" : "text-[#545049]"
               )}
             >
-              <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
+              <Briefcase className="w-3.5 h-3.5 text-[#b85437]" />
               <span>Pro</span>
             </button>
             <button
@@ -269,19 +290,33 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                 onClose();
               }}
               className={cn(
-                "py-1.5 rounded-lg text-[11px] font-semibold flex flex-col items-center gap-0.5 transition-all",
-                role === "both" ? "bg-white text-slate-900 shadow-xs" : "text-amber-900"
+                "py-1.5 rounded-lg text-[10px] font-medium flex flex-col items-center gap-0.5 transition-all cursor-pointer",
+                role === "both" ? "bg-white text-[#201e1b] shadow-2xs font-semibold" : "text-[#545049]"
               )}
             >
-              <Compass className="w-3.5 h-3.5 text-emerald-600" />
+              <Compass className="w-3.5 h-3.5 text-[#687050]" />
               <span>Both</span>
             </button>
           </div>
         </div>
 
+        {/* Quick Action: New Task */}
+        <div className="p-3 border-b border-[#e8e2d5]">
+          <button
+            onClick={() => {
+              onClose();
+              openQuickTask();
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-[#e8decb]" />
+            <span>New Task</span>
+          </button>
+        </div>
+
         {/* Workspaces List in Drawer */}
-        <div className="p-3 border-b border-[#e6e3da] space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 block mb-1">
+        <div className="p-3 border-b border-[#e8e2d5] space-y-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[#8a8479] px-2 block mb-1">
             Workspaces
           </span>
           {navItems.map((item) => {
@@ -293,13 +328,13 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                 href={item.href}
                 onClick={onClose}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors",
+                  "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-colors",
                   isActive
-                    ? "bg-slate-900 text-white shadow-xs"
-                    : "text-slate-700 hover:bg-slate-100"
+                    ? "bg-[#201e1b] text-[#f8f6f0] shadow-2xs font-semibold"
+                    : "text-[#545049] hover:bg-[#f2eee6]"
                 )}
               >
-                <Icon className={cn("w-4 h-4", isActive ? "text-amber-300" : "text-slate-500")} />
+                <Icon className={cn("w-4 h-4", isActive ? "text-[#e8decb]" : "text-[#8a8479]")} />
                 <span>{item.name}</span>
               </Link>
             );
@@ -311,14 +346,29 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           <Link
             href="/onboarding"
             onClick={onClose}
-            className="flex items-center justify-between p-3 rounded-xl bg-white border border-[#e6e3da] text-xs font-semibold text-slate-800 hover:bg-amber-50 transition-colors"
+            className="flex items-center justify-between p-3 rounded-xl bg-white border border-[#e8e2d5] text-xs font-medium text-[#201e1b] hover:bg-[#f8f6f0] transition-colors"
           >
-            <div className="flex items-center gap-2 text-amber-900">
-              <Sparkles className="w-4 h-4 text-amber-600" />
+            <div className="flex items-center gap-2 text-[#545049]">
+              <Sparkles className="w-4 h-4 text-[#b37e2a]" />
               <span>Run Onboarding Wizard</span>
             </div>
-            <ChevronRight className="w-4 h-4 text-slate-400" />
+            <ChevronRight className="w-4 h-4 text-[#8a8479]" />
           </Link>
+
+          <button
+            onClick={() => {
+              if (typeof window !== "undefined" && window.confirm(`Reset Kronos demo state to pristine baseline for ${profile.name}?`)) {
+                resetDemoData();
+                onClose();
+              }
+            }}
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-[#e8e2d5] text-xs font-medium text-[#b85437] hover:bg-[#fdf2ee] transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <RotateCcw className="w-4 h-4 text-[#b85437]" />
+              <span>Reset Demo State</span>
+            </div>
+          </button>
         </div>
       </div>
     </div>

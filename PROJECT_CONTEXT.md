@@ -17,7 +17,7 @@
   1. *Conversational Daily Planning*: Natural language task extraction ("Today I have two assignments to complete, need to study economics for an hour, attend classes, hit the gym and learn Blender").
   2. *Deterministic Scheduling Engine*: Pure TypeScript constraint-satisfaction solver guaranteeing zero hallucinated overlaps over fixed commitments, physiological sleep boundaries, lunch buffers, and peak energy curve placement.
   3. *Strategic Goals & AI Roadmaps*: Multi-horizon goal decomposition into chronological milestone phases and daily agenda-ready actionable tasks with 1-click scheduling.
-  4. *Habits & Flow Theory Focus Sessions*: Csíkszentmihályi immersion timers (20m, 25m, 45m, 50m, 90m) with post-session reflection logging (*Flow, Steady, Boredom, Anxiety*) and habit automaticity tracking without punitive streak resets.
+  4. *Habits & Flow Theory Focus Sessions*: Csíkszentmihályi immersion timers (20m, 25m, 45m, 50m, 90m) with post-session reflection logging (*Flow, Steady, Boredom, Anxiety*), empirical 7-day completion tracking, anchor cue consistency, and validated 1–5 Self-Report Habit Index (SRHI) tracking without arbitrary or pseudo-scientific scores.
   5. *Two-Way Calendar Synchronization*: Shared adapter architecture with active mock sync and Google Calendar API v3 implementation, real-time conflict detection, and side-by-side resolution.
   6. *Browser Voice Input*: Web Speech API integration with microphone toggle, real-time streaming transcript, and edit-before-submit verification modal.
   7. *Environmental Sustainability*: Behavioral carbon offset and tree equivalence tracker for active commutes (cycling/walking), paperless study notes, power-down hours, and plant meals.
@@ -417,9 +417,50 @@ All 37 unit tests pass across 4 separate domain test suites:
 - Created project backup archive at `/Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager-backup-pre-responsive.tar.gz`.
 - Updated `.gitignore` to allow `.env.example`.
 
+### Session 6: 2026-11-04 — 4 Core Workspaces Architecture & Growth Integration
+- Re-architected application around 4 primary focused workspaces:
+  - **Home (`/home`)**: Calendar hero & contextual agenda inspector.
+  - **AI (`/ai`)**: Dedicated conversational planning assistant with 1-click schedule application and Web Speech API dictation.
+  - **My Day (`/my-day`)**: Daily execution, "Up Next" spotlight card, and dynamic rescheduling.
+  - **Growth (`/growth`)**: Science-backed behavioral workspace unifying Habits, Flow Theory, Habit Reset (Discontinuity Hypothesis), and Behavioral Insights.
+- Added mobile swipe navigation (`useWorkspaceSwipe`) and bottom tab bar (`BottomNav`).
+
+### Session 7: 2026-11-04 — Critical Functional Remediation & Mobile Responsiveness
+- **Reference Date Strategy**: Anchored demo environment to single authoritative reference date: `DEMO_REFERENCE_DATE = "2026-11-02"`. Fixed AI task generation so tasks are placed on the active viewing date rather than host machine system time.
+- **Persistent Focus Timer**: Moved immersion timer into `DemoContext` using target epoch timestamps (`targetEndTimestamp = Date.now() + secondsLeft * 1000`). Timer survives workspace transitions and background tab changes without losing elapsed seconds or resetting.
+- **Dynamic Rescheduling Fix**: Passed `currentTime: effectiveTime` in `my-day/page.tsx` to prevent tasks from being rescheduled into the past. Added explicit conflict alerts when remaining hours before bedtime are insufficient.
+- **Growth Scientific Accuracy**:
+  - Renamed predictive interface to **Challenge–Skill Check-In** (Csíkszentmihályi Flow Theory).
+  - Added adaptive suggestions: 20m sprint suggestion for high challenge / low skill (anxiety), time-constraint suggestions for low challenge / high skill (boredom), and flow channel confirmation.
+  - Materialized Habit Reset target habits into active `habits` collection with non-punitive 25% baseline automaticity and duplicate prevention.
+  - Fixed `habits[0]` bug in Insights; computed authentic distraction resistance metrics from `focusSessions` log.
+- **Mobile Responsiveness**:
+  - Eliminated 551px min-width bottleneck on `/home` by removing redundant banner buttons on small screens.
+  - Fixed double scrollbars on `/ai` using `100dvh` flex layout.
+  - Enlarged mobile header buttons (hamburger, GCal sync, new task, notification bell) to meet or exceed $\ge 44\times 44\text{px}$.
+  - Added iOS edge back-swipe protection (`startX < 28px`) and 450ms cooldown debounce in `useWorkspaceSwipe`.
+- **Testing & Verification**:
+  - Created 3 new test suites: `tests/scheduler/reschedule.test.ts` (12 tests), `tests/habits/habit-reset.test.ts` (13 tests), `tests/growth/flow-timer.test.ts` (20 tests).
+  - Total automated test count: **82/82 passing tests** across 7 test suites via `npm test`.
+  - Multi-viewport Puppeteer verification: **0 horizontal overflows across all 9 target viewports** (320px–1440px).
+  - Production build: 19/19 routes compiled cleanly with Turbopack.
+
+### Session 8: 2026-11-04 — Visual Identity Redesign: Global Design System & Home Workspace
+- **Regain App Design Language Alignment**: Shifted interface from generic card-heavy SaaS styling to a warm, editorial personal planning companion.
+- **Typography**: Paired **Instrument Serif** and **Lora** for expressive literary headings with **Manrope** for clean, spacious interface text.
+- **Color System**: Warm Ivory (`#f8f6f0`), Parchment (`#f2eee6`), Deep Warm Charcoal (`#201e1b`), Muted Sage (`#536b54`), Terracotta (`#b85437`), Olive (`#687050`), and Ochre (`#b37e2a`).
+- **De-Cardification**: Eliminated nested cards, thick borders, and heavy dropshadows in favor of open editorial canvas, hairline dividers (`#e8e2d5`), and whitespace-driven hierarchy.
+- **Redesigned Shell**: Upgraded Header, Sidebar, and Mobile Bottom Navigation with tactile warmth and refined status pills.
+- **Redesigned Home Workspace**:
+  - Open editorial date briefing (`format(selectedDate, "EEEE, MMMM d")`).
+  - Architectural Month Calendar with delicate activity dots and smooth Week/Month switcher.
+  - Quiet Conversational AI Planning Bridge replacing loud callout banners.
+  - Open timeline agenda with hairline vertical connectors, task completion checkboxes, and upcoming commitments list.
+- **Verification**: 82/82 automated tests passing; Next.js 16 Turbopack production compilation passing in 641ms; Puppeteer multi-viewport audit confirmed 0 horizontal overflows across all 9 target viewports (320px–1440px).
+
 ---
 
-## 8. RESPONSIVE REDESIGN — NEXT MILESTONE
+## 8. DESIGN SYSTEM SPECIFICATIONS & WORKSPACE BLUEPRINT
 
 > **NOTICE**: Do not start code implementation until explicitly instructed by the user. This section documents the design requirements, problems, target breakpoints, and adaptation plan.
 
@@ -493,19 +534,45 @@ All 37 unit tests pass across 4 separate domain test suites:
 
 ## 9. Current Project Status & Development Summary
 
-- **Current Status**: **RESPONSIVE DESKTOP, TABLET & MOBILE REDESIGN COMPLETED & VERIFIED**
-  - Complete responsive redesign executed while maintaining 100% of existing functionality and calming notebook aesthetic (`#faf9f6` paper palette, `#e6e3da` borders).
-  - Mobile bottom navigation bar (`BottomNav`) and slide-out persona drawer (`MobileDrawer`).
-  - Tablet compact icon-rail (`md:w-20`) transitioning smoothly to desktop sidebar (`lg:w-64`).
-  - Adaptive Month Calendar with mobile `Week | Month` view toggle and micro dot indicators.
-  - Touch-friendly 44×44px hit targets on agenda task completions.
-  - Responsive bottom-sheet modals (`QuickTaskModal`, `CalendarSyncModal`, `VoiceModal`, `NewGoalModal`, `FlowReflectionModal`).
-  - Automated test suite: 37/37 tests passed (`npm test`).
-  - Production build: Passing cleanly across all 16 static/dynamic routes in Turbopack (`npm run build`).
-  - Live dev server active on `http://localhost:3001`.
-- **Pre-Responsive Backup**:
-  - Preserved at `/Users/prajwalkolaki/.gemini/antigravity/scratch/ai-time-manager-backup-pre-responsive.tar.gz`.
+- **Current Status**: **FINAL PRE-DEPLOYMENT VERIFICATION & CORRECTION COMPLETE (v1.1.0)**
+  - **Headless Chrome Browser QA Suite (`scripts/manual-qa-suite.mjs`)**:
+    - Automated real-browser QA pass in Google Chrome across all 7 target viewports: `320px`, `375px`, `390px`, `430px`, `768px`, `1024px`, and `1440px`.
+    - 64 / 64 automated browser checks passing across all 5 workspaces (`/home`, `/ai`, `/my-day`, `/growth`, `/profile`).
+    - Fixed 320px Profile card overflow (`w-full min-w-0`) and SSR hydration mismatch (`mounted` guard).
+    - Verified calendar month title visibility (123px width, unclipped), bottom navigation touch targets ($\ge 44\times 44\text{px}$), modals, input composer, and hard-refresh persistence.
+  - **Mobile Month Name Visibility & Header Polish**:
+    - Fixed mobile month name truncation where "November 2026" was compressed down to a single character ("N") due to cramped toolbar layout on 320px–390px screens.
+    - Calendar header restructured into a responsive two-row mobile composition (Row 1: prominent Month & Year serif title + Today + `< >` navigator; Row 2: full-width touch-friendly Week/Month toggle), flowing into a single spacious row on desktop.
+  - **Elimination of Overlapping Floating Elements**:
+    - Removed duplicate fixed floating pills (`bottom-[68px]`) across Home, My Day, and Growth that collided with the persistent Bottom Navigation dock and covered scrollable content.
+    - Integrated clean contextual inline actions directly inside the primary cards ("Start Focus Session" and "Reschedule Day" inside My Day's Focus Spotlight Ring).
+  - **Spacious & Minimalist Visual Rhythm**:
+    - Increased vertical breathing room (`space-y-7 sm:space-y-10`) with uncluttered padding (`pb-16 md:pb-12`).
+    - Guarded mobile workspace swipe bar and AI Assistant header against horizontal text clipping.
+  - **Scientific Habit Automaticity Correction**:
+    - Removed arbitrary, unvalidated 0–100% automaticity calculations from domain types, mock data, Growth workspace, Habits page, and tests.
+    - Separated habit metrics into 3 distinct scientific components:
+      1. **7-Day Completion Rate**: Empirical weekly adherence percentage (`completedDays / 7 * 100`).
+      2. **Anchor Cue Consistency**: Adherence to the triggering cue context (`cueConsistencyScore` 0–100%).
+      3. **Self-Reported Automaticity (SRHI)**: Validated 1–5 scale (Verplanken & Orbell, Gardner) reflecting subjective cognitive automaticity with interactive UI controls.
+  - **Safe LocalStorage Schema Migration & Backup Subsystem (`src/lib/storage/index.ts`)**:
+    - `migrateState(raw)`: Forward-migrates older schema versions without discarding user tasks, habits, or reflections.
+    - Pre-migration backup saved to `KRONOS_BACKUP_KEY` whenever schema evolution is detected.
+    - Corrupt JSON payload preserved in `KRONOS_CORRUPT_BACKUP_KEY` to prevent silent data destruction.
+    - `restorePreMigrationBackup()`: One-click restoration of prior state, surfaced in `/profile` with a prominent alert banner.
+  - **Explicit Zero-Cost Demo Environment Labeling**:
+    - Header: Calendar sync pill clearly labeled `Demo GCal: Synced`, modal explicitly documents `MockCalendarAdapter (Simulated API v3)` with zero Google OAuth credentials required.
+    - AI Workspace: Header badge labeled `Offline Demo Intelligence (MockAIProvider)`, welcome card explicitly documents zero-cost local deterministic scheduling.
+    - Profile: Dedicated architecture cards for Calendar Sync and AI Intelligence clearly identifying offline mock adapters.
+  - **Comprehensive End-to-End Test Suite (`tests/e2e/e2e-scenarios.test.ts`)**:
+    - 50/50 tests passing in `tests/e2e/e2e-scenarios.test.ts` covering Scenarios A, B, C, D, and E (including migration safety, backup creation, and backup restoration).
+    - **130 / 130 total automated tests passing** across all 8 test suites (`npm test`).
+    - **Zero TypeScript errors** (`npx tsc --noEmit`).
+    - **19/19 routes compiled cleanly** in Next.js 16 Turbopack production build (`npm run build`).
+- **Active Dev Server**:
+  - Running on `http://localhost:3001`.
 - **Verification Commands**:
-  - `npm test`: Runs all 37 tests (13 scheduler, 9 calendar sync, 8 eco calculator, 7 AI roadmap).
-  - `npm run build`: Next.js 16 production compilation (16 routes).
+  - `npm test`: Runs all 130 tests across 8 test suites.
+  - `npx tsc --noEmit`: Strict TypeScript compiler check (zero errors).
+  - `npm run build`: Next.js 16 production compilation (19 routes).
   - `npm run dev`: Dev server on port 3001.

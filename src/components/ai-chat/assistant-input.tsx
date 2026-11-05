@@ -231,13 +231,25 @@ export function AssistantInput() {
           e.preventDefault();
           handleSend();
         }}
+        autoComplete="off"
+        data-form-type="other"
+        noValidate
         className="p-2.5 sm:p-3 bg-white border-t border-[#e6e3da] flex items-center gap-2"
       >
         <input
-          type="text"
+          type="search"
+          name="assistant_chat_input"
+          id="assistant_chat_input"
           value={inputVal}
           onChange={(e) => setInputVal(e.target.value)}
           placeholder={`Tell AI what you want to achieve today...`}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="sentences"
+          spellCheck={false}
+          enterKeyHint="send"
+          data-form-type="other"
+          data-lpignore="true"
           className="flex-1 px-3 sm:px-3.5 py-2 sm:py-2.5 bg-[#fbfaf7] border border-[#e6e3da] rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all min-w-0"
         />
 

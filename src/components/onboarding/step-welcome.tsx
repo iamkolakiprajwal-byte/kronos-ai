@@ -59,7 +59,7 @@ export function StepWelcome({ onNext }: StepWelcomeProps) {
       <div className="pt-4 flex justify-end">
         <button
           onClick={onNext}
-          className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs flex items-center justify-center gap-2 transition-all"
+          className="w-full sm:w-auto px-6 py-3.5 min-h-[44px] rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
         >
           <span>Get Started (takes ~2 minutes)</span>
           <ArrowRight className="w-4 h-4 text-amber-300" />

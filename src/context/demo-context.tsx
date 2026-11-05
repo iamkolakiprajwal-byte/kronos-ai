@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { format } from "date-fns";
 import {
   UserProfile,
   Task,
@@ -16,6 +17,7 @@ import {
   SyncConflict,
   FocusSessionLog,
   EcoLogEntry,
+  ActiveTimerState,
 } from "@/types";
 import { CalendarSyncStatus } from "@/lib/calendar/types";
 import { sampleEcoEntries, ECO_ACTIVITY_FACTORS } from "@/lib/sustainability/eco-calculator";
@@ -40,7 +42,17 @@ import {
   dualHabitTransitions,
   sampleNotifications,
   studentOnboardingPreset,
+  DEMO_REFERENCE_DATE,
 } from "@/lib/mock/demo-data";
+import {
+  loadStoredState,
+  saveStoredState,
+  resetStoredStateToDemo,
+  exportStateAsJSON,
+  importStateFromJSON,
+  restorePreMigrationBackup,
+  KRONOS_STORAGE_VERSION,
+} from "@/lib/storage";
 
 interface DemoContextType {
   role: UserRole;
@@ -53,20 +65,67 @@ interface DemoContextType {
   notifications: NotificationItem[];
   selectedDate: Date;
   setSelectedDate: (d: Date) => void;
+  referenceDate: string;
   toggleTaskStatus: (id: string) => void;
   addTask: (task: Omit<Task, "id">) => void;
   deleteTask: (id: string) => void;
   updateTaskSchedule: (placements: { id: string; startTime: string; endTime: string }[]) => void;
   toggleHabit: (id: string) => void;
   addHabit: (habit: Omit<Habit, "id" | "currentStreak" | "bestStreak" | "completedToday" | "automaticityScore">) => void;
+  setHabitSelfReportedAutomaticity: (habitId: string, score: number) => void;
   markNotificationRead: (id: string) => void;
   chatMessages: ChatMessage[];
   sendChatMessage: (content: string) => void;
   isAiThinking: boolean;
   applySuggestedTasks: (suggested: Partial<Task>[]) => void;
+  applySuggestedHabit: (suggested: NonNullable<ChatMessage["suggestedHabit"]>) => void;
+  applySuggestedGoal: (suggested: NonNullable<ChatMessage["suggestedGoal"]>) => void;
+  isHydrated: boolean;
+  isQuickTaskOpen: boolean;
+  openQuickTask: () => void;
+  closeQuickTask: () => void;
+  resetDemoData: (targetRole?: UserRole) => void;
+  exportData: () => string;
+  importData: (jsonStr: string) => boolean;
+  restoreBackup: () => boolean;
   onboardingDraft: OnboardingFormData;
   setOnboardingDraft: React.Dispatch<React.SetStateAction<OnboardingFormData>>;
   completeOnboarding: (data: OnboardingFormData) => void;
+
+  // Persistent Focus Session Timer
+  timerState: ActiveTimerState;
+  startFocusTimer: (config?: {
+    totalMinutes?: number;
+    taskTitle?: string;
+    habitId?: string;
+    perceivedChallenge?: number;
+    perceivedSkill?: number;
+    sessionGoal?: string;
+    completionCriteria?: string;
+  }) => void;
+  pauseFocusTimer: () => void;
+  resumeFocusTimer: () => void;
+  resetFocusTimer: (mins?: number) => void;
+  logTimerInterruption: () => void;
+  finishTimerEarly: () => void;
+  completeTimerSession: (reflection: {
+    flowState: FocusSessionLog["flowState"];
+    absorptionRating?: number;
+    concentrationRating?: number;
+    perceivedControl?: number;
+    enjoymentRating?: number;
+    timeDistortion?: "faster" | "normal" | "slower";
+    reflectionNotes?: string;
+  }) => void;
+  dismissTimerCompletion: () => void;
+  updateTimerChallengeSkill: (
+    challenge: number,
+    skill: number,
+    goal?: string,
+    criteria?: string,
+    taskTitle?: string,
+    habitId?: string
+  ) => void;
 
   // Sprint 2: Productivity & Integrations
   toggleMilestone: (goalId: string, milestoneId: string) => void;
@@ -109,13 +168,13 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [goals, setGoals] = useState<Goal[]>(studentGoals);
   const [habits, setHabits] = useState<Habit[]>(studentHabits);
   const [notifications, setNotifications] = useState<NotificationItem[]>(sampleNotifications);
-  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date("2026-11-02T00:00:00"));
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date(`${DEMO_REFERENCE_DATE}T00:00:00`));
   const [isAiThinking, setIsAiThinking] = useState(false);
-
-  useEffect(() => {
-    // Sync to current client date on mount
-    setSelectedDate(new Date());
-  }, []);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [isQuickTaskOpen, setIsQuickTaskOpen] = useState(false);
+  const openQuickTask = () => setIsQuickTaskOpen(true);
+  const closeQuickTask = () => setIsQuickTaskOpen(false);
+  const referenceDate = DEMO_REFERENCE_DATE;
 
   const initialWelcomeMessage: ChatMessage = {
     id: "msg-welcome",
@@ -125,7 +184,6 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   };
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([initialWelcomeMessage]);
-
   const [onboardingDraft, setOnboardingDraft] = useState<OnboardingFormData>(studentOnboardingPreset);
 
   // Sprint 2: Productivity & Integrations State
@@ -152,6 +210,129 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [syncConflicts, setSyncConflicts] = useState<SyncConflict[]>([]);
   const [ecoEntries, setEcoEntries] = useState<EcoLogEntry[]>(sampleEcoEntries);
   const [habitTransitions, setHabitTransitions] = useState<HabitResetTransition[]>(studentHabitTransitions);
+
+  // Persistent Active Focus Timer State (Survives workspace transitions)
+  const [timerState, setTimerState] = useState<ActiveTimerState>({
+    taskTitle: "",
+    habitId: undefined,
+    totalMinutes: 25,
+    secondsLeft: 25 * 60,
+    isRunning: false,
+    interruptionsCount: 0,
+    targetEndTimestamp: undefined,
+    perceivedChallenge: 3,
+    perceivedSkill: 3,
+    sessionGoal: "",
+    completionCriteria: "",
+    sessionCompleted: false,
+  });
+
+  // Hydrate application state from localStorage on initial client mount
+  useEffect(() => {
+    const stored = loadStoredState();
+    if (stored) {
+      setRoleState(stored.role);
+      setProfile(stored.profile);
+      setTasks(stored.tasks);
+      setCalendarEvents(stored.calendarEvents);
+      setGoals(stored.goals);
+      setHabits(stored.habits);
+      setHabitTransitions(stored.habitTransitions || []);
+      setFocusSessions(stored.focusSessions || []);
+      if (stored.chatMessages && stored.chatMessages.length > 0) {
+        setChatMessages(stored.chatMessages);
+      }
+      if (stored.notifications && stored.notifications.length > 0) {
+        setNotifications(stored.notifications);
+      }
+      if (stored.ecoEntries && stored.ecoEntries.length > 0) {
+        setEcoEntries(stored.ecoEntries);
+      }
+      if (stored.selectedDateStr) {
+        setSelectedDate(new Date(`${stored.selectedDateStr}T00:00:00`));
+      }
+    }
+    setIsHydrated(true);
+  }, []);
+
+  // Persist state changes to localStorage whenever core data changes
+  useEffect(() => {
+    if (!isHydrated) return;
+    saveStoredState({
+      version: KRONOS_STORAGE_VERSION,
+      role,
+      profile,
+      tasks,
+      calendarEvents,
+      goals,
+      habits,
+      habitTransitions,
+      focusSessions,
+      chatMessages,
+      notifications,
+      ecoEntries,
+      selectedDateStr: format(selectedDate, "yyyy-MM-dd"),
+      lastSavedTimestamp: Date.now(),
+    });
+  }, [
+    isHydrated,
+    role,
+    profile,
+    tasks,
+    calendarEvents,
+    goals,
+    habits,
+    habitTransitions,
+    focusSessions,
+    chatMessages,
+    notifications,
+    ecoEntries,
+    selectedDate,
+  ]);
+
+  // Accurate timestamp-based interval runner
+  useEffect(() => {
+    if (!timerState.isRunning || !timerState.targetEndTimestamp) return;
+
+    const syncRemaining = () => {
+      const remainingMs = timerState.targetEndTimestamp! - Date.now();
+      const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+      if (remainingSecs <= 0) {
+        setTimerState((prev) => ({
+          ...prev,
+          secondsLeft: 0,
+          isRunning: false,
+          sessionCompleted: true,
+          targetEndTimestamp: undefined,
+        }));
+      } else {
+        setTimerState((prev) => {
+          if (prev.secondsLeft !== remainingSecs) {
+            return { ...prev, secondsLeft: remainingSecs };
+          }
+          return prev;
+        });
+      }
+    };
+
+    syncRemaining();
+    const interval = setInterval(syncRemaining, 500);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        syncRemaining();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleVisibility);
+    };
+  }, [timerState.isRunning, timerState.targetEndTimestamp]);
 
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);
@@ -457,17 +638,37 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       prev.map((h) => {
         if (h.id === id) {
           const nextCompleted = !h.completedToday;
+          const updatedHistory = [
+            nextCompleted,
+            ...(h.recentHistory?.slice(1) || [false, false, false, false, false, false]),
+          ];
+          const completedDays = updatedHistory.filter(Boolean).length;
+          const weeklyRate = Math.round((completedDays / updatedHistory.length) * 100);
+
           return {
             ...h,
             completedToday: nextCompleted,
             currentStreak: nextCompleted ? h.currentStreak + 1 : Math.max(0, h.currentStreak - 1),
-            automaticityScore: nextCompleted
-              ? Math.min(100, h.automaticityScore + 2)
-              : Math.max(0, h.automaticityScore - 1),
+            totalCompletions: nextCompleted
+              ? (h.totalCompletions || 0) + 1
+              : Math.max(0, (h.totalCompletions || 1) - 1),
+            recentHistory: updatedHistory,
+            // Separate empirical completion rate from cue consistency & self-report
+            weeklyCompletionRate: weeklyRate,
+            automaticityScore: weeklyRate,
           };
         }
         return h;
       })
+    );
+  };
+
+  const setHabitSelfReportedAutomaticity = (habitId: string, score: number) => {
+    const clamped = Math.max(1, Math.min(5, Math.round(score)));
+    setHabits((prev) =>
+      prev.map((h) =>
+        h.id === habitId ? { ...h, selfReportedAutomaticity: clamped } : h
+      )
     );
   };
 
@@ -478,34 +679,238 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   };
 
   const applySuggestedTasks = (suggested: Partial<Task>[]) => {
-    const todayStr = new Date().toISOString().split("T")[0];
-    const newItems: Task[] = suggested.map((st, i) => ({
-      id: `task-ai-${Date.now()}-${i}`,
-      title: st.title || "Planned Activity",
-      description: st.description || "Added via AI daily planner",
-      category: st.category || "study",
-      priority: st.priority || "medium",
-      status: "todo",
-      estimatedDuration: st.estimatedDuration || 45,
-      startTime: st.startTime,
-      endTime: st.endTime,
-      scheduledDate: todayStr,
-      isFixed: false,
-      tag: st.tag || "AI Scheduled",
-      energyLevel: st.energyLevel || "high",
-    }));
+    const targetDateStr = format(selectedDate, "yyyy-MM-dd");
+    let updatedCount = 0;
+    let addedCount = 0;
 
-    setTasks((prev) => [...newItems, ...prev]);
+    setTasks((prev) => {
+      let currentList = [...prev];
+
+      suggested.forEach((st, i) => {
+        // Check if an existing task matches this suggestion (by id or normalized title)
+        const matchIndex = currentList.findIndex((t) => {
+          if (st.id && t.id === st.id) return true;
+          if (t.scheduledDate === targetDateStr && st.title) {
+            const cleanT = t.title.toLowerCase().trim();
+            const cleanSt = st.title.toLowerCase().trim();
+            return cleanT === cleanSt || cleanT.includes(cleanSt) || cleanSt.includes(cleanT);
+          }
+          return false;
+        });
+
+        if (matchIndex >= 0) {
+          // Update the existing task (reschedule or priority update)
+          const existing = currentList[matchIndex];
+          currentList[matchIndex] = {
+            ...existing,
+            startTime: st.startTime || existing.startTime,
+            endTime: st.endTime || existing.endTime,
+            priority: st.priority || existing.priority,
+            energyLevel: st.energyLevel || existing.energyLevel,
+            category: st.category || existing.category,
+            tag: st.tag || existing.tag,
+          };
+          updatedCount++;
+        } else {
+          // Add as new scheduled task
+          currentList = [
+            {
+              id: st.id || `task-ai-${Date.now()}-${i}`,
+              title: st.title || "Planned Activity",
+              description: st.description || "Added via AI daily planner",
+              category: st.category || "study",
+              priority: st.priority || "medium",
+              status: "todo",
+              estimatedDuration: st.estimatedDuration || 45,
+              startTime: st.startTime,
+              endTime: st.endTime,
+              scheduledDate: targetDateStr,
+              isFixed: false,
+              tag: st.tag || "AI Scheduled",
+              energyLevel: st.energyLevel || "high",
+            },
+            ...currentList,
+          ];
+          addedCount++;
+        }
+      });
+
+      return currentList;
+    });
+
+    const summaryParts: string[] = [];
+    if (addedCount > 0) summaryParts.push(`added ${addedCount} activities`);
+    if (updatedCount > 0) summaryParts.push(`updated ${updatedCount} existing tasks`);
 
     setChatMessages((prev) => [
       ...prev,
       {
         id: `msg-ack-${Date.now()}`,
         sender: "assistant",
-        text: `✓ Successfully added ${newItems.length} activities to your daily agenda. Your open focus windows have been updated!`,
+        text: `✓ Successfully ${summaryParts.join(" and ")} for ${targetDateStr}. Your agenda is synchronized!`,
         timestamp: "Just now",
       },
     ]);
+  };
+
+  const applySuggestedHabit = (suggested: NonNullable<ChatMessage["suggestedHabit"]>) => {
+    const newHabit: Habit = {
+      id: `habit-${Date.now()}`,
+      title: suggested.title,
+      cue: suggested.cue,
+      frequency: suggested.frequency || "daily",
+      category: suggested.category || "focus",
+      minimumVersion: suggested.minimumVersion || "Start with 2 minutes",
+      targetDurationMinutes: suggested.targetDurationMinutes || 15,
+      currentStreak: 0,
+      bestStreak: 0,
+      completedToday: false,
+      weeklyCompletionRate: 0,
+      cueConsistencyScore: 100,
+      selfReportedAutomaticity: 1,
+      automaticityScore: 0,
+      totalCompletions: 0,
+      recentHistory: [false, false, false, false, false, false, false],
+    };
+
+    setHabits((prev) => [newHabit, ...prev]);
+
+    setNotifications((prev) => [
+      {
+        id: `notif-habit-${Date.now()}`,
+        title: "New Habit Anchored",
+        message: `Habit "${newHabit.title}" anchored to cue: "${newHabit.cue}".`,
+        timestamp: "Just now",
+        type: "habit",
+        read: false,
+      },
+      ...prev,
+    ]);
+
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: `msg-ack-h-${Date.now()}`,
+        sender: "assistant",
+        text: `✓ Habit "${newHabit.title}" has been anchored to your Growth workspace with cue: "${newHabit.cue}".`,
+        timestamp: "Just now",
+      },
+    ]);
+  };
+
+  const applySuggestedGoal = (suggested: NonNullable<ChatMessage["suggestedGoal"]>) => {
+    const targetDate = format(new Date(Date.now() + 60 * 24 * 3600 * 1000), "yyyy-MM-dd");
+    const newGoal: Goal = {
+      id: `goal-${Date.now()}`,
+      title: suggested.title,
+      description: `Structured milestone roadmap planned for ${suggested.targetTimeline}`,
+      category: (suggested.category === "personal" ? "wellness" : suggested.category) || "academic",
+      priority: suggested.priority || "high",
+      targetDate,
+      progress: 0,
+      milestones: suggested.milestones.map((m, idx) => ({
+        id: `m-ai-${Date.now()}-${idx}`,
+        title: m.title,
+        dueDate: m.dueDate || format(new Date(Date.now() + (idx + 1) * 14 * 24 * 3600 * 1000), "yyyy-MM-dd"),
+        completed: false,
+      })),
+    };
+
+    setGoals((prev) => [newGoal, ...prev]);
+
+    setNotifications((prev) => [
+      {
+        id: `notif-goal-${Date.now()}`,
+        title: "Roadmap Goal Integrated",
+        message: `Goal "${newGoal.title}" created with ${newGoal.milestones.length} milestones.`,
+        timestamp: "Just now",
+        type: "system",
+        read: false,
+      },
+      ...prev,
+    ]);
+
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: `msg-ack-g-${Date.now()}`,
+        sender: "assistant",
+        text: `✓ Goal "${newGoal.title}" and its ${newGoal.milestones.length} milestones have been integrated into your Roadmap!`,
+        timestamp: "Just now",
+      },
+    ]);
+  };
+
+  const resetDemoData = (targetRole?: UserRole) => {
+    const roleToReset = targetRole || role;
+    const fresh = resetStoredStateToDemo(roleToReset);
+    setRoleState(fresh.role);
+    setProfile(fresh.profile);
+    setTasks(fresh.tasks);
+    setCalendarEvents(fresh.calendarEvents);
+    setGoals(fresh.goals);
+    setHabits(fresh.habits);
+    setHabitTransitions(fresh.habitTransitions);
+    setFocusSessions(fresh.focusSessions);
+    setChatMessages(fresh.chatMessages);
+    setNotifications(fresh.notifications);
+    setEcoEntries(fresh.ecoEntries);
+    setSelectedDate(new Date(`${fresh.selectedDateStr}T00:00:00`));
+  };
+
+  const exportData = () => {
+    return exportStateAsJSON({
+      version: KRONOS_STORAGE_VERSION,
+      role,
+      profile,
+      tasks,
+      calendarEvents,
+      goals,
+      habits,
+      habitTransitions,
+      focusSessions,
+      chatMessages,
+      notifications,
+      ecoEntries,
+      selectedDateStr: format(selectedDate, "yyyy-MM-dd"),
+      lastSavedTimestamp: Date.now(),
+    });
+  };
+
+  const importData = (jsonStr: string) => {
+    const validated = importStateFromJSON(jsonStr);
+    if (!validated) return false;
+    setRoleState(validated.role);
+    setProfile(validated.profile);
+    setTasks(validated.tasks);
+    setCalendarEvents(validated.calendarEvents);
+    setGoals(validated.goals);
+    setHabits(validated.habits);
+    setHabitTransitions(validated.habitTransitions || []);
+    setFocusSessions(validated.focusSessions || []);
+    setChatMessages(validated.chatMessages || []);
+    setNotifications(validated.notifications || []);
+    setEcoEntries(validated.ecoEntries || []);
+    setSelectedDate(new Date(`${validated.selectedDateStr}T00:00:00`));
+    return true;
+  };
+
+  const restoreBackup = () => {
+    const restored = restorePreMigrationBackup();
+    if (!restored) return false;
+    setRoleState(restored.role);
+    setProfile(restored.profile);
+    setTasks(restored.tasks);
+    setCalendarEvents(restored.calendarEvents);
+    setGoals(restored.goals);
+    setHabits(restored.habits);
+    setHabitTransitions(restored.habitTransitions || []);
+    setFocusSessions(restored.focusSessions || []);
+    setChatMessages(restored.chatMessages || []);
+    setNotifications(restored.notifications || []);
+    setEcoEntries(restored.ecoEntries || []);
+    setSelectedDate(new Date(`${restored.selectedDateStr}T00:00:00`));
+    return true;
   };
 
   const sendChatMessage = async (userText: string) => {
@@ -522,11 +927,11 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setIsAiThinking(true);
 
     try {
-      const todayStr = new Date().toISOString().split("T")[0];
+      const activeDateStr = format(selectedDate, "yyyy-MM-dd");
 
-      // Prepare context for AI Route Handler
+      // Prepare context for AI Route Handler using active date commitments
       const fixedCommitments = calendarEvents
-        .filter((e) => e.isFixed)
+        .filter((e) => e.isFixed || e.date === activeDateStr)
         .map((e) => ({
           title: e.title,
           startTime: e.startTime,
@@ -541,9 +946,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           prompt: userText,
           context: {
             profile,
-            existingTasks: tasks,
+            existingTasks: tasks.filter((t) => t.scheduledDate === activeDateStr),
             fixedCommitments,
-            currentDate: todayStr,
+            currentDate: activeDateStr,
           },
         }),
       });
@@ -560,18 +965,20 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                date: todayStr,
+                date: activeDateStr,
                 wakeTime: profile.wakeTime,
                 sleepTime: profile.sleepTime,
                 mostProductivePeriod: profile.mostProductivePeriod,
                 preferredFocusDuration: profile.preferredFocusDuration,
                 preferredBreakDuration: profile.preferredBreakDuration,
-                fixedCommitments: calendarEvents.map((c) => ({
-                  id: c.id,
-                  title: c.title,
-                  startTime: c.startTime,
-                  endTime: c.endTime,
-                })),
+                fixedCommitments: calendarEvents
+                  .filter((c) => c.date === activeDateStr || c.isFixed)
+                  .map((c) => ({
+                    id: c.id,
+                    title: c.title,
+                    startTime: c.startTime,
+                    endTime: c.endTime,
+                  })),
                 tasksToSchedule: verifiedTasks.map((vt: any, idx: number) => ({
                   id: `candidate-${idx}`,
                   title: vt.title,
@@ -609,6 +1016,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
             text: plan.explanation,
             timestamp: "Just now",
             suggestedTasks: verifiedTasks && verifiedTasks.length > 0 ? verifiedTasks : undefined,
+            suggestedHabit: plan.suggestedHabit,
+            suggestedGoal: plan.suggestedGoal,
+            actions: plan.clarificationOptions?.map((opt: string) => ({
+              label: opt,
+              payload: opt,
+            })),
           },
         ]);
         return;
@@ -622,6 +1035,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     const lower = userText.toLowerCase().trim();
     let replyText = "";
     let suggestions: Partial<Task>[] | undefined;
+    let habitSuggestion: ChatMessage["suggestedHabit"] | undefined;
+    let goalSuggestion: ChatMessage["suggestedGoal"] | undefined;
+    let fallbackActions: ChatMessage["actions"] | undefined;
 
     const isQuestionOrGreeting =
       lower.includes("what are you doing") ||
@@ -632,7 +1048,30 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       lower.includes("hey") ||
       lower.includes("how are you");
 
-    if (isQuestionOrGreeting) {
+    if (lower.includes("create habit") || lower.includes("build habit") || lower.includes("habit of")) {
+      replyText = "Here is a behavioral habit protocol anchored to your routine using BJ Fogg Tiny Habits and the 2-Minute Rule:";
+      habitSuggestion = {
+        title: "Daily Focused Reading",
+        cue: "After morning coffee and sitting at desk",
+        category: "learning",
+        frequency: "daily",
+        minimumVersion: "Read 2 pages minimum before opening email",
+        targetDurationMinutes: 15,
+      };
+    } else if (lower.includes("goal") || lower.includes("roadmap") || lower.includes("break down")) {
+      replyText = "Here is a structured milestone decomposition roadmap for your objective:";
+      goalSuggestion = {
+        title: userText.replace(/^(create goal|break down goal|plan goal)\s+/i, "") || "Key Project Horizon",
+        category: "academic",
+        priority: "high",
+        targetTimeline: "Next 60 Days",
+        milestones: [
+          { title: "Phase 1: Research, scoping & baseline setup" },
+          { title: "Phase 2: Core development & prototype execution" },
+          { title: "Phase 3: Verification, testing & demonstration" },
+        ],
+      };
+    } else if (isQuestionOrGreeting) {
       replyText =
         "I'm Kronos AI, your personal planning assistant! I help you organize tasks around your classes, meetings, and energy rhythms. Tell me what you'd like to accomplish today (e.g., '2 assignments, gym at 4, study economics') and I'll schedule them for you!";
       suggestions = undefined;
@@ -702,6 +1141,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         text: replyText,
         timestamp: "Just now",
         suggestedTasks: suggestions,
+        suggestedHabit: habitSuggestion,
+        suggestedGoal: goalSuggestion,
+        actions: fallbackActions,
       },
     ]);
   };
@@ -839,7 +1281,10 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       currentStreak: 0,
       bestStreak: 0,
       completedToday: false,
-      automaticityScore: 30,
+      weeklyCompletionRate: 0,
+      cueConsistencyScore: 100,
+      selfReportedAutomaticity: 1,
+      automaticityScore: 0,
       recentHistory: [false, false, false, false, false, false, false],
     };
     setHabits((prev) => [created, ...prev]);
@@ -851,6 +1296,206 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       id: `trans-${Date.now()}`,
     };
     setHabitTransitions((prev) => [created, ...prev]);
+
+    // Materialize target habits directly into the core habits collection
+    if (newTransition.targetHabits && newTransition.targetHabits.length > 0) {
+      setHabits((prevHabits) => {
+        const toAdd: Habit[] = [];
+        newTransition.targetHabits.forEach((th, idx) => {
+          const exists = prevHabits.some(
+            (h) => h.title.trim().toLowerCase() === th.habitName.trim().toLowerCase()
+          );
+          if (!exists) {
+            toAdd.push({
+              id: `habit-trans-${Date.now()}-${idx}`,
+              title: th.habitName,
+              cue: th.newAnchorCue,
+              minimumVersion: th.minimumVersion,
+              context: `Transition: ${newTransition.title}`,
+              category: "learning",
+              frequency: "daily",
+              targetDurationMinutes: 20,
+              currentStreak: 0,
+              bestStreak: 0,
+              completedToday: false,
+              weeklyCompletionRate: 0,
+              cueConsistencyScore: 100,
+              selfReportedAutomaticity: 1,
+              automaticityScore: 25,
+              totalCompletions: 0,
+              recentHistory: [false, false, false, false, false, false, false],
+            });
+          }
+        });
+        return toAdd.length > 0 ? [...toAdd, ...prevHabits] : prevHabits;
+      });
+    }
+  };
+
+  // Persistent Timer Methods
+  const startFocusTimer = (config?: {
+    totalMinutes?: number;
+    taskTitle?: string;
+    habitId?: string;
+    perceivedChallenge?: number;
+    perceivedSkill?: number;
+    sessionGoal?: string;
+    completionCriteria?: string;
+  }) => {
+    setTimerState((prev) => {
+      const mins = config?.totalMinutes ?? prev.totalMinutes;
+      const secs = mins * 60;
+      return {
+        ...prev,
+        taskTitle: config?.taskTitle ?? prev.taskTitle,
+        habitId: config?.habitId !== undefined ? config.habitId : prev.habitId,
+        totalMinutes: mins,
+        secondsLeft: secs,
+        isRunning: true,
+        interruptionsCount: 0,
+        targetEndTimestamp: Date.now() + secs * 1000,
+        perceivedChallenge: config?.perceivedChallenge ?? prev.perceivedChallenge,
+        perceivedSkill: config?.perceivedSkill ?? prev.perceivedSkill,
+        sessionGoal: config?.sessionGoal ?? prev.sessionGoal,
+        completionCriteria: config?.completionCriteria ?? prev.completionCriteria,
+        sessionCompleted: false,
+      };
+    });
+  };
+
+  const pauseFocusTimer = () => {
+    setTimerState((prev) => {
+      if (!prev.isRunning) return prev;
+      const remaining = prev.targetEndTimestamp
+        ? Math.max(0, Math.ceil((prev.targetEndTimestamp - Date.now()) / 1000))
+        : prev.secondsLeft;
+      return {
+        ...prev,
+        isRunning: false,
+        secondsLeft: remaining,
+        targetEndTimestamp: undefined,
+      };
+    });
+  };
+
+  const resumeFocusTimer = () => {
+    setTimerState((prev) => {
+      if (prev.isRunning || prev.secondsLeft <= 0) return prev;
+      return {
+        ...prev,
+        isRunning: true,
+        targetEndTimestamp: Date.now() + prev.secondsLeft * 1000,
+      };
+    });
+  };
+
+  const resetFocusTimer = (mins?: number) => {
+    setTimerState((prev) => {
+      const m = mins ?? prev.totalMinutes;
+      return {
+        ...prev,
+        totalMinutes: m,
+        secondsLeft: m * 60,
+        isRunning: false,
+        interruptionsCount: 0,
+        targetEndTimestamp: undefined,
+        sessionCompleted: false,
+      };
+    });
+  };
+
+  const logTimerInterruption = () => {
+    setTimerState((prev) => ({
+      ...prev,
+      interruptionsCount: prev.interruptionsCount + 1,
+    }));
+  };
+
+  const finishTimerEarly = () => {
+    setTimerState((prev) => {
+      const remaining = prev.targetEndTimestamp
+        ? Math.max(0, Math.ceil((prev.targetEndTimestamp - Date.now()) / 1000))
+        : prev.secondsLeft;
+      return {
+        ...prev,
+        isRunning: false,
+        secondsLeft: remaining,
+        targetEndTimestamp: undefined,
+        sessionCompleted: true,
+      };
+    });
+  };
+
+  const completeTimerSession = (reflection: {
+    flowState: FocusSessionLog["flowState"];
+    absorptionRating?: number;
+    concentrationRating?: number;
+    perceivedControl?: number;
+    enjoymentRating?: number;
+    timeDistortion?: "faster" | "normal" | "slower";
+    reflectionNotes?: string;
+  }) => {
+    const elapsedSecs = Math.max(
+      60,
+      timerState.totalMinutes * 60 - timerState.secondsLeft
+    );
+    const duration = Math.max(1, Math.round(elapsedSecs / 60));
+
+    logDetailedFocusSession({
+      taskTitle: timerState.taskTitle || undefined,
+      habitId: timerState.habitId || undefined,
+      durationMinutes: duration,
+      perceivedChallenge: timerState.perceivedChallenge,
+      perceivedSkill: timerState.perceivedSkill,
+      sessionGoal: timerState.sessionGoal || undefined,
+      completionCriteria: timerState.completionCriteria || undefined,
+      interruptionsCount: timerState.interruptionsCount,
+      flowState: reflection.flowState,
+      absorptionRating: reflection.absorptionRating,
+      concentrationRating: reflection.concentrationRating,
+      perceivedControl: reflection.perceivedControl,
+      enjoymentRating: reflection.enjoymentRating,
+      timeDistortion: reflection.timeDistortion,
+      reflectionNotes: reflection.reflectionNotes?.trim() || undefined,
+    });
+
+    setTimerState((prev) => ({
+      ...prev,
+      secondsLeft: prev.totalMinutes * 60,
+      isRunning: false,
+      interruptionsCount: 0,
+      targetEndTimestamp: undefined,
+      sessionCompleted: false,
+    }));
+  };
+
+  const dismissTimerCompletion = () => {
+    setTimerState((prev) => ({
+      ...prev,
+      secondsLeft: prev.totalMinutes * 60,
+      isRunning: false,
+      targetEndTimestamp: undefined,
+      sessionCompleted: false,
+    }));
+  };
+
+  const updateTimerChallengeSkill = (
+    challenge: number,
+    skill: number,
+    goal?: string,
+    criteria?: string,
+    taskTitle?: string,
+    habitId?: string
+  ) => {
+    setTimerState((prev) => ({
+      ...prev,
+      perceivedChallenge: challenge,
+      perceivedSkill: skill,
+      sessionGoal: goal !== undefined ? goal : prev.sessionGoal,
+      completionCriteria: criteria !== undefined ? criteria : prev.completionCriteria,
+      taskTitle: taskTitle !== undefined ? taskTitle : prev.taskTitle,
+      habitId: habitId !== undefined ? habitId : prev.habitId,
+    }));
   };
 
   const updateHabitAutomaticity = (habitId: string, delta: number) => {
@@ -1007,17 +1652,29 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         notifications,
         selectedDate,
         setSelectedDate,
+        referenceDate,
         toggleTaskStatus,
         addTask,
         deleteTask,
         updateTaskSchedule,
         toggleHabit,
         addHabit,
+        setHabitSelfReportedAutomaticity,
         markNotificationRead,
         chatMessages,
         sendChatMessage,
         isAiThinking,
         applySuggestedTasks,
+        applySuggestedHabit,
+        applySuggestedGoal,
+        isHydrated,
+        isQuickTaskOpen,
+        openQuickTask,
+        closeQuickTask,
+        resetDemoData,
+        exportData,
+        importData,
+        restoreBackup,
         onboardingDraft,
         setOnboardingDraft,
         completeOnboarding,
@@ -1031,6 +1688,16 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         updateHabitAutomaticity,
         habitTransitions,
         addHabitTransition,
+        timerState,
+        startFocusTimer,
+        pauseFocusTimer,
+        resumeFocusTimer,
+        resetFocusTimer,
+        logTimerInterruption,
+        finishTimerEarly,
+        completeTimerSession,
+        dismissTimerCompletion,
+        updateTimerChallengeSkill,
         syncStatus,
         lastSyncTime,
         syncConflicts,

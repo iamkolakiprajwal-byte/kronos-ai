@@ -375,20 +375,28 @@ export default function HabitsPage() {
                 </div>
               </div>
 
-              {/* Automaticity Score Bar */}
-              <div className="mt-4 pt-3 border-t border-[#f0ede6] space-y-1.5">
+              {/* Behavioral Metrics (Completion, Cue Consistency, and Self-Report) */}
+              <div className="mt-4 pt-3 border-t border-[#f0ede6] space-y-1.5 text-xs">
                 <div className="flex items-center justify-between text-[11px] text-slate-500">
-                  <span>Habit Automaticity Index</span>
-                  <span className="font-semibold text-slate-800">{habit.automaticityScore}%</span>
+                  <span>7-Day Completion Adherence</span>
+                  <span className="font-semibold text-slate-800">
+                    {habit.weeklyCompletionRate ?? Math.round(((habit.recentHistory?.filter(Boolean).length || 0) / 7) * 100)}% ({habit.recentHistory?.filter(Boolean).length || 0}/7 days)
+                  </span>
                 </div>
-                <div className="w-full bg-[#f0ede6] h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className="bg-emerald-600 h-full rounded-full transition-all duration-300"
-                    style={{ width: `${habit.automaticityScore}%` }}
-                  />
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Anchor Cue Consistency</span>
+                  <span className="font-semibold text-emerald-700">
+                    {habit.cueConsistencyScore ?? 85}%
+                  </span>
                 </div>
-                <span className="text-[10px] text-slate-400 block">
-                  Measured by contextual repetition consistency, without punitive streak resets.
+                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                  <span>Self-Reported Automaticity (SRHI)</span>
+                  <span className="font-semibold text-slate-800">
+                    {habit.selfReportedAutomaticity || 3}/5
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-400 block pt-0.5">
+                  *SRHI scale (1–5): Self-reported perceived automaticity. Not an unvalidated automated score.
                 </span>
               </div>
             </div>

@@ -20,6 +20,7 @@ export function useWorkspaceSwipe() {
   const router = useRouter();
   const pathname = usePathname();
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastSwipeTimeRef = useRef<number>(0);
 
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
@@ -27,6 +28,13 @@ export function useWorkspaceSwipe() {
 
       const target = e.target as HTMLElement | null;
       if (!target) return;
+
+      // Protect iOS native edge back/forward swipe gestures (<28px from edges)
+      const startX = e.touches[0].clientX;
+      if (startX < 28 || (typeof window !== "undefined" && startX > window.innerWidth - 28)) {
+        touchStartRef.current = null;
+        return;
+      }
 
       // Do NOT intercept interactive inputs, textareas, buttons, sliders, modals
       if (
@@ -39,7 +47,7 @@ export function useWorkspaceSwipe() {
       }
 
       touchStartRef.current = {
-        x: e.touches[0].clientX,
+        x: startX,
         y: e.touches[0].clientY,
       };
     };
@@ -47,6 +55,12 @@ export function useWorkspaceSwipe() {
     const handleTouchEnd = (e: TouchEvent) => {
       if (!touchStartRef.current) return;
       if (e.changedTouches.length !== 1) return;
+
+      const now = Date.now();
+      if (now - lastSwipeTimeRef.current < 450) {
+        touchStartRef.current = null;
+        return;
+      }
 
       const touchEndX = e.changedTouches[0].clientX;
       const touchEndY = e.changedTouches[0].clientY;
@@ -67,11 +81,13 @@ export function useWorkspaceSwipe() {
       if (deltaX < 0) {
         // Swiped Left -> Next workspace
         if (currentIdx < WORKSPACES.length - 1) {
+          lastSwipeTimeRef.current = now;
           router.push(WORKSPACES[currentIdx + 1].href);
         }
       } else {
         // Swiped Right -> Previous workspace
         if (currentIdx > 0) {
+          lastSwipeTimeRef.current = now;
           router.push(WORKSPACES[currentIdx - 1].href);
         }
       }

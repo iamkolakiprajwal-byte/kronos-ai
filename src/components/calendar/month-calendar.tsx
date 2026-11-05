@@ -14,21 +14,17 @@ import {
   addDays,
   subDays,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { useDemo } from "@/context/demo-context";
+import { DEMO_REFERENCE_DATE } from "@/lib/mock/demo-data";
 import { cn } from "@/lib/utils";
 
 export function MonthCalendar() {
   const { selectedDate, setSelectedDate, calendarEvents, tasks } = useDemo();
-  const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date("2026-11-02T00:00:00"));
-  const [todayDate, setTodayDate] = useState<Date>(() => new Date("2026-11-02T00:00:00"));
-  const [mobileView, setMobileView] = useState<"week" | "month">("week");
-
-  React.useEffect(() => {
-    const now = new Date();
-    setTodayDate(now);
-    setCurrentMonth(now);
-  }, []);
+  const demoRefDate = React.useMemo(() => new Date(`${DEMO_REFERENCE_DATE}T00:00:00`), []);
+  const [currentMonth, setCurrentMonth] = useState<Date>(demoRefDate);
+  const [todayDate] = useState<Date>(demoRefDate);
+  const [mobileView, setMobileView] = useState<"week" | "month">("month");
 
   // Synchronize current month with selectedDate if selected date changes outside current view
   React.useEffect(() => {
@@ -120,84 +116,118 @@ export function MonthCalendar() {
   ];
 
   return (
-    <div className="bg-white rounded-2xl border border-[#e6e3da] shadow-xs overflow-hidden">
+    <div className="bg-[#fdfcf9] rounded-3xl border border-[#e8e2d5] shadow-2xs overflow-hidden transition-all">
       {/* Calendar Header with Navigation */}
-      <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-[#e6e3da] flex items-center justify-between bg-[#fdfcf9] gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-50 text-amber-800 border border-amber-200/80 flex items-center justify-center shrink-0">
-            <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+      <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#e8e2d5] bg-[#fbf9f5] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Title and Mobile Quick Controls */}
+        <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-8 rounded-xl bg-[#f2eee6] text-[#201e1b] border border-[#e4ded2] flex items-center justify-center shrink-0 shadow-2xs">
+              <CalendarIcon className="w-4 h-4 text-[#687050]" />
+            </div>
+            <div>
+              <h2 className="font-serif text-lg sm:text-2xl font-normal text-[#201e1b] tracking-tight whitespace-nowrap">
+                {format(currentMonth, "MMMM yyyy")}
+              </h2>
+              <p className="text-[11px] text-[#8a8479] hidden sm:block">
+                Interactive Planning Surface • Select any day to inspect commitments
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h2 className="font-serif text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate">
-              {format(currentMonth, "MMMM yyyy")}
-            </h2>
-            <p className="text-[11px] sm:text-xs text-slate-500 hidden sm:block truncate">
-              Interactive Planner Surface • Select a date to view agenda
-            </p>
+
+          {/* Mobile Quick Navigator: Today + Prev/Next (never squeezes month name) */}
+          <div className="flex sm:hidden items-center gap-1.5 shrink-0">
+            <button
+              onClick={goToToday}
+              className="px-2.5 py-1 text-[11px] font-medium text-[#545049] hover:text-[#201e1b] hover:bg-[#f2eee6] rounded-xl transition-colors border border-[#e8e2d5] shadow-2xs cursor-pointer"
+            >
+              Today
+            </button>
+            <div className="flex items-center border border-[#e8e2d5] rounded-xl bg-white shadow-2xs overflow-hidden">
+              <button
+                onClick={prevPeriod}
+                className="p-1.5 hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] transition-colors cursor-pointer"
+                aria-label="Previous period"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="w-[1px] h-3.5 bg-[#e8e2d5]" />
+              <button
+                onClick={nextPeriod}
+                className="p-1.5 hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] transition-colors cursor-pointer"
+                aria-label="Next period"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Mobile Week / Month Toggle */}
-          <div className="sm:hidden flex items-center p-0.5 bg-[#f0ede6] rounded-lg border border-[#e6e3da]">
+        {/* View Switcher and Desktop Navigator Controls */}
+        <div className="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-[#f0eae0]">
+          {/* Week / Month Toggle */}
+          <div className="flex items-center p-0.5 bg-[#f2eee6] rounded-xl border border-[#e4ded2] w-full sm:w-auto">
             <button
               onClick={() => setMobileView("week")}
               className={cn(
-                "px-2 py-1 text-[10px] font-semibold rounded-md transition-all",
+                "flex-1 sm:flex-initial px-3.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer text-center",
                 mobileView === "week"
-                  ? "bg-white text-slate-900 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-white text-[#201e1b] shadow-2xs font-semibold"
+                  : "text-[#8a8479] hover:text-[#201e1b]"
               )}
             >
-              Week
+              Week View
             </button>
             <button
               onClick={() => setMobileView("month")}
               className={cn(
-                "px-2 py-1 text-[10px] font-semibold rounded-md transition-all",
+                "flex-1 sm:flex-initial px-3.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer text-center",
                 mobileView === "month"
-                  ? "bg-white text-slate-900 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
+                  ? "bg-white text-[#201e1b] shadow-2xs font-semibold"
+                  : "text-[#8a8479] hover:text-[#201e1b]"
               )}
             >
-              Month
+              Full Month
             </button>
           </div>
 
-          <button
-            onClick={goToToday}
-            className="px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-[#f0ede6] rounded-md transition-colors border border-[#e6e3da]"
-          >
-            Today
-          </button>
-          <div className="flex items-center border border-[#e6e3da] rounded-md bg-white">
+          {/* Desktop Navigation */}
+          <div className="hidden sm:flex items-center gap-2 shrink-0">
             <button
-              onClick={prevPeriod}
-              className="p-1 sm:p-1.5 hover:bg-[#f5f3ec] text-slate-600 rounded-l-md transition-colors"
-              aria-label="Previous period"
+              onClick={goToToday}
+              className="px-3 py-1.5 text-xs font-medium text-[#545049] hover:text-[#201e1b] hover:bg-[#f2eee6] rounded-xl transition-colors border border-[#e8e2d5] cursor-pointer shadow-2xs"
             >
-              <ChevronLeft className="w-4 h-4" />
+              Today
             </button>
-            <div className="w-[1px] h-3.5 sm:h-4 bg-[#e6e3da]" />
-            <button
-              onClick={nextPeriod}
-              className="p-1 sm:p-1.5 hover:bg-[#f5f3ec] text-slate-600 rounded-r-md transition-colors"
-              aria-label="Next period"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            <div className="flex items-center border border-[#e8e2d5] rounded-xl bg-white shadow-2xs overflow-hidden">
+              <button
+                onClick={prevPeriod}
+                className="p-1.5 hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] transition-colors cursor-pointer"
+                aria-label="Previous period"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="w-[1px] h-4 bg-[#e8e2d5]" />
+              <button
+                onClick={nextPeriod}
+                className="p-1.5 hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] transition-colors cursor-pointer"
+                aria-label="Next period"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Days of Week Header */}
-      <div className="grid grid-cols-7 border-b border-[#e6e3da] bg-[#fbfaf6] text-center">
+      <div className="grid grid-cols-7 border-b border-[#e8e2d5] bg-[#faf8f4] text-center">
         {weekDayNames.map((d, i) => (
           <div
             key={d.full}
             className={cn(
-              "py-1.5 sm:py-2.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider",
-              i === 0 || i === 6 ? "text-slate-400" : "text-slate-600"
+              "py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-medium uppercase tracking-wider",
+              i === 0 || i === 6 ? "text-[#a39c8e]" : "text-[#6d665b]"
             )}
           >
             <span className="sm:hidden">{d.short}</span>
@@ -206,10 +236,10 @@ export function MonthCalendar() {
         ))}
       </div>
 
-      {/* Calendar Grid — Renders single active week if mobileView === 'week' on small screens, else all rows */}
-      <div className="divide-y divide-[#f0ede6]">
+      {/* Calendar Grid */}
+      <div className="divide-y divide-[#f0eae0]">
         {(mobileView === "week" ? [activeWeekRow] : rows).map((row, rowIndex) => (
-          <div key={rowIndex} className="grid grid-cols-7 divide-x divide-[#f0ede6]">
+          <div key={rowIndex} className="grid grid-cols-7 divide-x divide-[#f0eae0]">
             {row.map((dayItem, dayIndex) => {
               const isSelected = isSameDay(dayItem, selectedDate);
               const isToday = isSameDay(dayItem, todayDate);
@@ -221,55 +251,55 @@ export function MonthCalendar() {
                   key={dayIndex}
                   onClick={() => setSelectedDate(dayItem)}
                   className={cn(
-                    "min-h-[52px] sm:min-h-[72px] lg:min-h-[82px] p-1.5 sm:p-2 flex flex-col justify-between text-left transition-all relative group focus:outline-hidden",
-                    !isCurrentMonthDay && "bg-[#faf9f5]/60 text-slate-400",
-                    isCurrentMonthDay && "hover:bg-[#fbfaf6]",
-                    isSelected && "bg-amber-50/80 ring-2 ring-amber-500/50 inset-0 z-10",
-                    isToday && !isSelected && "bg-blue-50/30"
+                    "min-h-[54px] sm:min-h-[74px] lg:min-h-[84px] p-1.5 sm:p-2.5 flex flex-col justify-between text-left transition-all relative group focus:outline-hidden cursor-pointer",
+                    !isCurrentMonthDay && "bg-[#fbf9f5]/50 text-[#b5ad9e]",
+                    isCurrentMonthDay && "hover:bg-[#f7f4ee]",
+                    isSelected && "bg-[#faece7]/90 ring-1.5 ring-[#b85437]/40 z-10",
+                    isToday && !isSelected && "bg-[#edf2ec]/40"
                   )}
                 >
-                  {/* Day Number and Today Badge */}
+                  {/* Day Number and Count Pill */}
                   <div className="flex items-center justify-between w-full">
                     <span
                       className={cn(
-                        "text-[11px] sm:text-xs font-semibold rounded-md w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center transition-colors",
+                        "text-[11px] sm:text-xs font-sans rounded-lg w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center transition-all",
                         isToday
-                          ? "bg-slate-900 text-white font-bold"
+                          ? "bg-[#201e1b] text-[#f8f6f0] font-semibold shadow-2xs"
                           : isSelected
-                          ? "text-amber-900 font-bold"
+                          ? "text-[#b85437] font-bold"
                           : isCurrentMonthDay
-                          ? "text-slate-800"
-                          : "text-slate-400"
+                          ? "text-[#201e1b] font-medium"
+                          : "text-[#b5ad9e]"
                       )}
                     >
                       {format(dayItem, "d")}
                     </span>
 
                     {indicators.totalCount > 0 && (
-                      <span className="hidden sm:inline-block text-[10px] text-slate-400 font-medium px-1 rounded-sm bg-slate-100">
+                      <span className="hidden sm:inline-block text-[9px] text-[#8a8479] font-medium px-1 rounded-sm bg-[#f2eee6]">
                         {indicators.totalCount}
                       </span>
                     )}
                   </div>
 
-                  {/* Visual Activity Dots */}
-                  <div className="flex items-center gap-0.5 sm:gap-1 mt-1 sm:mt-1.5 flex-wrap">
+                  {/* Visual Activity Dots (Muted Sage, Terracotta, Olive) */}
+                  <div className="flex items-center gap-1 mt-1 sm:mt-1.5 flex-wrap">
                     {indicators.hasAcademicOrMeeting && (
                       <span
-                        className="w-1.5 h-1.5 rounded-full bg-blue-500"
-                        title="Fixed Class / Meeting"
+                        className="w-1.5 h-1.5 rounded-full bg-[#536b54]"
+                        title="Fixed Class / Lecture"
                       />
                     )}
                     {indicators.hasDeepWork && (
                       <span
-                        className="w-1.5 h-1.5 rounded-full bg-indigo-600"
-                        title="Deep Focus / Assignment"
+                        className="w-1.5 h-1.5 rounded-full bg-[#b85437]"
+                        title="Deep Focus Session"
                       />
                     )}
                     {indicators.hasEcoOrPersonal && (
                       <span
-                        className="w-1.5 h-1.5 rounded-full bg-emerald-500"
-                        title="Habit / Eco-activity"
+                        className="w-1.5 h-1.5 rounded-full bg-[#687050]"
+                        title="Habit / Eco-action"
                       />
                     )}
                   </div>
@@ -281,23 +311,23 @@ export function MonthCalendar() {
       </div>
 
       {/* Calendar Legend */}
-      <div className="px-3.5 sm:px-6 py-2 sm:py-2.5 bg-[#fbfaf6] border-t border-[#e6e3da] flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500">
-        <div className="flex items-center gap-2.5 sm:gap-4 flex-wrap">
-          <span className="flex items-center gap-1 sm:gap-1.5">
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-500" />
-            <span>Class / Standup</span>
+      <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#faf8f4] border-t border-[#e8e2d5] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] sm:text-[11px] text-[#8a8479]">
+        <div className="flex items-center gap-3 sm:gap-5 flex-wrap">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#536b54]" />
+            <span className="text-[#545049]">Class / Lecture</span>
           </span>
-          <span className="flex items-center gap-1 sm:gap-1.5">
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-indigo-600" />
-            <span>Deep Work</span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#b85437]" />
+            <span className="text-[#545049]">Deep Work</span>
           </span>
-          <span className="flex items-center gap-1 sm:gap-1.5">
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500" />
-            <span>Habit / Eco</span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#687050]" />
+            <span className="text-[#545049]">Habit / Eco</span>
           </span>
         </div>
-        <span className="hidden md:inline-block text-slate-400">
-          Selected: {format(selectedDate, "MMM d, yyyy")}
+        <span className="text-[#8a8479] font-medium text-[10px] sm:text-[11px]">
+          Viewing: {format(selectedDate, "MMM d, yyyy")}
         </span>
       </div>
     </div>

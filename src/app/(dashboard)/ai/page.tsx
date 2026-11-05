@@ -16,11 +16,11 @@ import {
   Volume2,
   X,
   ArrowRight,
-  RotateCcw,
   ShieldCheck,
   Zap,
-  Info,
   Calendar,
+  Target,
+  TrendingUp,
 } from "lucide-react";
 import { useDemo } from "@/context/demo-context";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -32,8 +32,16 @@ const suggestedPrompts = [
     prompt: "I need to complete two assignments, study economics for 1 hour, and hit the gym at 5 PM.",
   },
   {
+    title: "Build Reading Habit",
+    prompt: "Help me build a consistent 15-minute academic reading habit every morning.",
+  },
+  {
     title: "Meeting Reschedule",
     prompt: "I have an unexpected 4 PM sync. Please reschedule my afternoon work blocks.",
+  },
+  {
+    title: "Break Down Thesis",
+    prompt: "Can you break down my Senior Thesis project into a structured roadmap?",
   },
   {
     title: "Catch Up Routine",
@@ -51,15 +59,21 @@ export default function AIPage() {
     sendChatMessage,
     isAiThinking,
     applySuggestedTasks,
+    applySuggestedHabit,
+    applySuggestedGoal,
     role,
     profile,
+    openQuickTask,
   } = useDemo();
 
   const [inputVal, setInputVal] = useState("");
   const [appliedMessageIds, setAppliedMessageIds] = useState<Record<string, boolean>>({});
+  const [appliedHabitIds, setAppliedHabitIds] = useState<Record<string, boolean>>({});
+  const [appliedGoalIds, setAppliedGoalIds] = useState<Record<string, boolean>>({});
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [voiceDraft, setVoiceDraft] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const {
     isSupported: isSpeechSupported,
@@ -81,8 +95,11 @@ export default function AIPage() {
   }, [chatMessages, isAiThinking]);
 
   const handleSend = (text?: string) => {
-    const query = text || inputVal;
-    if (!query.trim()) return;
+    const query = text !== undefined ? text : inputVal;
+    if (!query.trim()) {
+      inputRef.current?.focus();
+      return;
+    }
     sendChatMessage(query);
     setInputVal("");
   };
@@ -90,6 +107,16 @@ export default function AIPage() {
   const handleApply = (msgId: string, tasks: any[]) => {
     applySuggestedTasks(tasks);
     setAppliedMessageIds((prev) => ({ ...prev, [msgId]: true }));
+  };
+
+  const handleApplyHabit = (msgId: string, habit: any) => {
+    applySuggestedHabit(habit);
+    setAppliedHabitIds((prev) => ({ ...prev, [msgId]: true }));
+  };
+
+  const handleApplyGoal = (msgId: string, goal: any) => {
+    applySuggestedGoal(goal);
+    setAppliedGoalIds((prev) => ({ ...prev, [msgId]: true }));
   };
 
   const openVoiceModal = () => {
@@ -115,49 +142,60 @@ export default function AIPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8.5rem)] sm:h-[calc(100vh-7.5rem)] max-w-4xl mx-auto animate-in fade-in-50 duration-200">
+    <div className="flex flex-col h-[calc(100dvh-12rem)] md:h-[calc(100dvh-9rem)] max-w-4xl mx-auto animate-in fade-in-50 duration-200">
       {/* Workspace Header */}
-      <header className="pb-3 border-b border-[#e6e3da] flex items-center justify-between shrink-0">
+      <header className="pb-3 border-b border-[#e8e2d5] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-900 text-amber-300 flex items-center justify-center shrink-0 shadow-xs">
-            <Sparkles className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#201e1b] text-[#f8f6f0] flex items-center justify-center shrink-0 shadow-2xs">
+            <Sparkles className="w-4 h-4 text-[#e8decb]" />
           </div>
           <div className="min-w-0">
-            <h1 className="font-serif text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2 truncate">
-              Conversational Planning Assistant
-              <span className="hidden sm:inline-flex text-[10px] font-sans font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
-                AI Powered
+            <h1 className="font-serif text-base sm:text-xl font-normal text-[#201e1b] flex items-center gap-2">
+              <span>Planning Assistant</span>
+              <span className="hidden sm:inline-flex text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[#f2eee6] text-[#687050] border border-[#e4ded2]">
+                Offline Demo Intelligence (MockAIProvider)
               </span>
             </h1>
-            <p className="text-[11px] sm:text-xs text-slate-500 truncate flex items-center gap-2">
-              <span>Persona: <strong className="text-slate-700 capitalize">{profile.name} ({role})</strong></span>
-              <span className="text-slate-300">•</span>
-              <span>Peak: <strong className="text-slate-700 capitalize">{profile.mostProductivePeriod}</strong></span>
-              <span className="text-slate-300 hidden md:inline">•</span>
-              <span className="hidden md:inline">Focus: <strong className="text-slate-700">{profile.preferredFocusDuration}m</strong></span>
+            <p className="text-[11px] sm:text-xs text-[#8a8479] truncate flex items-center gap-2">
+              <span>Persona: <strong className="text-[#545049] capitalize font-medium">{profile.name} ({role})</strong></span>
+              <span className="text-[#d5cdbd]">•</span>
+              <span>Peak: <strong className="text-[#545049] capitalize font-medium">{profile.mostProductivePeriod}</strong></span>
+              <span className="text-[#d5cdbd] hidden md:inline">•</span>
+              <span className="hidden md:inline">Focus: <strong className="text-[#545049] font-medium">{profile.preferredFocusDuration}m</strong></span>
             </p>
           </div>
         </div>
 
-        <Link
-          href="/my-day"
-          className="text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-[#e6e3da] px-2.5 sm:px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shrink-0 shadow-2xs"
-        >
-          <Calendar className="w-3.5 h-3.5 text-slate-500" />
-          <span className="hidden sm:inline">View</span> My Day
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={openQuickTask}
+            className="text-xs font-medium text-[#201e1b] bg-white hover:bg-[#f2eee6] border border-[#e8e2d5] px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shrink-0 shadow-2xs cursor-pointer active:scale-95"
+            aria-label="New Task"
+          >
+            <Plus className="w-3.5 h-3.5 text-[#545049]" />
+            <span>New Task</span>
+          </button>
+          <Link
+            href="/my-day"
+            className="text-xs font-medium text-[#545049] hover:text-[#201e1b] bg-white hover:bg-[#f2eee6] border border-[#e8e2d5] px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shrink-0 shadow-2xs"
+          >
+            <Calendar className="w-3.5 h-3.5 text-[#687050]" />
+            <span className="hidden sm:inline">View</span> My Day
+          </Link>
+        </div>
       </header>
 
       {/* Chat Messages Stream */}
       <div className="flex-1 overflow-y-auto py-3.5 sm:py-4 space-y-3.5 sm:space-y-4 pr-1">
         {/* Welcome Briefing Card */}
-        <div className="bg-[#fcfbf7] border border-[#e8e4dc] rounded-2xl p-3.5 sm:p-4 text-xs space-y-2">
-          <div className="flex items-center gap-2 text-slate-800 font-semibold">
-            <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-            <span>Intelligent Constraint-Based Planning</span>
+        <div className="bg-[#fdfcf9] border border-[#e8e2d5] rounded-2xl p-4 text-xs space-y-2 shadow-2xs">
+          <div className="flex items-center gap-2 text-[#201e1b] font-semibold">
+            <ShieldCheck className="w-4 h-4 text-[#536b54] shrink-0" />
+            <span className="font-serif text-sm">Constraint-Based Deterministic Planning (Demo Environment)</span>
           </div>
-          <p className="text-slate-600 leading-relaxed text-[11px] sm:text-xs">
-            Kronos AI translates natural intentions into real timeblocks respecting your fixed commitments ({profile.role === "student" ? "classes & labs" : profile.role === "professional" ? "meetings & reviews" : "classes & meetings"}), productive rhythms, and minimum buffer windows. Casual questions are answered directly without altering your schedule.
+          <p className="text-[#545049] leading-relaxed text-[11px] sm:text-xs">
+            Powered by <code className="font-mono bg-white px-1 py-0.5 rounded border border-[#e8e2d5]">MockAIProvider</code> for zero-cost academic evaluation without external API keys. Tell Kronos your intentions to automatically fit study blocks and tasks around commitments ({profile.role === "student" ? "classes & labs" : profile.role === "professional" ? "meetings & reviews" : "classes & meetings"}), productive rhythms, and minimum buffer windows.
           </p>
         </div>
 
@@ -174,17 +212,17 @@ export default function AIPage() {
               )}
             >
               {!isUser && (
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-slate-900 text-amber-300 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                  <Bot className="w-4 h-4" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#201e1b] text-[#f8f6f0] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                  <Bot className="w-3.5 h-3.5 text-[#e8decb]" />
                 </div>
               )}
 
               <div
                 className={cn(
-                  "max-w-[88%] sm:max-w-xl rounded-2xl p-3.5 sm:p-4 leading-relaxed shadow-xs transition-all",
+                  "max-w-[88%] sm:max-w-xl rounded-2xl p-3.5 sm:p-4 leading-relaxed shadow-2xs transition-all",
                   isUser
-                    ? "bg-slate-900 text-white rounded-tr-xs"
-                    : "bg-white text-slate-800 border border-[#e6e3da] rounded-tl-xs"
+                    ? "bg-[#201e1b] text-[#f8f6f0] rounded-tr-xs"
+                    : "bg-[#fdfcf9] text-[#201e1b] border border-[#e8e2d5] rounded-tl-xs"
                 )}
               >
                 <p className="whitespace-pre-line text-xs sm:text-[13px] leading-relaxed">
@@ -193,13 +231,13 @@ export default function AIPage() {
 
                 {/* Proposed Tasks Box (If AI suggested schedule items) */}
                 {msg.suggestedTasks && msg.suggestedTasks.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-[#f0ede6] space-y-2.5">
-                    <div className="text-[11px] sm:text-xs font-semibold text-slate-800 flex items-center justify-between">
+                  <div className="mt-3 pt-3 border-t border-[#e8e2d5] space-y-2.5">
+                    <div className="text-[11px] sm:text-xs font-semibold text-[#201e1b] flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
-                        <CalendarCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        <CalendarCheck className="w-3.5 h-3.5 text-[#536b54]" />
                         Proposed Schedule Timeblocks ({msg.suggestedTasks.length})
                       </span>
-                      <span className="text-[10px] text-slate-500 font-normal">
+                      <span className="text-[10px] text-[#8a8479] font-normal">
                         Constraint Solved
                       </span>
                     </div>
@@ -208,25 +246,25 @@ export default function AIPage() {
                       {msg.suggestedTasks.map((st, idx) => (
                         <div
                           key={idx}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2.5 rounded-xl bg-[#faf9f6] border border-[#e6e3da] text-xs"
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2.5 rounded-xl bg-[#f7f5f0] border border-[#e8e2d5] text-xs"
                         >
                           <div className="flex items-center gap-2 flex-wrap min-w-0">
-                            <span className="font-semibold text-slate-900 truncate">
+                            <span className="font-semibold text-[#201e1b] truncate">
                               {st.title}
                             </span>
                             {st.tag && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-900 font-medium">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-[#f2eee6] text-[#545049] font-medium border border-[#e4ded2]">
                                 {st.tag}
                               </span>
                             )}
                             {st.energyLevel && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-slate-100 text-slate-700 capitalize">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-[#edf2ec] text-[#536b54] capitalize border border-[#d6e0d5]">
                                 {st.energyLevel} energy
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1.5 text-slate-600 font-medium text-[11px] shrink-0">
-                            <Clock className="w-3 h-3 text-slate-400" />
+                          <div className="flex items-center gap-1.5 text-[#545049] font-medium text-[11px] shrink-0 font-mono">
+                            <Clock className="w-3 h-3 text-[#8a8479]" />
                             <span>
                               {st.startTime ? `${st.startTime} (${st.estimatedDuration}m)` : `${st.estimatedDuration}m`}
                             </span>
@@ -239,13 +277,13 @@ export default function AIPage() {
                     <div className="pt-1 flex items-center gap-2 flex-wrap">
                       {isApplied ? (
                         <div className="flex items-center gap-2 w-full sm:w-auto">
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#536b54] bg-[#edf2ec] border border-[#d6e0d5] px-3 py-1.5 rounded-xl">
                             <Check className="w-3.5 h-3.5" />
                             Applied to Your Schedule
                           </span>
                           <Link
                             href="/my-day"
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-[#201e1b] hover:underline underline-offset-4"
                           >
                             Review in My Day <ArrowRight className="w-3 h-3" />
                           </Link>
@@ -253,9 +291,9 @@ export default function AIPage() {
                       ) : (
                         <button
                           onClick={() => handleApply(msg.id, msg.suggestedTasks!)}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors"
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] font-medium text-xs shadow-2xs transition-colors cursor-pointer"
                         >
-                          <Plus className="w-3.5 h-3.5" />
+                          <Plus className="w-3.5 h-3.5 text-[#e8decb]" />
                           <span>Apply Proposed Schedule to My Day</span>
                         </button>
                       )}
@@ -263,10 +301,156 @@ export default function AIPage() {
                   </div>
                 )}
 
+                {/* Proposed Habit Box */}
+                {msg.suggestedHabit && (
+                  <div className="mt-3 pt-3 border-t border-[#e8e2d5] space-y-2.5">
+                    <div className="text-[11px] sm:text-xs font-semibold text-[#201e1b] flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <TrendingUp className="w-3.5 h-3.5 text-[#536b54]" />
+                        Proposed Behavioral Habit Protocol
+                      </span>
+                      <span className="text-[10px] text-[#8a8479] font-normal">
+                        Tiny Habits Method
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-[#f7f5f0] border border-[#e8e2d5] space-y-2 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-[#201e1b]">
+                          {msg.suggestedHabit.title}
+                        </span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-[#edf2ec] text-[#536b54] capitalize border border-[#d6e0d5]">
+                          {msg.suggestedHabit.category}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#545049]">
+                        <strong className="text-[#201e1b]">Anchor Cue:</strong> {msg.suggestedHabit.cue}
+                      </p>
+                      {msg.suggestedHabit.minimumVersion && (
+                        <p className="text-[11px] text-[#545049]">
+                          <strong className="text-[#201e1b]">2-Min Starter Rule:</strong> {msg.suggestedHabit.minimumVersion}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 text-[10px] text-[#8a8479]">
+                        <span>Frequency: <strong className="capitalize text-[#545049]">{msg.suggestedHabit.frequency}</strong></span>
+                        <span>•</span>
+                        <span>Target: <strong className="text-[#545049]">{msg.suggestedHabit.targetDurationMinutes || 15}m</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="pt-1 flex items-center gap-2 flex-wrap">
+                      {appliedHabitIds[msg.id] ? (
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#536b54] bg-[#edf2ec] border border-[#d6e0d5] px-3 py-1.5 rounded-xl">
+                            <Check className="w-3.5 h-3.5" />
+                            Anchored to Growth
+                          </span>
+                          <Link
+                            href="/growth"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-[#201e1b] hover:underline underline-offset-4"
+                          >
+                            View in Growth <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleApplyHabit(msg.id, msg.suggestedHabit)}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] font-medium text-xs shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-[#e8decb]" />
+                          <span>Anchor Habit to Growth Workspace</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Proposed Goal Roadmap Box */}
+                {msg.suggestedGoal && (
+                  <div className="mt-3 pt-3 border-t border-[#e8e2d5] space-y-2.5">
+                    <div className="text-[11px] sm:text-xs font-semibold text-[#201e1b] flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Target className="w-3.5 h-3.5 text-[#b37e2a]" />
+                        Proposed Goal Roadmap
+                      </span>
+                      <span className="text-[10px] text-[#8a8479] font-normal">
+                        {msg.suggestedGoal.targetTimeline}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-[#f7f5f0] border border-[#e8e2d5] space-y-2 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-[#201e1b]">
+                          {msg.suggestedGoal.title}
+                        </span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-[#f2eee6] text-[#b37e2a] uppercase tracking-wider font-semibold border border-[#e4ded2]">
+                          {msg.suggestedGoal.priority} priority
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-[#8a8479] block">
+                          Milestones:
+                        </span>
+                        {msg.suggestedGoal.milestones?.map((m, mIdx) => (
+                          <div key={mIdx} className="flex items-center gap-2 text-[11px] text-[#545049]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#8a8479] shrink-0" />
+                            <span>{m.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-1 flex items-center gap-2 flex-wrap">
+                      {appliedGoalIds[msg.id] ? (
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#536b54] bg-[#edf2ec] border border-[#d6e0d5] px-3 py-1.5 rounded-xl">
+                            <Check className="w-3.5 h-3.5" />
+                            Roadmap Integrated
+                          </span>
+                          <Link
+                            href="/growth"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-[#201e1b] hover:underline underline-offset-4"
+                          >
+                            View in Growth <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleApplyGoal(msg.id, msg.suggestedGoal)}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] font-medium text-xs shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-[#e8decb]" />
+                          <span>Integrate Goal to Roadmap</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Clarification / Quick Action Buttons */}
+                {msg.actions && msg.actions.length > 0 && (
+                  <div className="mt-3 pt-2.5 border-t border-[#e8e2d5] space-y-1.5">
+                    <span className="text-[10px] uppercase font-semibold text-[#8a8479] tracking-wider block">
+                      Options:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {msg.actions.map((act, actIdx) => (
+                        <button
+                          key={actIdx}
+                          onClick={() => handleSend(act.payload)}
+                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#f2eee6] border border-[#d5cdbd] hover:border-[#201e1b] text-xs font-medium text-[#201e1b] shadow-2xs transition-colors cursor-pointer"
+                        >
+                          {act.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <span
                   className={cn(
-                    "block text-[10px] mt-2",
-                    isUser ? "text-slate-400 text-right" : "text-slate-400"
+                    "block text-[10px] mt-2 font-mono",
+                    isUser ? "text-[#a39e93] text-right" : "text-[#8a8479]"
                   )}
                 >
                   {msg.timestamp}
@@ -274,8 +458,8 @@ export default function AIPage() {
               </div>
 
               {isUser && (
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-100 text-amber-900 border border-amber-200 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                  <User className="w-4 h-4" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#f2eee6] text-[#201e1b] border border-[#e4ded2] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                  <User className="w-3.5 h-3.5" />
                 </div>
               )}
             </div>
@@ -284,11 +468,11 @@ export default function AIPage() {
 
         {isAiThinking && (
           <div className="flex gap-2.5 sm:gap-3 text-xs justify-start items-center">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-slate-900 text-amber-300 flex items-center justify-center shrink-0 shadow-xs">
-              <Bot className="w-4 h-4" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#201e1b] text-[#f8f6f0] flex items-center justify-center shrink-0 shadow-2xs">
+              <Bot className="w-3.5 h-3.5 text-[#e8decb]" />
             </div>
-            <div className="p-3 bg-white border border-[#e6e3da] rounded-2xl text-slate-600 text-xs flex items-center gap-2.5 shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+            <div className="p-3 bg-white border border-[#e8e2d5] rounded-2xl text-[#545049] text-xs flex items-center gap-2.5 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-[#536b54] animate-ping" />
               <span className="font-medium">
                 Evaluating commitments, energy rhythms & free space...
               </span>
@@ -299,46 +483,58 @@ export default function AIPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggested Prompt Chips */}
-      <div className="pt-2 pb-2 shrink-0 border-t border-[#e6e3da]/80">
-        <div className="flex items-center gap-1.5 overflow-x-auto text-xs scrollbar-none pb-1">
-          <span className="text-[11px] text-slate-500 font-medium shrink-0 flex items-center gap-1">
-            <Zap className="w-3 h-3 text-amber-600" /> Prompts:
+      {/* Accessible Bottom Message Composer */}
+      <div className="pt-2 pb-1 shrink-0 space-y-2">
+        {/* Horizontally Browsable Suggested Prompt Chips (1-Tap to Send) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto text-xs scrollbar-none pb-0.5 -mx-1 px-1 sm:mx-0 sm:px-0">
+          <span className="text-[10px] text-[#8a8479] font-medium shrink-0 flex items-center gap-1 uppercase tracking-wider">
+            <Zap className="w-3 h-3 text-[#b37e2a]" /> Prompts:
           </span>
           {suggestedPrompts.map((item, idx) => (
             <button
               key={idx}
+              type="button"
               onClick={() => handleSend(item.prompt)}
-              className="px-2.5 py-1 rounded-full bg-white hover:bg-slate-50 border border-[#e6e3da] hover:border-slate-400 text-slate-700 hover:text-slate-900 shrink-0 text-[11px] transition-colors whitespace-nowrap shadow-2xs font-medium"
+              className="px-3 py-1.5 rounded-full bg-white hover:bg-[#f2eee6] border border-[#e8e2d5] hover:border-[#d5cdbd] text-[#545049] hover:text-[#201e1b] shrink-0 text-[11px] transition-all whitespace-nowrap shadow-2xs font-medium cursor-pointer active:scale-95"
             >
               {item.title}
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Input Box with Speech Dictation */}
-      <div className="pt-1 pb-1 shrink-0">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSend();
           }}
-          className="bg-white border border-[#e6e3da] rounded-2xl p-2 sm:p-2.5 flex items-center gap-2 shadow-xs focus-within:ring-2 focus-within:ring-slate-900/10 focus-within:border-slate-800 transition-all"
+          autoComplete="off"
+          data-form-type="other"
+          noValidate
+          className="bg-white border border-[#e8e2d5] rounded-2xl p-1.5 sm:p-2.5 flex items-center gap-2 shadow-2xs focus-within:ring-2 focus-within:ring-[#201e1b]/10 focus-within:border-[#201e1b] transition-all"
         >
           <input
-            type="text"
+            ref={inputRef}
+            type="search"
+            name="ai_chat_query"
+            id="ai_chat_query"
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
-            placeholder="Type your goals, tasks, or schedule changes (e.g. 'Study economics for 1h, gym at 5')..."
-            className="flex-1 px-2.5 py-1.5 bg-transparent border-0 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden min-w-0"
+            placeholder="Ask Kronos to plan your day..."
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="sentences"
+            spellCheck={false}
+            enterKeyHint="send"
+            data-form-type="other"
+            data-lpignore="true"
+            className="flex-1 px-3 py-2 bg-transparent border-0 text-xs sm:text-sm text-[#201e1b] placeholder:text-[#8a8479] focus:outline-hidden min-w-0"
           />
 
           {/* Voice Command Button */}
           <button
             type="button"
             onClick={openVoiceModal}
-            className="w-9 h-9 rounded-xl border border-[#e6e3da] bg-[#faf9f6] hover:bg-amber-50 hover:border-amber-300 text-slate-700 hover:text-amber-900 transition-colors flex items-center justify-center shrink-0"
+            className="w-11 h-11 sm:w-10 sm:h-10 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-xl border border-[#e8e2d5] bg-[#fbf9f5] hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] transition-colors flex items-center justify-center shrink-0 cursor-pointer active:scale-95"
             title="Dictate schedule request"
             aria-label="Voice input"
           >
@@ -347,10 +543,17 @@ export default function AIPage() {
 
           <button
             type="submit"
-            disabled={!inputVal.trim() || isAiThinking}
-            className="px-3.5 sm:px-4 h-9 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs shrink-0"
+            disabled={isAiThinking}
+            className={cn(
+              "px-3.5 sm:px-4 h-11 sm:h-10 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-2xs shrink-0 cursor-pointer",
+              inputVal.trim()
+                ? "bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] active:scale-95"
+                : "bg-[#f2eee6] text-[#8a8479] hover:bg-[#e8e2d5] hover:text-[#201e1b]"
+            )}
+            title={inputVal.trim() ? "Send schedule request" : "Type a request or tap a prompt above"}
+            aria-label="Send message"
           >
-            <Send className="w-3.5 h-3.5 text-amber-300" />
+            <Send className={cn("w-3.5 h-3.5", inputVal.trim() ? "text-[#e8decb]" : "text-[#8a8479]")} />
             <span className="hidden sm:inline">Plan</span>
           </button>
         </form>
@@ -358,25 +561,25 @@ export default function AIPage() {
 
       {/* Voice Dictation & Review Modal */}
       {isVoiceModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in-50">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl border-t sm:border border-[#e6e3da] w-full sm:max-w-md p-5 sm:p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-[#e6e3da]">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#201e1b]/40 backdrop-blur-xs animate-in fade-in-50">
+          <div className="bg-[#fbf9f5] rounded-t-3xl sm:rounded-3xl border-t sm:border border-[#e8e2d5] w-full sm:max-w-md p-5 sm:p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-[#e8e2d5]">
               <div className="flex items-center gap-2">
-                <Volume2 className="w-4 h-4 text-amber-700" />
-                <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900">
+                <Volume2 className="w-4 h-4 text-[#536b54]" />
+                <h3 className="font-serif text-base sm:text-lg font-normal text-[#201e1b]">
                   Voice Schedule Input
                 </h3>
               </div>
               <button
                 onClick={handleCancelVoice}
-                className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="p-1.5 rounded-lg text-[#8a8479] hover:text-[#201e1b] hover:bg-[#f2eee6] cursor-pointer"
               >
-                <X className="w-5 h-5 sm:w-4 sm:h-4" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Listening Indicator */}
-            <div className="flex flex-col items-center justify-center py-3 sm:py-4 space-y-2.5 sm:space-y-3">
+            <div className="flex flex-col items-center justify-center py-4 space-y-3">
               <button
                 type="button"
                 onClick={() => {
@@ -384,70 +587,51 @@ export default function AIPage() {
                   else startListening();
                 }}
                 className={cn(
-                  "w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md",
+                  "w-16 h-16 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md",
                   isListening
-                    ? "bg-rose-500 text-white animate-pulse ring-4 ring-rose-200"
-                    : "bg-slate-900 text-white hover:bg-slate-800"
+                    ? "bg-[#b85437] text-white animate-pulse ring-4 ring-[#faece7]"
+                    : "bg-[#201e1b] text-white hover:bg-[#38342f]"
                 )}
                 aria-label={isListening ? "Stop listening" : "Start listening"}
               >
-                {isListening ? <Mic className="w-6 h-6 sm:w-7 sm:h-7" /> : <MicOff className="w-6 h-6 sm:w-7 sm:h-7" />}
+                {isListening ? <Mic className="w-7 h-7" /> : <MicOff className="w-7 h-7" />}
               </button>
               <div className="text-xs text-center">
-                <span className="font-semibold text-slate-800 block">
+                <span className="font-semibold text-[#201e1b] block">
                   {isListening ? "Listening... Speak your daily intentions" : "Microphone idle"}
                 </span>
-                <span className="text-[10px] sm:text-[11px] text-slate-400">
-                  {isSpeechSupported
-                    ? "Powered by Web Speech Recognition"
-                    : "Browser speech API not available; select sample below"}
+                <span className="text-[11px] text-[#8a8479]">
+                  {isListening ? "Tap to pause" : "Tap microphone to begin"}
                 </span>
               </div>
             </div>
 
-            {/* Transcribed Text Review & Edit */}
-            <div className="space-y-1.5 text-xs">
-              <label className="block text-slate-600 font-medium text-[11px] sm:text-xs">
-                Transcribed Request (Edit before submitting):
+            {/* Draft Box */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-[#545049] uppercase tracking-wider block">
+                Recognised Transcript
               </label>
               <textarea
-                rows={3}
+                name="voice_draft_input"
+                id="voice_draft_input"
                 value={voiceDraft}
                 onChange={(e) => setVoiceDraft(e.target.value)}
-                placeholder="Speak or edit your command here..."
-                className="w-full p-2.5 sm:p-3 rounded-xl bg-[#faf9f6] border border-[#e6e3da] text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 leading-relaxed text-xs"
+                placeholder="Spoken words will appear here for review..."
+                rows={3}
+                autoComplete="off"
+                autoCorrect="off"
+                data-form-type="other"
+                data-lpignore="true"
+                className="w-full p-3 rounded-xl bg-white border border-[#e8e2d5] text-xs text-[#201e1b] placeholder:text-[#8a8479] focus:outline-hidden focus:border-[#201e1b] resize-none"
               />
             </div>
 
-            {/* Sample Voice Utterance Presets */}
-            <div className="space-y-1.5 pt-2 border-t border-[#e6e3da]">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                Quick Test Utterances:
-              </span>
-              <div className="flex flex-wrap gap-1 sm:gap-1.5">
-                {[
-                  "Study economics 1 hour and gym at 5",
-                  "Reschedule afternoon tasks due to meeting",
-                  "Prepare 45m review for Stanford thesis",
-                ].map((preset, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setVoiceDraft(preset)}
-                    className="text-[10px] px-2 py-1 rounded-md bg-[#faf9f6] border border-[#e6e3da] text-slate-700 hover:bg-slate-100"
-                  >
-                    "{preset}"
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Modal Controls */}
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e6e3da]">
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#e8e2d5]">
               <button
                 type="button"
                 onClick={handleCancelVoice}
-                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-medium"
+                className="px-3.5 py-2 rounded-xl text-xs font-medium text-[#545049] hover:bg-[#f2eee6] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -455,9 +639,10 @@ export default function AIPage() {
                 type="button"
                 onClick={handleConfirmVoice}
                 disabled={!voiceDraft.trim()}
-                className="px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 disabled:opacity-50 transition-all shadow-xs"
+                className="px-4 py-2 rounded-xl bg-[#201e1b] hover:bg-[#38342f] disabled:opacity-40 text-[#f8f6f0] text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
               >
-                Plan with AI
+                <Check className="w-3.5 h-3.5 text-[#e8decb]" />
+                <span>Submit to AI Planner</span>
               </button>
             </div>
           </div>

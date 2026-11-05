@@ -15,23 +15,19 @@ import {
   Pause,
   Plus,
   Clock,
-  Calendar,
   Sparkles,
   BarChart3,
   X,
   ShieldAlert,
-  ChevronRight,
   Info,
   Check,
   AlertCircle,
   Target,
-  Smile,
-  Activity,
-  Layers,
+  ArrowRight,
 } from "lucide-react";
 import { useDemo } from "@/context/demo-context";
 import { Habit, FocusSessionLog, HabitResetTransition } from "@/types";
-import { cn, formatMinutes } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 function GrowthContent() {
   const searchParams = useSearchParams();
@@ -46,13 +42,22 @@ function GrowthContent() {
     habits,
     toggleHabit,
     addHabit,
-    updateHabitAutomaticity,
+    setHabitSelfReportedAutomaticity,
     focusSessions,
-    logDetailedFocusSession,
     habitTransitions,
     addHabitTransition,
     profile,
-    role,
+    referenceDate,
+    timerState,
+    startFocusTimer,
+    pauseFocusTimer,
+    resumeFocusTimer,
+    resetFocusTimer,
+    logTimerInterruption,
+    finishTimerEarly,
+    completeTimerSession,
+    dismissTimerCompletion,
+    updateTimerChallengeSkill,
   } = useDemo();
 
   // Habit Creation Modal
@@ -64,21 +69,7 @@ function GrowthContent() {
   const [habitCategory, setHabitCategory] = useState<Habit["category"]>("learning");
   const [habitFrequency, setHabitFrequency] = useState<Habit["frequency"]>("daily");
 
-  // Flow State & Timer
-  const [focusMinutes, setFocusMinutes] = useState(25);
-  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [interruptionsCount, setInterruptionsCount] = useState(0);
-
-  // Flow Pre-Session Check-in
-  const [sessionTaskTitle, setSessionTaskTitle] = useState(initialTask || "");
-  const [selectedHabitId, setSelectedHabitId] = useState<string>("");
-  const [perceivedChallenge, setPerceivedChallenge] = useState<number>(3); // 1-5
-  const [perceivedSkill, setPerceivedSkill] = useState<number>(3); // 1-5
-  const [sessionGoal, setSessionGoal] = useState("");
-  const [completionCriteria, setCompletionCriteria] = useState("");
-
-  // Flow Post-Session Reflection
+  // Flow Post-Session Reflection Modal
   const [showReflectionModal, setShowReflectionModal] = useState(false);
   const [flowState, setFlowState] = useState<FocusSessionLog["flowState"]>("flow");
   const [absorptionRating, setAbsorptionRating] = useState<number>(4);
@@ -99,34 +90,27 @@ function GrowthContent() {
   const [transAnchorCue, setTransAnchorCue] = useState("");
   const [transMinVersion, setTransMinVersion] = useState("");
 
-  // If task provided in URL, switch to flow tab and fill title
+  // If task provided in URL, update context timer state and switch to flow tab
   useEffect(() => {
-    if (initialTask) {
-      setSessionTaskTitle(initialTask);
+    if (initialTask && initialTask !== timerState.taskTitle) {
+      updateTimerChallengeSkill(
+        timerState.perceivedChallenge,
+        timerState.perceivedSkill,
+        timerState.sessionGoal,
+        timerState.completionCriteria,
+        initialTask,
+        timerState.habitId
+      );
       setActiveTab("flow");
     }
   }, [initialTask]);
 
-  // Timer Tick
+  // When context timer finishes naturally or user finishes early, trigger reflection modal
   useEffect(() => {
-    let interval: any = null;
-    if (timerRunning && secondsLeft > 0) {
-      interval = setInterval(() => {
-        setSecondsLeft((s) => s - 1);
-      }, 1000);
-    } else if (secondsLeft === 0 && timerRunning) {
-      setTimerRunning(false);
+    if (timerState.sessionCompleted) {
       setShowReflectionModal(true);
     }
-    return () => clearInterval(interval);
-  }, [timerRunning, secondsLeft]);
-
-  const resetTimer = (mins: number) => {
-    setTimerRunning(false);
-    setFocusMinutes(mins);
-    setSecondsLeft(mins * 60);
-    setInterruptionsCount(0);
-  };
+  }, [timerState.sessionCompleted]);
 
   const formatTimer = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
@@ -134,34 +118,64 @@ function GrowthContent() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleFinishEarly = () => {
-    setTimerRunning(false);
-    setShowReflectionModal(true);
+  const handleToggleTimer = () => {
+    if (timerState.isRunning) {
+      pauseFocusTimer();
+    } else {
+      if (timerState.secondsLeft < timerState.totalMinutes * 60 && timerState.secondsLeft > 0) {
+        resumeFocusTimer();
+      } else {
+        startFocusTimer({
+          totalMinutes: timerState.totalMinutes,
+          taskTitle: timerState.taskTitle,
+          habitId: timerState.habitId,
+          perceivedChallenge: timerState.perceivedChallenge,
+          perceivedSkill: timerState.perceivedSkill,
+          sessionGoal: timerState.sessionGoal,
+          completionCriteria: timerState.completionCriteria,
+        });
+      }
+    }
   };
 
-  // Flow State Quadrant evaluation
+  // Flow State Quadrant evaluation based on Csíkszentmihályi Flow Model
   const getQuadrantLabel = (chal: number, sk: number) => {
-    if (chal >= 3 && sk >= 3) return { label: "Flow Channel", desc: "Balanced challenge & skill — optimal immersion", color: "text-emerald-700 bg-emerald-50 border-emerald-200" };
-    if (chal >= 3 && sk < 3) return { label: "Anxiety / Overwhelm", desc: "Challenge exceeds current perceived capability", color: "text-rose-700 bg-rose-50 border-rose-200" };
-    if (chal < 3 && sk >= 3) return { label: "Boredom / Relaxed", desc: "High confidence with lower cognitive demand", color: "text-amber-700 bg-amber-50 border-amber-200" };
-    return { label: "Apathy", desc: "Low demand and low engagement", color: "text-slate-600 bg-slate-100 border-slate-200" };
+    if (chal >= 3 && sk >= 3) {
+      return {
+        label: "Flow Channel",
+        desc: "Balanced challenge & skill — optimal immersion",
+        color: "text-[#536b54] bg-[#edf2ec] border-[#d6e0d5]",
+      };
+    }
+    if (chal >= 3 && sk < 3) {
+      return {
+        label: "Anxiety / Overwhelm",
+        desc: "Challenge exceeds current perceived capability",
+        color: "text-[#b85437] bg-[#faece7] border-[#f3cec3]",
+      };
+    }
+    if (chal < 3 && sk >= 3) {
+      return {
+        label: "Boredom / Relaxed",
+        desc: "High confidence with lower cognitive demand",
+        color: "text-[#9c631e] bg-[#faf0e1] border-[#eedac0]",
+      };
+    }
+    return {
+      label: "Apathy",
+      desc: "Low demand and low engagement",
+      color: "text-[#545049] bg-[#f2eee6] border-[#e4ded2]",
+    };
   };
 
-  const currentQuadrant = getQuadrantLabel(perceivedChallenge, perceivedSkill);
+  const currentQuadrant = getQuadrantLabel(
+    timerState.perceivedChallenge,
+    timerState.perceivedSkill
+  );
 
   // Save Post-Session Reflection
   const handleSaveReflection = () => {
-    const duration = Math.max(1, Math.round((focusMinutes * 60 - secondsLeft) / 60) || focusMinutes);
-
-    logDetailedFocusSession({
-      taskTitle: sessionTaskTitle || undefined,
-      habitId: selectedHabitId || undefined,
-      durationMinutes: duration,
-      perceivedChallenge,
-      perceivedSkill,
-      sessionGoal: sessionGoal || undefined,
-      completionCriteria: completionCriteria || undefined,
-      interruptionsCount,
+    completeTimerSession({
       flowState,
       absorptionRating,
       concentrationRating,
@@ -172,9 +186,14 @@ function GrowthContent() {
     });
 
     setShowReflectionModal(false);
-    resetTimer(focusMinutes);
-    setSuccessToast(`Saved ${duration}m ${flowState.toUpperCase()} focus session with reflection!`);
+    setReflectionNotes("");
+    setSuccessToast(`Saved focus session reflection (${flowState.toUpperCase()})!`);
     setTimeout(() => setSuccessToast(null), 4000);
+  };
+
+  const handleDismissReflection = () => {
+    dismissTimerCompletion();
+    setShowReflectionModal(false);
   };
 
   // Create Habit
@@ -201,29 +220,39 @@ function GrowthContent() {
     setTimeout(() => setSuccessToast(null), 3000);
   };
 
-  // Create Transition Reset
+  // Create Life Transition Reset
   const handleCreateTransition = (e: React.FormEvent) => {
     e.preventDefault();
     if (!transTitle.trim()) return;
 
+    const disrupted = transDisrupted
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const obsolete = transObsolete
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     addHabitTransition({
       title: transTitle,
+      startDate: referenceDate || "2026-11-02",
       category: transCategory,
-      startDate: new Date().toISOString().split("T")[0],
       status: "active",
-      disruptedRoutines: transDisrupted.split(",").map((s) => s.trim()).filter(Boolean),
-      obsoleteCues: transObsolete.split(",").map((s) => s.trim()).filter(Boolean),
-      targetHabits: transHabitName
+      disruptedRoutines: disrupted.length > 0 ? disrupted : ["Old routine schedules"],
+      obsoleteCues: obsolete.length > 0 ? obsolete : ["Previous physical environment"],
+      targetHabits: transHabitName.trim()
         ? [
             {
-              habitName: transHabitName,
-              newAnchorCue: transAnchorCue || "Morning tea/coffee",
-              minimumVersion: transMinVersion || "2-minute activation",
+              habitName: transHabitName.trim(),
+              newAnchorCue: transAnchorCue.trim() || "After daily routine initiation",
+              minimumVersion: transMinVersion.trim() || "2-minute activation action",
               status: "in_progress",
             },
           ]
         : [],
-      aiObservations: "Life transitions sever habitual associations. Use this disruption window to anchor new 2-minute behaviors before environmental inertia settles.",
+      aiObservations:
+        "Life transitions sever habitual associations. Use this disruption window to anchor new 2-minute behaviors before environmental inertia settles.",
     });
 
     setTransTitle("");
@@ -237,26 +266,67 @@ function GrowthContent() {
     setTimeout(() => setSuccessToast(null), 3000);
   };
 
+  // Empirical analytics calculations for Insights tab
+  const mostConsistentHabit =
+    habits.length > 0
+      ? [...habits].sort(
+          (a, b) =>
+            (b.weeklyCompletionRate ?? (b.recentHistory?.filter(Boolean).length || 0)) -
+            (a.weeklyCompletionRate ?? (a.recentHistory?.filter(Boolean).length || 0))
+        )[0]
+      : null;
+
+  const zeroInterruptionSessions = focusSessions.filter(
+    (s) => (s.interruptionsCount || 0) === 0 && s.absorptionRating !== undefined
+  );
+  const interruptedSessions = focusSessions.filter(
+    (s) => (s.interruptionsCount || 0) > 0 && s.absorptionRating !== undefined
+  );
+
+  const avgZero =
+    zeroInterruptionSessions.length > 0
+      ? (
+          zeroInterruptionSessions.reduce((acc, s) => acc + (s.absorptionRating || 0), 0) /
+          zeroInterruptionSessions.length
+        ).toFixed(1)
+      : null;
+
+  const avgInterrupted =
+    interruptedSessions.length > 0
+      ? (
+          interruptedSessions.reduce((acc, s) => acc + (s.absorptionRating || 0), 0) /
+          interruptedSessions.length
+        ).toFixed(1)
+      : null;
+
+  const activeTransition =
+    habitTransitions.find((t) => t.status === "active") || habitTransitions[0];
+
+  const timerProgress =
+    timerState.totalMinutes > 0
+      ? 1 - timerState.secondsLeft / (timerState.totalMinutes * 60)
+      : 0;
+
   return (
-    <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto animate-in fade-in-50 duration-200">
-      {/* Workspace Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-[#e6e3da]">
+    <div className="space-y-7 sm:space-y-10 max-w-4xl mx-auto animate-in fade-in-50 duration-200 pb-16 md:pb-12">
+      {/* Workspace Header Briefing */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-[#e8e2d5]">
         <div>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-slate-900 text-amber-300 flex items-center justify-center shrink-0 shadow-xs">
-              <TrendingUp className="w-4 h-4 text-amber-300" />
+            <div className="w-8 h-8 rounded-xl bg-[#201e1b] text-[#f8f6f0] flex items-center justify-center shrink-0 shadow-2xs">
+              <TrendingUp className="w-4 h-4 text-[#e8decb]" />
             </div>
-            <h1 className="font-serif text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            <h1 className="font-serif text-xl sm:text-2xl font-normal text-[#201e1b] tracking-tight">
               Growth — Behavior, Flow & Insights
             </h1>
           </div>
-          <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+          <p className="text-[11px] sm:text-xs text-[#8a8479] mt-0.5">
             Csíkszentmihályi Flow Theory • Habit Discontinuity Hypothesis • Non-punitive Automaticity
           </p>
         </div>
 
-        {/* Tab Selector */}
-        <div className="flex items-center gap-1 p-1 bg-[#f0ede6] rounded-xl self-start sm:self-auto border border-[#e6e3da] overflow-x-auto max-w-full">
+        {/* Top Tab Segmented Pill Control (Does not fight bottom nav) */}
+        <div className="flex items-center gap-1 p-1 bg-[#f2eee6] rounded-2xl self-start sm:self-auto border border-[#e8e2d5] overflow-x-auto max-w-full shadow-2xs">
           {[
             { id: "habits", label: "Habits", icon: Flame },
             { id: "flow", label: "Flow Theory", icon: Zap },
@@ -270,13 +340,13 @@ function GrowthContent() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all whitespace-nowrap",
+                  "px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer",
                   isActive
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-[#201e1b] text-[#f8f6f0] shadow-2xs font-semibold"
+                    : "text-[#545049] hover:text-[#201e1b]"
                 )}
               >
-                <Icon className={cn("w-3.5 h-3.5", isActive ? "text-amber-600" : "text-slate-400")} />
+                <Icon className={cn("w-3.5 h-3.5", isActive ? "text-[#e8decb]" : "text-[#8a8479]")} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -286,8 +356,8 @@ function GrowthContent() {
 
       {/* Success Notice Toast */}
       {successToast && (
-        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center gap-2 animate-in fade-in-50">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div className="p-3.5 rounded-2xl bg-[#edf2ec] border border-[#d6e0d5] text-xs text-[#536b54] flex items-center gap-2 animate-in fade-in-50 shadow-2xs">
+          <CheckCircle2 className="w-4 h-4 text-[#536b54] shrink-0" />
           <span className="font-medium">{successToast}</span>
         </div>
       )}
@@ -296,41 +366,47 @@ function GrowthContent() {
       {/* TAB 1: HABITS */}
       {/* ========================================================================= */}
       {activeTab === "habits" && (
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-6 animate-in fade-in-50 duration-150">
           {/* Summary Strip */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-4 bg-white rounded-2xl border border-[#e6e3da] shadow-2xs">
-              <span className="text-[11px] text-slate-500 font-medium">Completed Today</span>
-              <div className="text-xl font-bold font-serif text-slate-900 mt-1">
+            <div className="p-4 bg-white rounded-2xl border border-[#e8e2d5] shadow-2xs">
+              <span className="text-[11px] text-[#8a8479] font-medium uppercase tracking-wider">Completed Today</span>
+              <div className="text-2xl font-serif font-normal text-[#201e1b] mt-1">
                 {habits.filter((h) => h.completedToday).length} of {habits.length}
               </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Contextual cue activation</p>
+              <p className="text-[10px] text-[#8a8479] mt-0.5">Contextual cue activation</p>
             </div>
 
-            <div className="p-4 bg-white rounded-2xl border border-[#e6e3da] shadow-2xs">
-              <span className="text-[11px] text-slate-500 font-medium">Avg Automaticity Index</span>
-              <div className="text-xl font-bold font-serif text-emerald-700 mt-1">
+            <div className="p-4 bg-white rounded-2xl border border-[#e8e2d5] shadow-2xs">
+              <span className="text-[11px] text-[#8a8479] font-medium uppercase tracking-wider">7-Day Completion</span>
+              <div className="text-2xl font-serif font-normal text-[#536b54] mt-1">
                 {habits.length > 0
                   ? Math.round(
-                      habits.reduce((acc, h) => acc + h.automaticityScore, 0) / habits.length
+                      habits.reduce(
+                        (acc, h) =>
+                          acc +
+                          (h.weeklyCompletionRate ??
+                            Math.round(((h.recentHistory?.filter(Boolean).length || 0) / 7) * 100)),
+                        0
+                      ) / habits.length
                     )
                   : 0}
                 %
               </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Consistency without streak anxiety</p>
+              <p className="text-[10px] text-[#8a8479] mt-0.5">Empirical weekly completion adherence</p>
             </div>
 
-            <div className="p-4 bg-white rounded-2xl border border-[#e6e3da] shadow-2xs flex items-center justify-between">
+            <div className="p-4 bg-white rounded-2xl border border-[#e8e2d5] shadow-2xs flex items-center justify-between">
               <div>
-                <span className="text-[11px] text-slate-500 font-medium">Behavior Design</span>
-                <div className="text-sm font-bold text-slate-900 mt-1">2-Minute Activations</div>
-                <p className="text-[10px] text-slate-400 mt-0.5">Shrink friction before scaling</p>
+                <span className="text-[11px] text-[#8a8479] font-medium uppercase tracking-wider">Behavior Design</span>
+                <div className="text-sm font-semibold text-[#201e1b] mt-1">2-Minute Activations</div>
+                <p className="text-[10px] text-[#8a8479] mt-0.5">Shrink friction before scaling</p>
               </div>
               <button
                 onClick={() => setIsNewHabitOpen(true)}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-xs"
+                className="px-3.5 py-1.5 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] font-medium text-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5 text-amber-300" />
+                <Plus className="w-3.5 h-3.5 text-[#e8decb]" />
                 <span>New Habit</span>
               </button>
             </div>
@@ -344,8 +420,8 @@ function GrowthContent() {
                 className={cn(
                   "p-4 sm:p-5 rounded-2xl border transition-all space-y-3.5",
                   habit.completedToday
-                    ? "bg-white border-emerald-300 shadow-2xs"
-                    : "bg-white border-[#e6e3da] hover:border-slate-300"
+                    ? "bg-[#fdfcf9] border-[#d6e0d5] shadow-2xs"
+                    : "bg-white border-[#e8e2d5] hover:border-[#d5cdbd] shadow-2xs"
                 )}
               >
                 {/* Header Row */}
@@ -353,74 +429,110 @@ function GrowthContent() {
                   <div className="flex items-start gap-3 min-w-0">
                     <button
                       onClick={() => toggleHabit(habit.id)}
-                      className="mt-0.5 text-slate-400 hover:text-emerald-600 transition-colors shrink-0"
+                      className="mt-0.5 text-[#8a8479] hover:text-[#536b54] transition-colors shrink-0 cursor-pointer"
                       aria-label={habit.completedToday ? "Mark undone" : "Mark done"}
                     >
                       {habit.completedToday ? (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600 fill-emerald-50" />
+                        <CheckCircle2 className="w-5 h-5 text-[#536b54] fill-[#edf2ec]" />
                       ) : (
-                        <Circle className="w-5 h-5 text-slate-300" />
+                        <Circle className="w-5 h-5 text-[#d5cdbd]" />
                       )}
                     </button>
 
                     <div className="min-w-0">
                       <h3
                         className={cn(
-                          "text-sm sm:text-base font-semibold truncate",
-                          habit.completedToday ? "text-slate-900" : "text-slate-800"
+                          "font-serif text-base sm:text-lg font-normal truncate",
+                          habit.completedToday ? "text-[#8a8479] line-through" : "text-[#201e1b]"
                         )}
                       >
                         {habit.title}
                       </h3>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium uppercase tracking-wider">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#f2eee6] text-[#545049] font-medium uppercase tracking-wider border border-[#e4ded2]">
                         {habit.category} • {habit.frequency}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200 shrink-0">
-                    <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                  <div className="flex items-center gap-1 text-xs font-semibold text-[#b85437] bg-[#faece7] px-2.5 py-1 rounded-xl border border-[#f3cec3] shrink-0 font-mono">
+                    <Flame className="w-3.5 h-3.5 fill-[#b85437]" />
                     <span>{habit.currentStreak}d</span>
                   </div>
                 </div>
 
                 {/* Anchor Cue & Context Cue */}
-                <div className="bg-[#faf9f6] p-2.5 sm:p-3 rounded-xl border border-[#e6e3da]/80 text-xs space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-slate-700">
-                    <Target className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <div className="bg-[#f7f5f0] p-3 rounded-xl border border-[#e8e2d5] text-xs space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-[#545049]">
+                    <Target className="w-3.5 h-3.5 text-[#b85437] shrink-0" />
                     <span>
-                      <strong className="text-slate-900">Anchor Cue:</strong> "{habit.cue}"
+                      <strong className="text-[#201e1b]">Anchor Cue:</strong> "{habit.cue}"
                     </span>
                   </div>
                   {habit.context && (
-                    <div className="text-[11px] text-slate-500 pl-5">
+                    <div className="text-[11px] text-[#8a8479] pl-5">
                       <strong>Context:</strong> {habit.context}
                     </div>
                   )}
                   {habit.minimumVersion && (
-                    <div className="text-[11px] text-emerald-800 font-medium pl-5 bg-emerald-50/60 p-1 rounded-md border border-emerald-100">
+                    <div className="text-[11px] text-[#536b54] font-medium pl-5 bg-[#edf2ec]/60 p-1.5 rounded-lg border border-[#d6e0d5]">
                       <strong>2-Min Minimum:</strong> "{habit.minimumVersion}"
                     </div>
                   )}
                 </div>
 
-                {/* Automaticity Score Bar */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span>Automaticity Index</span>
-                    <span className="font-bold text-slate-800">{habit.automaticityScore}%</span>
+                {/* Behavioral Metrics (Separate Completion, Cue Consistency, and Self-Reported Automaticity) */}
+                <div className="space-y-2 pt-1 border-t border-[#f2eee6]">
+                  {/* 1. 7-Day Completion Rate */}
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-[#8a8479]">7-Day Completion:</span>
+                    <span className="font-semibold text-[#201e1b] font-mono">
+                      {habit.weeklyCompletionRate ?? Math.round(((habit.recentHistory?.filter(Boolean).length || 0) / 7) * 100)}% ({habit.recentHistory?.filter(Boolean).length || 0}/7 days)
+                    </span>
                   </div>
-                  <div className="w-full bg-[#f0ede6] h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-emerald-600 h-full rounded-full transition-all duration-300"
-                      style={{ width: `${habit.automaticityScore}%` }}
-                    />
+
+                  {/* 2. Anchor Cue Consistency */}
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-[#8a8479]">Anchor Cue Consistency:</span>
+                    <span className="font-semibold text-[#536b54] font-mono">
+                      {habit.cueConsistencyScore ?? 85}%
+                    </span>
                   </div>
+
+                  {/* 3. Optional Self-Reported Automaticity (SRHI Scale 1-5) */}
+                  <div className="flex items-center justify-between text-[11px] pt-0.5">
+                    <span className="text-[#8a8479] flex items-center gap-1">
+                      <span>Self-Reported Automaticity:</span>
+                      <strong className="text-[#201e1b] font-mono font-medium">
+                        {habit.selfReportedAutomaticity || 3}/5
+                      </strong>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((lvl) => (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => setHabitSelfReportedAutomaticity(habit.id, lvl)}
+                          className={cn(
+                            "w-5 h-5 rounded text-[10px] font-mono flex items-center justify-center transition-colors cursor-pointer",
+                            (habit.selfReportedAutomaticity || 3) >= lvl
+                              ? "bg-[#536b54] text-white font-semibold"
+                              : "bg-[#f2eee6] text-[#8a8479] hover:bg-[#e4ded2]"
+                          )}
+                          title={`Self-Report Habit Index (SRHI) rating ${lvl}/5 (${lvl === 1 ? "Deliberate effort required" : lvl === 5 ? "Fully automatic / effortless" : "Developing rhythm"})`}
+                        >
+                          {lvl}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-[#8a8479] italic leading-tight">
+                    *Self-Report Habit Index (SRHI): 1 = Deliberate effort, 5 = Perceived automaticity.
+                  </p>
                 </div>
 
                 {/* 7-Day Completion Heat Dots */}
-                <div className="pt-2 border-t border-[#f0ede6] flex items-center justify-between text-xs">
-                  <span className="text-[10px] text-slate-400 font-medium">Last 7 Days:</span>
+                <div className="pt-2 border-t border-[#f2eee6] flex items-center justify-between text-xs">
+                  <span className="text-[10px] text-[#8a8479] font-medium">Last 7 Days:</span>
                   <div className="flex items-center gap-1.5">
                     {(habit.recentHistory || [false, false, false, false, false, false, false]).map(
                       (completed, idx) => (
@@ -430,8 +542,8 @@ function GrowthContent() {
                           className={cn(
                             "w-4 h-4 rounded-full flex items-center justify-center transition-all",
                             completed
-                              ? "bg-emerald-600 text-white"
-                              : "bg-[#e8e5dc] text-transparent"
+                              ? "bg-[#536b54] text-white"
+                              : "bg-[#e8e2d5] text-transparent"
                           )}
                         >
                           {completed && <Check className="w-2.5 h-2.5 stroke-[3]" />}
@@ -447,44 +559,190 @@ function GrowthContent() {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 2: FLOW (Csíkszentmihályi Flow Theory) */}
+      {/* TAB 2: FLOW (Csíkszentmihályi Flow Theory & Persistent Timer) */}
       {/* ========================================================================= */}
       {activeTab === "flow" && (
-        <div className="space-y-4 sm:space-y-6">
-          {/* Flow Pre-Session Check-in Card */}
-          <div className="bg-white rounded-2xl border border-[#e6e3da] p-4 sm:p-5 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#e6e3da]">
-              <div className="flex items-center gap-2">
-                <span className="p-1 rounded-lg bg-amber-100 text-amber-900">
-                  <Brain className="w-4 h-4" />
+        <div className="space-y-6 animate-in fade-in-50 duration-150">
+          {/* Regain Pattern: Dominant Central Visual — Circular Persistent Focus Timer Dial */}
+          <div className="bg-[#fdfcf9] rounded-3xl border border-[#e8e2d5] p-6 sm:p-8 shadow-2xs flex flex-col items-center text-center relative overflow-hidden">
+            <span className="text-[10px] font-sans font-semibold uppercase tracking-widest text-[#8a8479] mb-1">
+              Csíkszentmihályi Immersion Dial
+            </span>
+            <h2 className="font-serif text-xl sm:text-2xl font-normal text-[#201e1b] tracking-tight max-w-md truncate">
+              {timerState.taskTitle || "Deep Focus Block"}
+            </h2>
+
+            {/* Circular Timer Ring Dial */}
+            <div className="relative w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center my-3">
+              <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="44"
+                  className="stroke-[#ede8dc]"
+                  strokeWidth="5"
+                  fill="transparent"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="44"
+                  className="stroke-[#536b54] transition-all duration-500 ease-out"
+                  strokeWidth="5"
+                  strokeDasharray={276.4}
+                  strokeDashoffset={276.4 * (1 - timerProgress)}
+                  strokeLinecap="round"
+                  fill="transparent"
+                />
+              </svg>
+
+              {/* Inside Timer Dial */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                <span className="font-mono text-4xl sm:text-5xl font-normal text-[#201e1b] tracking-tight">
+                  {formatTimer(timerState.secondsLeft)}
                 </span>
-                <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900">
-                  Csíkszentmihályi Flow Check-In
-                </h3>
+                <span className="text-[11px] font-sans font-medium text-[#536b54] mt-1 capitalize">
+                  {timerState.isRunning
+                    ? "In Immersion Flow"
+                    : timerState.secondsLeft < timerState.totalMinutes * 60 && timerState.secondsLeft > 0
+                    ? "Paused"
+                    : "Ready to Focus"}
+                </span>
               </div>
-              <span className={cn("text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border", currentQuadrant.color)}>
+            </div>
+
+            {/* Timer Action Controls */}
+            <div className="flex items-center gap-2.5 flex-wrap justify-center mt-2">
+              <button
+                onClick={handleToggleTimer}
+                className="px-6 py-3 rounded-full bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] font-semibold text-xs flex items-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
+              >
+                {timerState.isRunning ? (
+                  <Pause className="w-4 h-4 text-[#e8decb]" />
+                ) : (
+                  <Play className="w-4 h-4 text-[#e8decb] fill-[#e8decb]" />
+                )}
+                <span>
+                  {timerState.isRunning
+                    ? "Pause Interval"
+                    : timerState.secondsLeft < timerState.totalMinutes * 60 && timerState.secondsLeft > 0
+                    ? "Resume Flow"
+                    : "Start Focus Session"}
+                </span>
+              </button>
+
+              <button
+                onClick={() => resetFocusTimer(timerState.totalMinutes)}
+                className="p-3 rounded-full bg-[#f2eee6] hover:bg-[#e8e2d5] text-[#201e1b] transition-colors cursor-pointer shadow-2xs"
+                title="Reset timer"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+
+              {(timerState.isRunning ||
+                (timerState.secondsLeft < timerState.totalMinutes * 60 && timerState.secondsLeft > 0)) && (
+                <button
+                  onClick={finishTimerEarly}
+                  className="px-4 py-3 rounded-full bg-[#edf2ec] hover:bg-[#d6e0d5] text-[#536b54] text-xs font-semibold transition-colors cursor-pointer border border-[#d6e0d5]"
+                >
+                  Reflect & Finish
+                </button>
+              )}
+            </div>
+
+            {/* Secondary Controls: Distraction Logger & Presets */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full mt-6 pt-4 border-t border-[#e8e2d5] text-xs">
+              <button
+                onClick={logTimerInterruption}
+                className="px-3.5 py-1.5 rounded-xl bg-[#faece7] hover:bg-[#f3cec3] text-[#b85437] font-medium border border-[#f3cec3] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                title="Log an external or self-interruption"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Log Distraction ({timerState.interruptionsCount})</span>
+              </button>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-[#8a8479] font-medium">Interval:</span>
+                {[20, 25, 45, 50, 90].map((dur) => (
+                  <button
+                    key={dur}
+                    onClick={() => resetFocusTimer(dur)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg text-xs font-mono transition-colors cursor-pointer",
+                      timerState.totalMinutes === dur && !timerState.isRunning
+                        ? "bg-[#201e1b] text-[#f8f6f0] font-semibold shadow-2xs"
+                        : "text-[#545049] hover:bg-[#f2eee6]"
+                    )}
+                  >
+                    {dur}m
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Challenge–Skill Check-In Card */}
+          <div className="bg-white rounded-3xl border border-[#e8e2d5] p-5 sm:p-6 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#e8e2d5]">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-xl bg-[#f2eee6] text-[#201e1b]">
+                  <Brain className="w-4 h-4 text-[#536b54]" />
+                </span>
+                <div>
+                  <h3 className="font-serif text-base sm:text-lg font-normal text-[#201e1b]">
+                    Challenge–Skill Check-In
+                  </h3>
+                  <p className="text-[11px] text-[#8a8479]">
+                    Assess task friction and configure clear conditions before entering focus.
+                  </p>
+                </div>
+              </div>
+              <span
+                className={cn(
+                  "text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border",
+                  currentQuadrant.color
+                )}
+              >
                 {currentQuadrant.label}
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Target Task / Subject</label>
+                <label className="block font-medium text-[#545049] mb-1">Target Task / Subject</label>
                 <input
                   type="text"
-                  value={sessionTaskTitle}
-                  onChange={(e) => setSessionTaskTitle(e.target.value)}
+                  value={timerState.taskTitle}
+                  onChange={(e) =>
+                    updateTimerChallengeSkill(
+                      timerState.perceivedChallenge,
+                      timerState.perceivedSkill,
+                      timerState.sessionGoal,
+                      timerState.completionCriteria,
+                      e.target.value,
+                      timerState.habitId
+                    )
+                  }
                   placeholder="e.g. Stanford CS Thesis Proofs, RFC Architecture Review..."
-                  className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-900 text-xs focus:ring-1 focus:ring-slate-900 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-[#fdfcf9] border border-[#e8e2d5] rounded-xl text-[#201e1b] text-xs focus:ring-1 focus:ring-[#201e1b] focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Anchor to Habit (Optional)</label>
+                <label className="block font-medium text-[#545049] mb-1">Anchor to Habit (Optional)</label>
                 <select
-                  value={selectedHabitId}
-                  onChange={(e) => setSelectedHabitId(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-800 text-xs focus:ring-1 focus:ring-slate-900 focus:outline-hidden"
+                  value={timerState.habitId || ""}
+                  onChange={(e) =>
+                    updateTimerChallengeSkill(
+                      timerState.perceivedChallenge,
+                      timerState.perceivedSkill,
+                      timerState.sessionGoal,
+                      timerState.completionCriteria,
+                      timerState.taskTitle,
+                      e.target.value || undefined
+                    )
+                  }
+                  className="w-full px-3 py-2 bg-[#fdfcf9] border border-[#e8e2d5] rounded-xl text-[#201e1b] text-xs focus:ring-1 focus:ring-[#201e1b] focus:outline-hidden"
                 >
                   <option value="">No specific habit link (Standalone deep work)</option>
                   {habits.map((h) => (
@@ -498,40 +756,62 @@ function GrowthContent() {
 
             {/* Sliders for Challenge vs Skill balance */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-              <div className="p-3 bg-[#faf9f6] rounded-xl border border-[#e6e3da] space-y-1.5">
+              <div className="p-3 bg-[#fdfcf9] rounded-2xl border border-[#e8e2d5] space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-700">Perceived Challenge</span>
-                  <span className="font-mono font-bold text-slate-900">{perceivedChallenge} / 5</span>
+                  <span className="font-medium text-[#545049]">Perceived Challenge</span>
+                  <span className="font-mono font-semibold text-[#201e1b]">
+                    {timerState.perceivedChallenge} / 5
+                  </span>
                 </div>
                 <input
                   type="range"
                   min={1}
                   max={5}
-                  value={perceivedChallenge}
-                  onChange={(e) => setPerceivedChallenge(Number(e.target.value))}
-                  className="w-full accent-amber-500"
+                  value={timerState.perceivedChallenge}
+                  onChange={(e) =>
+                    updateTimerChallengeSkill(
+                      Number(e.target.value),
+                      timerState.perceivedSkill,
+                      timerState.sessionGoal,
+                      timerState.completionCriteria,
+                      timerState.taskTitle,
+                      timerState.habitId
+                    )
+                  }
+                  className="w-full accent-[#b85437]"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400">
+                <div className="flex justify-between text-[10px] text-[#8a8479]">
                   <span>1: Trivial</span>
                   <span>3: Balanced</span>
                   <span>5: Formidable</span>
                 </div>
               </div>
 
-              <div className="p-3 bg-[#faf9f6] rounded-xl border border-[#e6e3da] space-y-1.5">
+              <div className="p-3 bg-[#fdfcf9] rounded-2xl border border-[#e8e2d5] space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-700">Perceived Skill / Readiness</span>
-                  <span className="font-mono font-bold text-slate-900">{perceivedSkill} / 5</span>
+                  <span className="font-medium text-[#545049]">Perceived Skill / Readiness</span>
+                  <span className="font-mono font-semibold text-[#201e1b]">
+                    {timerState.perceivedSkill} / 5
+                  </span>
                 </div>
                 <input
                   type="range"
                   min={1}
                   max={5}
-                  value={perceivedSkill}
-                  onChange={(e) => setPerceivedSkill(Number(e.target.value))}
-                  className="w-full accent-emerald-600"
+                  value={timerState.perceivedSkill}
+                  onChange={(e) =>
+                    updateTimerChallengeSkill(
+                      timerState.perceivedChallenge,
+                      Number(e.target.value),
+                      timerState.sessionGoal,
+                      timerState.completionCriteria,
+                      timerState.taskTitle,
+                      timerState.habitId
+                    )
+                  }
+                  className="w-full accent-[#536b54]"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400">
+                <div className="flex justify-between text-[10px] text-[#8a8479]">
                   <span>1: Novice</span>
                   <span>3: Proficient</span>
                   <span>5: Master</span>
@@ -539,133 +819,87 @@ function GrowthContent() {
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-500 italic">
-              Flow state manifests when perceived challenge matches your current skill level, producing effortless attention and distorted sense of passing time.
-            </p>
-          </div>
-
-          {/* Immersion Timer Hero Box */}
-          <div className="bg-slate-900 text-white rounded-2xl p-5 sm:p-8 shadow-sm">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="space-y-2 text-center md:text-left">
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-300 bg-amber-950/60 border border-amber-800/60 px-3 py-1 rounded-full uppercase tracking-wider">
-                  <Zap className="w-3.5 h-3.5" />
-                  Immersion Focus Interval
-                </span>
-                <h2 className="font-serif text-xl sm:text-2xl font-bold">
-                  {sessionTaskTitle || "Deep Focus Block"}
-                </h2>
-                <p className="text-xs text-slate-300 max-w-md">
-                  Keep tabs closed, put phone out of sight, and focus on one cognitive objective.
-                </p>
-
-                {/* Distraction logger */}
-                <div className="pt-2 flex items-center gap-2 justify-center md:justify-start">
+            {/* Adaptive Suggestions based on Challenge-Skill Ratings */}
+            <div className="pt-2">
+              {timerState.perceivedChallenge >= 4 && timerState.perceivedSkill <= 2 && (
+                <div className="p-3.5 rounded-2xl bg-[#faece7] border border-[#f3cec3] text-xs space-y-2">
+                  <div className="flex items-center gap-2 font-semibold text-[#b85437]">
+                    <AlertCircle className="w-4 h-4 text-[#b85437] shrink-0" />
+                    <span>Anxiety Risk Detected: Challenge Exceeds Readiness</span>
+                  </div>
+                  <p className="text-[#8a422d] text-[11px] leading-relaxed">
+                    When perceived difficulty is high and confidence is low, procrastination friction peaks.
+                    Recommendation: Decompose into an atomic subtask or run a 20-minute activation sprint.
+                  </p>
                   <button
-                    onClick={() => setInterruptionsCount((c) => c + 1)}
-                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium border border-slate-700 transition-colors flex items-center gap-1.5"
-                    title="Log an external or self-interruption"
+                    type="button"
+                    onClick={() => resetFocusTimer(20)}
+                    className="px-3 py-1.5 rounded-xl bg-[#b85437] hover:bg-[#9c4328] text-white font-medium text-[11px] transition-colors cursor-pointer"
                   >
-                    <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Log Distraction ({interruptionsCount})</span>
+                    Switch to 20-Minute Activation Sprint
                   </button>
                 </div>
-              </div>
+              )}
 
-              {/* Timer & Controls */}
-              <div className="flex flex-col items-center gap-3 w-full md:w-auto">
-                <div className="font-mono text-5xl sm:text-6xl font-bold text-amber-200 tracking-wider">
-                  {formatTimer(secondsLeft)}
+              {timerState.perceivedChallenge <= 2 && timerState.perceivedSkill >= 4 && (
+                <div className="p-3.5 rounded-2xl bg-[#faf0e1] border border-[#eedac0] text-xs space-y-1">
+                  <div className="flex items-center gap-2 font-semibold text-[#9c631e]">
+                    <Sparkles className="w-4 h-4 text-[#9c631e] shrink-0" />
+                    <span>Boredom Risk: Task Demand Is Low Relative to Capability</span>
+                  </div>
+                  <p className="text-[#784c17] text-[11px] leading-relaxed">
+                    High readiness with trivial demand leads to wandering attention. Consider introducing tighter time limits or bundling this with an advanced problem to enter the Flow Channel.
+                  </p>
                 </div>
+              )}
 
-                <div className="flex items-center gap-2.5 flex-wrap justify-center">
-                  <button
-                    onClick={() => setTimerRunning(!timerRunning)}
-                    className="px-6 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-xs transition-colors"
-                  >
-                    {timerRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                    <span>{timerRunning ? "Pause" : "Start Focus"}</span>
-                  </button>
-
-                  <button
-                    onClick={() => resetTimer(focusMinutes)}
-                    className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-                    title="Reset timer"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-
-                  {timerRunning && (
-                    <button
-                      onClick={handleFinishEarly}
-                      className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold transition-colors"
-                    >
-                      Reflect & Complete
-                    </button>
-                  )}
+              {timerState.perceivedChallenge >= 3 && timerState.perceivedSkill >= 3 && (
+                <div className="p-3.5 rounded-2xl bg-[#edf2ec] border border-[#d6e0d5] text-xs space-y-1">
+                  <div className="flex items-center gap-2 font-semibold text-[#536b54]">
+                    <CheckCircle2 className="w-4 h-4 text-[#536b54] shrink-0" />
+                    <span>Optimal Flow Channel: Balanced Challenge & Skill</span>
+                  </div>
+                  <p className="text-[#3f5240] text-[11px] leading-relaxed">
+                    Demands and capability are matched. Put away external notifications, keep phone out of sight, and immerse in the objective.
+                  </p>
                 </div>
-
-                {/* Interval Presets */}
-                <div className="flex items-center gap-1.5 text-xs">
-                  {[20, 25, 45, 50, 90].map((dur) => (
-                    <button
-                      key={dur}
-                      onClick={() => resetTimer(dur)}
-                      className={cn(
-                        "px-2.5 py-1 rounded-lg text-xs font-mono transition-colors",
-                        focusMinutes === dur && !timerRunning
-                          ? "bg-amber-300/20 text-amber-200 border border-amber-300/40 font-bold"
-                          : "text-slate-400 hover:text-white"
-                      )}
-                    >
-                      {dur}m
-                    </button>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
           {/* Past Focus Sessions Stream */}
           <div className="space-y-3">
-            <h3 className="font-serif text-base font-bold text-slate-900">
+            <h3 className="font-serif text-base font-normal text-[#201e1b]">
               Flow Reflections History ({focusSessions.length})
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {focusSessions.map((session) => (
                 <div
                   key={session.id}
-                  className="p-4 bg-white rounded-2xl border border-[#e6e3da] shadow-2xs text-xs space-y-2"
+                  className="p-4 bg-white rounded-2xl border border-[#e8e2d5] shadow-2xs text-xs space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-amber-700" />
+                    <span className="font-semibold text-[#201e1b] flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-[#536b54]" />
                       {session.durationMinutes}m {session.taskTitle ? `• ${session.taskTitle}` : "Focus"}
                     </span>
-                    <span
-                      className={cn(
-                        "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border",
-                        session.flowState === "flow"
-                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                          : session.flowState === "balanced"
-                          ? "bg-sky-50 text-sky-800 border-sky-200"
-                          : "bg-amber-50 text-amber-800 border-amber-200"
-                      )}
-                    >
+                    <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#edf2ec] text-[#536b54] border border-[#d6e0d5]">
                       {session.flowState}
                     </span>
                   </div>
 
                   {session.reflectionNotes && (
-                    <p className="text-slate-600 italic bg-[#faf9f6] p-2 rounded-lg border border-[#e6e3da]/80">
+                    <p className="text-[#545049] italic bg-[#f7f5f0] p-2.5 rounded-xl border border-[#e8e2d5]">
                       "{session.reflectionNotes}"
                     </p>
                   )}
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                  <div className="flex items-center justify-between text-[10px] text-[#8a8479] pt-1 font-mono">
                     <span>
                       {session.absorptionRating ? `Absorption: ${session.absorptionRating}/5` : ""}
-                      {session.interruptionsCount !== undefined ? ` • ${session.interruptionsCount} distractions` : ""}
+                      {session.interruptionsCount !== undefined
+                        ? ` • ${session.interruptionsCount} distractions`
+                        : ""}
                     </span>
                     <span>{session.completedAt}</span>
                   </div>
@@ -680,27 +914,27 @@ function GrowthContent() {
       {/* TAB 3: HABIT RESET (Habit Discontinuity Hypothesis) */}
       {/* ========================================================================= */}
       {activeTab === "reset" && (
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-6 animate-in fade-in-50 duration-150">
           {/* Scientific Foundation Explainer */}
-          <div className="bg-[#fcfbf8] border border-[#e6e3da] rounded-2xl p-4 sm:p-5 space-y-3">
+          <div className="bg-[#fdfcf9] border border-[#e8e2d5] rounded-3xl p-5 sm:p-6 space-y-3 shadow-2xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="p-1 rounded-lg bg-amber-100 text-amber-900">
-                  <Compass className="w-4 h-4 text-amber-700" />
+                <span className="p-1.5 rounded-xl bg-[#f2eee6] text-[#201e1b]">
+                  <Compass className="w-4 h-4 text-[#536b54]" />
                 </span>
-                <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900">
+                <h3 className="font-serif text-base sm:text-lg font-normal text-[#201e1b]">
                   The Habit Discontinuity Hypothesis
                 </h3>
               </div>
               <button
                 onClick={() => setIsNewTransitionOpen(true)}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-xs"
+                className="px-3.5 py-1.5 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] font-medium text-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5 text-amber-300" />
+                <Plus className="w-3.5 h-3.5 text-[#e8decb]" />
                 <span>New Life Transition</span>
               </button>
             </div>
-            <p className="text-slate-600 text-xs leading-relaxed">
+            <p className="text-[#545049] text-xs leading-relaxed">
               Groundbreaking research by Bas Verplanken and Wendy Wood reveals that everyday habits are sustained by repetitive environmental cues (same bedroom, same transit, same timetable). When a life disruption occurs—such as a <strong>new academic semester</strong>, <strong>new job role</strong>, or <strong>schedule shift</strong>—the old cue triggers disappear. This creates a natural window of heightened neuroplasticity where new productive routines can be adopted without fighting existing inertia.
             </p>
           </div>
@@ -710,19 +944,19 @@ function GrowthContent() {
             {habitTransitions.map((trans) => (
               <div
                 key={trans.id}
-                className="bg-white rounded-2xl border border-[#e6e3da] p-4 sm:p-5 shadow-xs space-y-4"
+                className="bg-white rounded-3xl border border-[#e8e2d5] p-5 sm:p-6 shadow-2xs space-y-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="font-serif text-base sm:text-lg font-bold text-slate-900">
+                      <h4 className="font-serif text-base sm:text-lg font-normal text-[#201e1b]">
                         {trans.title}
                       </h4>
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <span className="text-[10px] uppercase font-semibold tracking-wider px-2 py-0.5 rounded-full bg-[#edf2ec] text-[#536b54] border border-[#d6e0d5]">
                         {trans.status}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
+                    <p className="text-[11px] text-[#8a8479] mt-0.5">
                       Initiated on {trans.startDate} • Category: {trans.category}
                     </p>
                   </div>
@@ -730,22 +964,22 @@ function GrowthContent() {
 
                 {/* Disrupted Routines & Obsolete Cues */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-[#faf9f6] rounded-xl border border-[#e6e3da] space-y-1">
-                    <span className="font-bold text-rose-800 block text-[11px]">
+                  <div className="p-3.5 bg-[#f7f5f0] rounded-2xl border border-[#e8e2d5] space-y-1">
+                    <span className="font-semibold text-[#b85437] block text-[11px]">
                       Disrupted Old Routines:
                     </span>
-                    <ul className="list-disc list-inside text-slate-600 space-y-0.5 text-[11px]">
+                    <ul className="list-disc list-inside text-[#545049] space-y-0.5 text-[11px]">
                       {trans.disruptedRoutines.map((dr, i) => (
                         <li key={i}>{dr}</li>
                       ))}
                     </ul>
                   </div>
 
-                  <div className="p-3 bg-[#faf9f6] rounded-xl border border-[#e6e3da] space-y-1">
-                    <span className="font-bold text-slate-700 block text-[11px]">
+                  <div className="p-3.5 bg-[#f7f5f0] rounded-2xl border border-[#e8e2d5] space-y-1">
+                    <span className="font-semibold text-[#545049] block text-[11px]">
                       Retired Obsolete Cues:
                     </span>
-                    <ul className="list-disc list-inside text-slate-500 space-y-0.5 text-[11px]">
+                    <ul className="list-disc list-inside text-[#8a8479] space-y-0.5 text-[11px]">
                       {trans.obsoleteCues.map((oc, i) => (
                         <li key={i}>{oc}</li>
                       ))}
@@ -755,32 +989,32 @@ function GrowthContent() {
 
                 {/* Replacement Anchor Habits */}
                 <div className="space-y-2 pt-1">
-                  <span className="text-xs font-bold text-slate-800">
+                  <span className="text-xs font-semibold text-[#201e1b]">
                     New Anchor Habits Installed:
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {trans.targetHabits.map((th, i) => (
                       <div
                         key={i}
-                        className="p-3 rounded-xl bg-[#fdfcf9] border border-[#e6e3da] text-xs space-y-1"
+                        className="p-3 rounded-2xl bg-[#fdfcf9] border border-[#e8e2d5] text-xs space-y-1 shadow-2xs"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-slate-900">{th.habitName}</span>
+                          <span className="font-semibold text-[#201e1b]">{th.habitName}</span>
                           <span
                             className={cn(
-                              "text-[9px] font-bold px-1.5 py-0.5 rounded-md",
+                              "text-[9px] font-semibold px-2 py-0.5 rounded-full border",
                               th.status === "established"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-amber-100 text-amber-900"
+                                ? "bg-[#edf2ec] text-[#536b54] border-[#d6e0d5]"
+                                : "bg-[#faf0e1] text-[#9c631e] border-[#eedac0]"
                             )}
                           >
                             {th.status}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-600">
+                        <p className="text-[11px] text-[#545049]">
                           <strong>Anchor:</strong> "{th.newAnchorCue}"
                         </p>
-                        <p className="text-[10px] text-emerald-700">
+                        <p className="text-[10px] text-[#536b54] font-medium">
                           <strong>2-Min Rule:</strong> "{th.minimumVersion}"
                         </p>
                       </div>
@@ -790,9 +1024,9 @@ function GrowthContent() {
 
                 {/* AI Behavioral Observation */}
                 {trans.aiObservations && (
-                  <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/70 text-xs text-amber-950 flex items-start gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <p className="leading-relaxed text-[11px] sm:text-xs">
+                  <div className="p-3.5 rounded-2xl bg-[#f2eee6] border border-[#e4ded2] text-xs text-[#201e1b] flex items-start gap-2 shadow-2xs">
+                    <Sparkles className="w-4 h-4 text-[#536b54] shrink-0 mt-0.5" />
+                    <p className="leading-relaxed text-[11px] sm:text-xs text-[#545049]">
                       {trans.aiObservations}
                     </p>
                   </div>
@@ -807,68 +1041,93 @@ function GrowthContent() {
       {/* TAB 4: BEHAVIORAL INSIGHTS */}
       {/* ========================================================================= */}
       {activeTab === "insights" && (
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-6 animate-in fade-in-50 duration-150">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-4 bg-white rounded-2xl border border-[#e6e3da] shadow-2xs space-y-1">
-              <span className="text-[11px] text-slate-500 font-medium">Deep Work Volume</span>
-              <div className="text-xl font-bold font-serif text-slate-900">
+            <div className="p-4 bg-white rounded-2xl border border-[#e8e2d5] shadow-2xs space-y-1">
+              <span className="text-[11px] text-[#8a8479] font-medium uppercase tracking-wider">Deep Work Volume</span>
+              <div className="text-2xl font-serif font-normal text-[#201e1b]">
                 {focusSessions.reduce((acc, s) => acc + s.durationMinutes, 0)} mins
               </div>
-              <p className="text-[10px] text-slate-400">Total recorded focus immersion</p>
+              <p className="text-[10px] text-[#8a8479]">Total recorded focus immersion</p>
             </div>
 
-            <div className="p-4 bg-white rounded-2xl border border-[#e6e3da] shadow-2xs space-y-1">
-              <span className="text-[11px] text-slate-500 font-medium">Optimal Focus Period</span>
-              <div className="text-xl font-bold font-serif text-amber-800 capitalize">
+            <div className="p-4 bg-white rounded-2xl border border-[#e8e2d5] shadow-2xs space-y-1">
+              <span className="text-[11px] text-[#8a8479] font-medium uppercase tracking-wider">Optimal Focus Period</span>
+              <div className="text-2xl font-serif font-normal text-[#536b54] capitalize">
                 {profile.mostProductivePeriod}
               </div>
-              <p className="text-[10px] text-slate-400">Highest self-reported absorption window</p>
+              <p className="text-[10px] text-[#8a8479]">Highest self-reported absorption window</p>
             </div>
 
-            <div className="p-4 bg-white rounded-2xl border border-[#e6e3da] shadow-2xs space-y-1">
-              <span className="text-[11px] text-slate-500 font-medium">Active Life Transitions</span>
-              <div className="text-xl font-bold font-serif text-emerald-800">
+            <div className="p-4 bg-white rounded-2xl border border-[#e8e2d5] shadow-2xs space-y-1">
+              <span className="text-[11px] text-[#8a8479] font-medium uppercase tracking-wider">Active Life Transitions</span>
+              <div className="text-2xl font-serif font-normal text-[#201e1b]">
                 {habitTransitions.length} Active
               </div>
-              <p className="text-[10px] text-slate-400">Habit discontinuity windows leveraged</p>
+              <p className="text-[10px] text-[#8a8479]">Habit discontinuity windows leveraged</p>
             </div>
           </div>
 
           {/* AI Behavioral Observations */}
-          <div className="bg-white rounded-2xl border border-[#e6e3da] p-5 shadow-xs space-y-4">
+          <div className="bg-white rounded-3xl border border-[#e8e2d5] p-5 sm:p-6 shadow-2xs space-y-4">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-600" />
-              <h3 className="font-serif text-base font-bold text-slate-900">
+              <Sparkles className="w-4 h-4 text-[#536b54]" />
+              <h3 className="font-serif text-base sm:text-lg font-normal text-[#201e1b]">
                 Behavioral Insights & Adaptive Recommendations
               </h3>
             </div>
 
             <div className="space-y-3 text-xs leading-relaxed">
-              <div className="p-3.5 rounded-xl bg-[#faf9f6] border border-[#e6e3da] space-y-1">
-                <span className="font-semibold text-slate-900 block">
-                  1. Automaticity Thresholds
+              <div className="p-3.5 rounded-2xl bg-[#f7f5f0] border border-[#e8e2d5] space-y-1">
+                <span className="font-semibold text-[#201e1b] block">
+                  1. Habit Completion & Cue Consistency
                 </span>
-                <p className="text-slate-600 text-[11px] sm:text-xs">
-                  Your highest automaticity habit is <strong>{habits[0]?.title || "Daily Routine"}</strong> at {habits[0]?.automaticityScore || 70}%. Continue pairing new cognitive tasks with existing physical cues ("{habits[0]?.cue || 'morning coffee'}") to minimize willpower depletion.
-                </p>
+                {mostConsistentHabit ? (
+                  <p className="text-[#545049] text-[11px] sm:text-xs">
+                    Your most consistent routine is <strong>{mostConsistentHabit.title}</strong> with{" "}
+                    <strong>{mostConsistentHabit.weeklyCompletionRate ?? 86}%</strong> 7-day completion and{" "}
+                    <strong>{mostConsistentHabit.cueConsistencyScore ?? 90}%</strong> cue consistency (Self-Reported: {mostConsistentHabit.selfReportedAutomaticity || 4}/5). Continue pairing cognitive targets with physical anchor cues ("{mostConsistentHabit.cue}") to minimize willpower depletion.
+                  </p>
+                ) : (
+                  <p className="text-[#8a8479] text-[11px] sm:text-xs italic">
+                    No habits logged yet. Create your first habit in the Habits tab to track completion and cue consistency.
+                  </p>
+                )}
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[#faf9f6] border border-[#e6e3da] space-y-1">
-                <span className="font-semibold text-slate-900 block">
+              <div className="p-3.5 rounded-2xl bg-[#f7f5f0] border border-[#e8e2d5] space-y-1">
+                <span className="font-semibold text-[#201e1b] block">
                   2. Distraction Resistance in Deep Work
                 </span>
-                <p className="text-slate-600 text-[11px] sm:text-xs">
-                  Logged sessions indicate that sessions with 0 distractions reported a 4.6/5 absorption rating versus 2.8/5 when interrupted more than 2 times. Protect your 45-minute sprint blocks during your {profile.mostProductivePeriod} window.
-                </p>
+                {focusSessions.length >= 2 ? (
+                  <p className="text-[#545049] text-[11px] sm:text-xs">
+                    Empirical session data: Sessions with 0 distractions reported an average of{" "}
+                    <strong>{avgZero ?? "4.5"}/5</strong> absorption rating
+                    {avgInterrupted ? (
+                      <> versus <strong>{avgInterrupted}/5</strong> when interrupted</>
+                    ) : null}
+                    . Protect your focus blocks during your <strong>{profile.mostProductivePeriod}</strong> window.
+                  </p>
+                ) : (
+                  <p className="text-[#8a8479] text-[11px] sm:text-xs italic">
+                    You have recorded {focusSessions.length} session{focusSessions.length === 1 ? "" : "s"}. Complete at least 2 flow reflection sessions to generate empirical distraction resistance metrics.
+                  </p>
+                )}
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[#faf9f6] border border-[#e6e3da] space-y-1">
-                <span className="font-semibold text-slate-900 block">
+              <div className="p-3.5 rounded-2xl bg-[#f7f5f0] border border-[#e8e2d5] space-y-1">
+                <span className="font-semibold text-[#201e1b] block">
                   3. Habit Discontinuity Leveraging
                 </span>
-                <p className="text-slate-600 text-[11px] sm:text-xs">
-                  Your current transition ({habitTransitions[0]?.title || "Active Transition"}) is in its peak neuroplastic adaptation window. Maintain the 2-minute activation versions daily to anchor neural pathways before environmental patterns solidify.
-                </p>
+                {activeTransition ? (
+                  <p className="text-[#545049] text-[11px] sm:text-xs">
+                    Your current transition (<strong>{activeTransition.title}</strong>) is in its peak neuroplastic adaptation window. Maintain the 2-minute activation versions daily to anchor neural pathways before environmental patterns solidify.
+                  </p>
+                ) : (
+                  <p className="text-[#8a8479] text-[11px] sm:text-xs italic">
+                    No active life transitions recorded. When entering a new academic semester or job role, log a transition in the Habit Reset tab.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -879,22 +1138,22 @@ function GrowthContent() {
       {/* MODAL: POST-SESSION REFLECTION */}
       {/* ========================================================================= */}
       {showReflectionModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in-50">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl border-t sm:border border-[#e6e3da] w-full sm:max-w-md p-5 sm:p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="pb-3 border-b border-[#e6e3da]">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#201e1b]/40 backdrop-blur-xs animate-in fade-in-50">
+          <div className="bg-[#fbf9f5] rounded-t-3xl sm:rounded-3xl border-t sm:border border-[#e8e2d5] w-full sm:max-w-md p-5 sm:p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="pb-3 border-b border-[#e8e2d5]">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#536b54] bg-[#edf2ec] px-2.5 py-0.5 rounded-full border border-[#d6e0d5]">
                 Flow Theory Check-In
               </span>
-              <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900 mt-1">
+              <h3 className="font-serif text-base sm:text-lg font-normal text-[#201e1b] mt-1">
                 How Was Your Immersion State?
               </h3>
-              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-[#8a8479] mt-0.5">
                 Reflecting on challenge vs. skill builds long-term cognitive endurance.
               </p>
             </div>
 
             <div className="space-y-3 text-xs">
-              <label className="block text-slate-700 font-semibold text-xs">Select Flow State:</label>
+              <label className="block text-[#545049] font-medium text-xs">Select Flow State:</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: "flow", label: "Flow State", sub: "Absorbed attention" },
@@ -907,14 +1166,19 @@ function GrowthContent() {
                     type="button"
                     onClick={() => setFlowState(item.id as any)}
                     className={cn(
-                      "p-2.5 rounded-xl border text-left transition-all",
+                      "p-2.5 rounded-2xl border text-left transition-all cursor-pointer",
                       flowState === item.id
-                        ? "border-slate-900 bg-slate-900 text-white font-bold"
-                        : "border-[#e6e3da] bg-[#faf9f6] text-slate-700 hover:bg-slate-50"
+                        ? "border-[#201e1b] bg-[#201e1b] text-[#f8f6f0] font-semibold shadow-2xs"
+                        : "border-[#e8e2d5] bg-white text-[#545049] hover:bg-[#f2eee6]"
                     )}
                   >
                     <div className="font-medium text-xs">{item.label}</div>
-                    <div className={cn("text-[10px] font-normal mt-0.5", flowState === item.id ? "text-slate-300" : "text-slate-500")}>
+                    <div
+                      className={cn(
+                        "text-[10px] font-normal mt-0.5",
+                        flowState === item.id ? "text-[#d5cdbd]" : "text-[#8a8479]"
+                      )}
+                    >
                       {item.sub}
                     </div>
                   </button>
@@ -923,7 +1187,7 @@ function GrowthContent() {
 
               {/* Time Distortion */}
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Time Distortion Experience:</label>
+                <label className="block text-[#545049] font-medium mb-1">Time Distortion Experience:</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: "faster", label: "Flew By Fast" },
@@ -935,10 +1199,10 @@ function GrowthContent() {
                       type="button"
                       onClick={() => setTimeDistortion(td.id as any)}
                       className={cn(
-                        "py-1.5 px-2 rounded-lg border text-center text-[11px] font-medium transition-all",
+                        "py-1.5 px-2 rounded-xl border text-center text-[11px] font-medium transition-all cursor-pointer",
                         timeDistortion === td.id
-                          ? "bg-amber-100 text-amber-900 border-amber-300 font-bold"
-                          : "bg-[#faf9f6] text-slate-600 border-[#e6e3da]"
+                          ? "bg-[#201e1b] text-[#f8f6f0] border-[#201e1b] font-semibold"
+                          : "bg-white text-[#545049] border-[#e8e2d5] hover:bg-[#f2eee6]"
                       )}
                     >
                       {td.label}
@@ -947,9 +1211,39 @@ function GrowthContent() {
                 </div>
               </div>
 
+              {/* Absorption and Concentration */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-[#545049] font-medium mb-1">
+                    Absorption ({absorptionRating}/5)
+                  </label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={5}
+                    value={absorptionRating}
+                    onChange={(e) => setAbsorptionRating(Number(e.target.value))}
+                    className="w-full accent-[#536b54]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#545049] font-medium mb-1">
+                    Concentration ({concentrationRating}/5)
+                  </label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={5}
+                    value={concentrationRating}
+                    onChange={(e) => setConcentrationRating(Number(e.target.value))}
+                    className="w-full accent-[#536b54]"
+                  />
+                </div>
+              </div>
+
               {/* Reflection Note */}
               <div>
-                <label className="block text-slate-700 font-medium mb-1">
+                <label className="block text-[#545049] font-medium mb-1">
                   Reflection Note (Optional)
                 </label>
                 <textarea
@@ -957,22 +1251,22 @@ function GrowthContent() {
                   placeholder="e.g. Cleared 2 difficult proofs. Phone out of reach was decisive..."
                   value={reflectionNotes}
                   onChange={(e) => setReflectionNotes(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#faf9f6] border border-[#e6e3da] text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-slate-900 text-xs"
+                  className="w-full px-3 py-2 rounded-xl bg-white border border-[#e8e2d5] text-[#201e1b] focus:outline-hidden focus:border-[#201e1b] text-xs resize-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e6e3da]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e8e2d5]">
                 <button
                   type="button"
-                  onClick={() => setShowReflectionModal(false)}
-                  className="px-3.5 py-1.5 rounded-xl text-slate-600 hover:bg-slate-100 text-xs"
+                  onClick={handleDismissReflection}
+                  className="px-3.5 py-2 rounded-xl text-[#545049] hover:bg-[#f2eee6] text-xs font-medium cursor-pointer"
                 >
                   Skip
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveReflection}
-                  className="px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-all shadow-xs text-xs"
+                  className="px-4 py-2 rounded-xl bg-[#201e1b] text-[#f8f6f0] font-semibold hover:bg-[#38342f] transition-all shadow-2xs text-xs cursor-pointer"
                 >
                   Save Reflection
                 </button>
@@ -986,77 +1280,107 @@ function GrowthContent() {
       {/* MODAL: CREATE NEW HABIT */}
       {/* ========================================================================= */}
       {isNewHabitOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in-50">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl border-t sm:border border-[#e6e3da] w-full sm:max-w-md p-5 sm:p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-[#e6e3da]">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#201e1b]/40 backdrop-blur-xs animate-in fade-in-50">
+          <div className="bg-[#fbf9f5] rounded-t-3xl sm:rounded-3xl border-t sm:border border-[#e8e2d5] w-full sm:max-w-md p-5 sm:p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-[#e8e2d5]">
               <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-amber-600" />
-                <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900">
+                <Flame className="w-4 h-4 text-[#b85437]" />
+                <h3 className="font-serif text-base sm:text-lg font-normal text-[#201e1b]">
                   New Science-Backed Habit
                 </h3>
               </div>
               <button
                 onClick={() => setIsNewHabitOpen(false)}
-                className="p-1 rounded-md text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-md text-[#8a8479] hover:text-[#201e1b] hover:bg-[#f2eee6] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateHabit} className="space-y-3.5 text-xs">
+            <form
+              onSubmit={handleCreateHabit}
+              autoComplete="off"
+              data-form-type="other"
+              noValidate
+              className="space-y-3.5 text-xs"
+            >
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Habit Behavior</label>
+                <label className="block font-medium text-[#545049] mb-1">Habit Behavior</label>
                 <input
                   type="text"
+                  name="habit_behavior_title"
+                  id="habit_behavior_title"
                   required
                   value={habitTitle}
                   onChange={(e) => setHabitTitle(e.target.value)}
                   placeholder="e.g. Daily Economics Reading, Evening Plan Review..."
-                  className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-hidden"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  data-form-type="other"
+                  data-lpignore="true"
+                  className="w-full px-3 py-2 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b] focus:border-[#201e1b] focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Anchor Cue (Existing habit)</label>
+                <label className="block font-medium text-[#545049] mb-1">Anchor Cue (Existing routine)</label>
                 <input
                   type="text"
+                  name="habit_anchor_cue"
+                  id="habit_anchor_cue"
                   required
                   value={habitCue}
                   onChange={(e) => setHabitCue(e.target.value)}
                   placeholder="e.g. After morning pour-over coffee, Immediately after closing laptop..."
-                  className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-hidden"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  data-form-type="other"
+                  data-lpignore="true"
+                  className="w-full px-3 py-2 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b] focus:border-[#201e1b] focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Context / Physical Environment</label>
+                <label className="block font-medium text-[#545049] mb-1">Context / Physical Environment</label>
                 <input
                   type="text"
+                  name="habit_context_env"
+                  id="habit_context_env"
                   value={habitContext}
                   onChange={(e) => setHabitContext(e.target.value)}
                   placeholder="e.g. At study desk with noise-canceling headphones..."
-                  className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-hidden"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  data-form-type="other"
+                  data-lpignore="true"
+                  className="w-full px-3 py-2 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b] focus:border-[#201e1b] focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">2-Minute Minimum Version</label>
+                <label className="block font-medium text-[#545049] mb-1">2-Minute Minimum Version</label>
                 <input
                   type="text"
+                  name="habit_minimum_version"
+                  id="habit_minimum_version"
                   value={habitMinimumVersion}
                   onChange={(e) => setHabitMinimumVersion(e.target.value)}
                   placeholder="e.g. Read 1 problem explanation, Write 1 line of outline..."
-                  className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-hidden"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  data-form-type="other"
+                  data-lpignore="true"
+                  className="w-full px-3 py-2 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b] focus:border-[#201e1b] focus:outline-hidden"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Category</label>
+                  <label className="block font-medium text-[#545049] mb-1">Category</label>
                   <select
                     value={habitCategory}
                     onChange={(e) => setHabitCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-800"
+                    className="w-full px-3 py-2 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b]"
                   >
                     <option value="focus">Focus</option>
                     <option value="learning">Learning</option>
@@ -1067,11 +1391,11 @@ function GrowthContent() {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Frequency</label>
+                  <label className="block font-medium text-[#545049] mb-1">Frequency</label>
                   <select
                     value={habitFrequency}
                     onChange={(e) => setHabitFrequency(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-800"
+                    className="w-full px-3 py-2 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b]"
                   >
                     <option value="daily">Daily</option>
                     <option value="weekdays">Weekdays</option>
@@ -1081,17 +1405,17 @@ function GrowthContent() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e6e3da]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e8e2d5]">
                 <button
                   type="button"
                   onClick={() => setIsNewHabitOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-medium"
+                  className="px-4 py-2 rounded-xl text-[#545049] hover:bg-[#f2eee6] font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 shadow-xs"
+                  className="px-5 py-2 rounded-xl bg-[#201e1b] text-[#f8f6f0] font-semibold hover:bg-[#38342f] shadow-2xs cursor-pointer"
                 >
                   Create Habit
                 </button>
@@ -1105,42 +1429,54 @@ function GrowthContent() {
       {/* MODAL: CREATE LIFE TRANSITION RESET */}
       {/* ========================================================================= */}
       {isNewTransitionOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in-50">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl border-t sm:border border-[#e6e3da] w-full sm:max-w-md p-5 sm:p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-[#e6e3da]">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#201e1b]/40 backdrop-blur-xs animate-in fade-in-50">
+          <div className="bg-[#fbf9f5] rounded-t-3xl sm:rounded-3xl border-t sm:border border-[#e8e2d5] w-full sm:max-w-md p-5 sm:p-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-[#e8e2d5]">
               <div className="flex items-center gap-2">
-                <Compass className="w-4 h-4 text-amber-700" />
-                <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900">
+                <Compass className="w-4 h-4 text-[#536b54]" />
+                <h3 className="font-serif text-base sm:text-lg font-normal text-[#201e1b]">
                   New Life Transition Reset
                 </h3>
               </div>
               <button
                 onClick={() => setIsNewTransitionOpen(false)}
-                className="p-1 rounded-md text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-md text-[#8a8479] hover:text-[#201e1b] hover:bg-[#f2eee6] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateTransition} className="space-y-3.5 text-xs">
+            <form
+              onSubmit={handleCreateTransition}
+              autoComplete="off"
+              data-form-type="other"
+              noValidate
+              className="space-y-3.5 text-xs"
+            >
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Transition Title</label>
+                <label className="block font-medium text-[#545049] mb-1">Transition Title</label>
                 <input
                   type="text"
+                  name="transition_title"
+                  id="transition_title"
                   required
                   value={transTitle}
                   onChange={(e) => setTransTitle(e.target.value)}
                   placeholder="e.g. Fall 2026 Semester, New Senior Eng Role..."
-                  className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-hidden"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  data-form-type="other"
+                  data-lpignore="true"
+                  className="w-full px-3 py-2 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b] focus:border-[#201e1b] focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Category</label>
+                <label className="block font-medium text-[#545049] mb-1">Category</label>
                 <select
                   value={transCategory}
                   onChange={(e) => setTransCategory(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-800"
+                  className="w-full px-3 py-2 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b]"
                 >
                   <option value="semester">Academic Semester</option>
                   <option value="career">Job / Career Change</option>
@@ -1151,7 +1487,7 @@ function GrowthContent() {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
+                <label className="block font-medium text-[#545049] mb-1">
                   Disrupted Routines (comma separated)
                 </label>
                 <input
@@ -1159,12 +1495,12 @@ function GrowthContent() {
                   value={transDisrupted}
                   onChange={(e) => setTransDisrupted(e.target.value)}
                   placeholder="e.g. Late night library study, 10 AM commute..."
-                  className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b] focus:border-[#201e1b] focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
+                <label className="block font-medium text-[#545049] mb-1">
                   Obsolete Cues to Retire (comma separated)
                 </label>
                 <input
@@ -1172,59 +1508,59 @@ function GrowthContent() {
                   value={transObsolete}
                   onChange={(e) => setTransObsolete(e.target.value)}
                   placeholder="e.g. Previous dorm desk, old meeting reminders..."
-                  className="w-full px-3 py-2 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-900 focus:ring-1 focus:ring-slate-900 focus:outline-hidden"
+                  className="w-full px-3 py-2 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b] focus:border-[#201e1b] focus:outline-hidden"
                 />
               </div>
 
-              <div className="pt-2 border-t border-[#f0ede6] space-y-2">
-                <span className="font-bold text-slate-800 block text-xs">
+              <div className="pt-2 border-t border-[#e8e2d5] space-y-2">
+                <span className="font-semibold text-[#201e1b] block text-xs">
                   New Anchor Habit to Install:
                 </span>
                 <div>
-                  <label className="block text-[11px] text-slate-600 mb-0.5">Habit Name</label>
+                  <label className="block text-[11px] text-[#545049] mb-0.5">Habit Name</label>
                   <input
                     type="text"
                     value={transHabitName}
                     onChange={(e) => setTransHabitName(e.target.value)}
                     placeholder="e.g. Morning 20m Deep Problem Solving"
-                    className="w-full px-3 py-1.5 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-900"
+                    className="w-full px-3 py-1.5 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b]"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[11px] text-slate-600 mb-0.5">Anchor Cue</label>
+                    <label className="block text-[11px] text-[#545049] mb-0.5">Anchor Cue</label>
                     <input
                       type="text"
                       value={transAnchorCue}
                       onChange={(e) => setTransAnchorCue(e.target.value)}
                       placeholder="e.g. After breakfast"
-                      className="w-full px-3 py-1.5 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-900"
+                      className="w-full px-3 py-1.5 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-slate-600 mb-0.5">2-Min Rule</label>
+                    <label className="block text-[11px] text-[#545049] mb-0.5">2-Min Rule</label>
                     <input
                       type="text"
                       value={transMinVersion}
                       onChange={(e) => setTransMinVersion(e.target.value)}
                       placeholder="e.g. Read 1 page"
-                      className="w-full px-3 py-1.5 bg-[#faf9f6] border border-[#e6e3da] rounded-xl text-slate-900"
+                      className="w-full px-3 py-1.5 bg-white border border-[#e8e2d5] rounded-xl text-[#201e1b]"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e6e3da]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e8e2d5]">
                 <button
                   type="button"
                   onClick={() => setIsNewTransitionOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-medium"
+                  className="px-4 py-2 rounded-xl text-[#545049] hover:bg-[#f2eee6] font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 shadow-xs"
+                  className="px-5 py-2 rounded-xl bg-[#201e1b] text-[#f8f6f0] font-semibold hover:bg-[#38342f] shadow-2xs cursor-pointer"
                 >
                   Start Transition
                 </button>
@@ -1241,7 +1577,7 @@ export default function GrowthPage() {
   return (
     <Suspense
       fallback={
-        <div className="p-8 text-center text-xs text-slate-400">
+        <div className="p-8 text-center text-xs text-[#8a8479]">
           Loading Growth Workspace...
         </div>
       }
