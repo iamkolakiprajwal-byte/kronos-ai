@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDays,
   Sparkles,
@@ -17,8 +17,10 @@ import {
   ChevronRight,
   RotateCcw,
   Plus,
+  LogOut,
 } from "lucide-react";
 import { useDemo } from "@/context/demo-context";
+import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -37,7 +39,9 @@ export const navItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { role, setRole, profile, resetDemoData, openQuickTask } = useDemo();
+  const { signOut } = useAuth();
 
   return (
     <aside className="hidden md:flex md:w-20 lg:w-64 border-r border-[#e8e2d5] bg-[#fbf9f5] flex-col h-screen sticky top-0 select-none transition-all duration-200 shrink-0">
@@ -128,18 +132,32 @@ export function Sidebar() {
           <Settings className="w-3.5 h-3.5 text-[#8a8479] group-hover:text-[#201e1b] hidden lg:block shrink-0" />
         </Link>
 
-        <button
-          onClick={() => {
-            if (typeof window !== "undefined" && window.confirm(`Reset Kronos demo state to pristine baseline for ${profile.name}?`)) {
-              resetDemoData();
-            }
-          }}
-          className="w-full hidden lg:flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[10px] text-[#8a8479] hover:text-[#b85437] hover:bg-[#f2eee6] transition-colors cursor-pointer"
-          title="Reset sample data back to baseline"
-        >
-          <RotateCcw className="w-3 h-3" />
-          <span>Reset Demo Data</span>
-        </button>
+        <div className="hidden lg:flex items-center justify-between gap-2 pt-1 border-t border-[#e8e2d5]/60 text-[10px]">
+          <button
+            onClick={() => {
+              if (typeof window !== "undefined" && window.confirm(`Reset Kronos demo state to pristine baseline for ${profile.name}?`)) {
+                resetDemoData();
+              }
+            }}
+            className="flex items-center gap-1 text-[#8a8479] hover:text-[#b85437] transition-colors cursor-pointer"
+            title="Reset sample data back to baseline"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span>Reset Demo</span>
+          </button>
+
+          <button
+            onClick={async () => {
+              await signOut();
+              router.push("/login");
+            }}
+            className="flex items-center gap-1 text-[#8a8479] hover:text-[#201e1b] transition-colors cursor-pointer"
+            title="Sign out of Kronos"
+          >
+            <LogOut className="w-3 h-3" />
+            <span>Sign Out</span>
+          </button>
+        </div>
       </div>
     </aside>
   );
@@ -152,7 +170,9 @@ interface MobileDrawerProps {
 
 export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { role, setRole, profile, resetDemoData, openQuickTask } = useDemo();
+  const { signOut } = useAuth();
 
   if (!isOpen) return null;
 
@@ -270,6 +290,20 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
             <div className="flex items-center gap-2">
               <RotateCcw className="w-4 h-4 text-[#b85437]" />
               <span>Reset Demo State</span>
+            </div>
+          </button>
+
+          <button
+            onClick={async () => {
+              onClose();
+              await signOut();
+              router.push("/login");
+            }}
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-[#e8e2d5] text-xs font-medium text-[#545049] hover:bg-[#f2eee6] transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <LogOut className="w-4 h-4 text-[#8a8479]" />
+              <span>Sign Out / Switch User</span>
             </div>
           </button>
         </div>

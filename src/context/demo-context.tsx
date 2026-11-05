@@ -21,6 +21,7 @@ import {
 } from "@/types";
 import { CalendarSyncStatus } from "@/lib/calendar/types";
 import { sampleEcoEntries, ECO_ACTIVITY_FACTORS } from "@/lib/sustainability/eco-calculator";
+import { useAuth } from "./auth-context";
 import {
   studentProfile,
   professionalProfile,
@@ -175,6 +176,19 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const openQuickTask = () => setIsQuickTaskOpen(true);
   const closeQuickTask = () => setIsQuickTaskOpen(false);
   const referenceDate = DEMO_REFERENCE_DATE;
+  const { user: authUser } = useAuth();
+
+  // Synchronize authenticated user profile (Google / GitHub / Email) from AuthContext
+  useEffect(() => {
+    if (authUser && authUser.provider !== "demo") {
+      setProfile((prev) => ({
+        ...prev,
+        name: authUser.name || prev.name,
+        email: authUser.email || prev.email,
+        avatar: authUser.avatar || prev.avatar,
+      }));
+    }
+  }, [authUser]);
 
   const initialWelcomeMessage: ChatMessage = {
     id: "msg-welcome",

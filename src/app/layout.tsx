@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Lora, Manrope } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/context/auth-context";
 import { DemoProvider } from "@/context/demo-context";
 
 const lora = Lora({
@@ -37,7 +38,9 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased min-h-screen bg-[#f7f5f0] text-[#201e1b] selection:bg-[#e8decb] font-sans">
-        <DemoProvider>{children}</DemoProvider>
+        <AuthProvider>
+          <DemoProvider>{children}</DemoProvider>
+        </AuthProvider>
       </body>
     </html>
   );
