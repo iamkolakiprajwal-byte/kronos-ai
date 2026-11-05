@@ -163,12 +163,36 @@ const DemoContext = createContext<DemoContextType | undefined>(undefined);
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [role, setRoleState] = useState<UserRole>("student");
-  const [profile, setProfile] = useState<UserProfile>(studentProfile);
-  const [tasks, setTasks] = useState<Task[]>(initialStudentTasks);
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(studentCalendarEvents);
-  const [goals, setGoals] = useState<Goal[]>(studentGoals);
-  const [habits, setHabits] = useState<Habit[]>(studentHabits);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(sampleNotifications);
+  const [profile, setProfile] = useState<UserProfile>({
+    id: "user-default",
+    name: "Planner",
+    email: "user@example.com",
+    avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Kronos&backgroundColor=e8decb",
+    role: "student",
+    headline: "Daily Planner",
+    institutionOrCompany: "My Workspace",
+    wakeTime: "07:00",
+    sleepTime: "23:00",
+    mostProductivePeriod: "morning",
+    preferredFocusDuration: 45,
+    preferredBreakDuration: 10,
+    planningStyle: "time-blocked",
+    sustainabilityOptIn: true,
+  });
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([
+    {
+      id: "notif-welcome",
+      title: "Welcome to Kronos AI",
+      message: "Your adaptive planner is ready. Tap the + button in the bottom right or ask AI to schedule your first task.",
+      timestamp: "Just now",
+      read: false,
+      type: "system",
+    },
+  ]);
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date(`${DEMO_REFERENCE_DATE}T00:00:00`));
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -180,7 +204,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   // Synchronize authenticated user profile (Google / GitHub / Email) from AuthContext
   useEffect(() => {
-    if (authUser && authUser.provider !== "demo") {
+    if (authUser) {
       setProfile((prev) => ({
         ...prev,
         name: authUser.name || prev.name,
@@ -193,7 +217,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const initialWelcomeMessage: ChatMessage = {
     id: "msg-welcome",
     sender: "assistant",
-    text: "Good morning, Aria! I'm ready to organize your day. What would you like to accomplish today? You can mention classes, study goals, workouts, or personal tasks.",
+    text: "Welcome to Kronos AI! I am your personal intelligent planning assistant. Tell me what you would like to accomplish today, or tap the floating + button in the bottom right to schedule your first task!",
     timestamp: "Just now",
   };
 
@@ -201,29 +225,13 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [onboardingDraft, setOnboardingDraft] = useState<OnboardingFormData>(studentOnboardingPreset);
 
   // Sprint 2: Productivity & Integrations State
-  const [focusSessions, setFocusSessions] = useState<FocusSessionLog[]>([
-    {
-      id: "flog-1",
-      habitId: "h1",
-      durationMinutes: 50,
-      completedAt: "2026-11-01 16:30",
-      flowState: "flow",
-      reflectionNotes: "Deep immersion while reviewing Stanford CS problem set. Zero phone interruptions.",
-    },
-    {
-      id: "flog-2",
-      durationMinutes: 25,
-      completedAt: "2026-11-02 09:45",
-      flowState: "balanced",
-      reflectionNotes: "Clean progress on weekly planning and email inbox zero.",
-    },
-  ]);
+  const [focusSessions, setFocusSessions] = useState<FocusSessionLog[]>([]);
 
   const [syncStatus, setSyncStatus] = useState<CalendarSyncStatus>("synced");
   const [lastSyncTime, setLastSyncTime] = useState<string | null>("Just now");
   const [syncConflicts, setSyncConflicts] = useState<SyncConflict[]>([]);
-  const [ecoEntries, setEcoEntries] = useState<EcoLogEntry[]>(sampleEcoEntries);
-  const [habitTransitions, setHabitTransitions] = useState<HabitResetTransition[]>(studentHabitTransitions);
+  const [ecoEntries, setEcoEntries] = useState<EcoLogEntry[]>([]);
+  const [habitTransitions, setHabitTransitions] = useState<HabitResetTransition[]>([]);
 
   // Persistent Active Focus Timer State (Survives workspace transitions)
   const [timerState, setTimerState] = useState<ActiveTimerState>({

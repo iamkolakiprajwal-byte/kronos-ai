@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/header";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { FloatingActionButton } from "@/components/layout/floating-action-button";
 import { QuickTaskModal } from "@/components/dashboard/quick-task-modal";
+import { WelcomeTutorialModal } from "@/components/dashboard/welcome-tutorial-modal";
 import { useWorkspaceSwipe } from "@/hooks/use-workspace-swipe";
 import { useDemo } from "@/context/demo-context";
 
@@ -75,6 +76,9 @@ export default function DashboardLayout({
         isOpen={isQuickTaskOpen}
         onClose={closeQuickTask}
       />
+
+      {/* Interactive First-Time Welcome Tutorial Tour */}
+      <WelcomeTutorialModal />
     </div>
   );
 }
