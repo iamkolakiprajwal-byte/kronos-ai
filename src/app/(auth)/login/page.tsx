@@ -147,18 +147,15 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#f7f5f0] text-[#201e1b] flex flex-col justify-between selection:bg-[#e8decb] font-sans">
       {/* Top Header */}
       <header className="px-5 sm:px-8 py-3.5 border-b border-[#e8e2d5] bg-[#fbf9f5]/90 backdrop-blur-md flex items-center justify-between">
-        <Link href="/home" className="flex items-center gap-2.5">
+        <Link href="/login" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-[#201e1b] text-[#f8f6f0] flex items-center justify-center shadow-xs">
             <Clock className="w-4 h-4 text-[#e8decb]" />
           </div>
           <span className="font-serif font-medium text-base text-[#201e1b] tracking-tight">Kronos AI</span>
         </Link>
-        <Link
-          href="/home"
-          className="text-xs font-semibold text-[#687050] hover:text-[#201e1b] transition-colors"
-        >
-          Skip to Planner →
-        </Link>
+        <span className="text-[10px] uppercase font-sans font-semibold tracking-wider text-[#8a8479] bg-[#f2eee6] px-2 py-0.5 rounded-full border border-[#e4ded2]">
+          Secure Access
+        </span>
       </header>
 
       {/* Main Container */}
@@ -243,9 +240,12 @@ export default function LoginPage() {
                   <Lock className="w-3.5 h-3.5 text-[#8a8479]" />
                   <span>Password</span>
                 </span>
-                <span className="text-[10px] text-[#8a8479] cursor-pointer hover:underline">
+                <Link
+                  href="/forgot-password"
+                  className="text-[10px] text-[#8a8479] cursor-pointer hover:underline hover:text-[#201e1b]"
+                >
                   Forgot?
-                </span>
+                </Link>
               </label>
               <div className="relative">
                 <input
@@ -277,51 +277,8 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Instant Demo Access (One-click) */}
-          <div className="pt-3 border-t border-[#e8e2d5] space-y-2">
-            <div className="flex items-center justify-between text-[11px] text-[#545049]">
-              <span className="font-semibold flex items-center gap-1 text-[#201e1b]">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#536b54]" />
-                <span>Instant Evaluator Demo Login</span>
-              </span>
-              <span className="text-[10px] text-[#8a8479]">Zero setup</span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickDemo("student")}
-                className="p-2.5 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-left transition-all cursor-pointer shadow-2xs"
-              >
-                <GraduationCap className="w-3.5 h-3.5 text-[#536b54] mb-1" />
-                <span className="font-semibold block text-xs text-[#201e1b]">Student</span>
-                <span className="text-[10px] text-[#8a8479] block truncate">Aria Chen</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemo("professional")}
-                className="p-2.5 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-left transition-all cursor-pointer shadow-2xs"
-              >
-                <Briefcase className="w-3.5 h-3.5 text-[#b85437] mb-1" />
-                <span className="font-semibold block text-xs text-[#201e1b]">Pro</span>
-                <span className="text-[10px] text-[#8a8479] block truncate">Marcus Reed</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemo("both")}
-                className="p-2.5 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-left transition-all cursor-pointer shadow-2xs"
-              >
-                <Compass className="w-3.5 h-3.5 text-[#687050] mb-1" />
-                <span className="font-semibold block text-xs text-[#201e1b]">Dual</span>
-                <span className="text-[10px] text-[#8a8479] block truncate">Elena Rostova</span>
-              </button>
-            </div>
-          </div>
-
           {/* Footer switch to Signup */}
-          <div className="text-center text-xs text-[#545049] pt-1">
+          <div className="text-center text-xs text-[#545049] pt-2 border-t border-[#e8e2d5]">
             New to Kronos?{" "}
             <Link href="/signup" className="font-semibold text-[#201e1b] hover:underline">
               Create an account
@@ -330,14 +287,14 @@ export default function LoginPage() {
         </div>
       </main>
 
-      {/* Google Account Selector Dialog (Demo & Zero-cost Mode) */}
+      {/* Google Account Selector Dialog */}
       {isGoogleModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#201e1b]/50 backdrop-blur-xs animate-in fade-in-50 duration-150">
           <div className="bg-white rounded-3xl border border-[#e8e2d5] max-w-sm w-full p-5 sm:p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#e8e2d5]">
               <div className="flex items-center gap-2">
                 <GoogleIcon className="w-5 h-5" />
-                <h3 className="font-medium text-sm text-[#201e1b]">Choose a Google Account</h3>
+                <h3 className="font-medium text-sm text-[#201e1b]">Sign in with Google</h3>
               </div>
               <button
                 onClick={() => setIsGoogleModalOpen(false)}
@@ -347,101 +304,32 @@ export default function LoginPage() {
               </button>
             </div>
 
-            <p className="text-xs text-[#545049]">
-              to continue to <strong>Kronos AI Personal Planner</strong>
+            <p className="text-xs text-[#545049] leading-relaxed">
+              Enter your Google account credentials to access your personalized planner workspace:
             </p>
 
-            {/* Google Account List */}
-            <div className="space-y-1.5">
-              <button
-                type="button"
-                onClick={() =>
-                  handleSelectGoogleAccount({
-                    name: "Aria Chen",
-                    email: "aria.chen@stanford.edu",
-                    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-                    role: "student",
-                  })
-                }
-                className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#f2eee6] text-left transition-all cursor-pointer border border-transparent hover:border-[#e8e2d5]"
-              >
-                <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
-                  alt="Aria Chen"
-                  className="w-9 h-9 rounded-full object-cover border border-[#d5cdbd]"
+            <div className="space-y-2.5 pt-1">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#545049] mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={customGoogleName}
+                  onChange={(e) => setCustomGoogleName(e.target.value)}
+                  placeholder="e.g. Alex Johnson"
+                  className="w-full px-3 py-2 bg-[#fbf9f5] border border-[#e8e2d5] rounded-xl text-xs text-[#201e1b]"
                 />
-                <div className="min-w-0 flex-1">
-                  <span className="font-semibold text-xs text-[#201e1b] block truncate">Aria Chen</span>
-                  <span className="text-[11px] text-[#8a8479] block truncate">aria.chen@stanford.edu</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  handleSelectGoogleAccount({
-                    name: "Marcus Reed",
-                    email: "marcus.reed@cloudscale.io",
-                    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-                    role: "professional",
-                  })
-                }
-                className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#f2eee6] text-left transition-all cursor-pointer border border-transparent hover:border-[#e8e2d5]"
-              >
-                <img
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
-                  alt="Marcus Reed"
-                  className="w-9 h-9 rounded-full object-cover border border-[#d5cdbd]"
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-[#545049] mb-1">Google Email Address</label>
+                <input
+                  type="email"
+                  value={customGoogleEmail}
+                  onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                  placeholder="alex@gmail.com"
+                  className="w-full px-3 py-2 bg-[#fbf9f5] border border-[#e8e2d5] rounded-xl text-xs text-[#201e1b]"
                 />
-                <div className="min-w-0 flex-1">
-                  <span className="font-semibold text-xs text-[#201e1b] block truncate">Marcus Reed</span>
-                  <span className="text-[11px] text-[#8a8479] block truncate">marcus.reed@cloudscale.io</span>
-                </div>
-              </button>
+              </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  handleSelectGoogleAccount({
-                    name: "Elena Rostova",
-                    email: "elena.rostova@berkeley.edu",
-                    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
-                    role: "both",
-                  })
-                }
-                className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#f2eee6] text-left transition-all cursor-pointer border border-transparent hover:border-[#e8e2d5]"
-              >
-                <img
-                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80"
-                  alt="Elena Rostova"
-                  className="w-9 h-9 rounded-full object-cover border border-[#d5cdbd]"
-                />
-                <div className="min-w-0 flex-1">
-                  <span className="font-semibold text-xs text-[#201e1b] block truncate">Elena Rostova</span>
-                  <span className="text-[11px] text-[#8a8479] block truncate">elena.rostova@berkeley.edu</span>
-                </div>
-              </button>
-            </div>
-
-            {/* Custom Google Account Entry */}
-            <div className="pt-2 border-t border-[#e8e2d5] space-y-2">
-              <span className="text-[11px] font-semibold text-[#545049] block">
-                Use your own Google Account:
-              </span>
-              <input
-                type="text"
-                value={customGoogleName}
-                onChange={(e) => setCustomGoogleName(e.target.value)}
-                placeholder="Your Full Name"
-                className="w-full px-3 py-1.5 bg-[#fbf9f5] border border-[#e8e2d5] rounded-lg text-xs text-[#201e1b]"
-              />
-              <input
-                type="email"
-                value={customGoogleEmail}
-                onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                placeholder="your.email@gmail.com"
-                className="w-full px-3 py-1.5 bg-[#fbf9f5] border border-[#e8e2d5] rounded-lg text-xs text-[#201e1b]"
-              />
               <button
                 type="button"
                 disabled={!customGoogleEmail.trim()}
@@ -451,9 +339,10 @@ export default function LoginPage() {
                     email: customGoogleEmail.trim(),
                   })
                 }
-                className="w-full py-2 bg-[#201e1b] hover:bg-[#34302b] disabled:opacity-40 text-[#f8f6f0] rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                className="w-full h-10 mt-2 bg-[#201e1b] hover:bg-[#34302b] disabled:opacity-40 text-[#f8f6f0] rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                Continue as Google User
+                <span>Continue as Google User</span>
+                <ArrowRight className="w-3.5 h-3.5 text-[#e8decb]" />
               </button>
             </div>
           </div>

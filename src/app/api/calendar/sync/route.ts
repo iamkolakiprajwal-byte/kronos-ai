@@ -8,7 +8,7 @@ const SyncRequestSchema = z.object({
   syncToken: z.string().optional(),
   conflictId: z.string().optional(),
   resolution: z.enum(["keep_local", "accept_remote"]).optional(),
-  useMock: z.boolean().default(true),
+  useMock: z.boolean().default(false),
 });
 
 export async function POST(request: Request) {
@@ -16,9 +16,16 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { action, syncToken, conflictId, resolution, useMock } = SyncRequestSchema.parse(body);
 
-    const adapter = useMock ? mockCalendarAdapter : googleCalendarAdapter;
+    const isTest = process.env.NODE_ENV === "test" || useMock;
+    const adapter = isTest ? mockCalendarAdapter : googleCalendarAdapter;
 
     if (action === "simulate_conflict") {
+      if (!isTest) {
+        return NextResponse.json(
+          { success: false, error: "Simulated conflict is only permitted in test environments." },
+          { status: 403 }
+        );
+      }
       const { conflict, remoteEvent } = mockCalendarAdapter.generateSimulatedConflict();
       return NextResponse.json({
         success: true,

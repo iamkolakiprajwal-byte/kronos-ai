@@ -3,7 +3,42 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [1.1.1] - 2026-11-05
+## [2.0.0] - 2026-11-05
+
+### Major — Production Transformation, Real Multi-User Authentication & Database Isolation
+- **Complete Elimination of Prototype & Demo Infrastructure**:
+  - Completely removed hardcoded demo personas (Aria Chen, Marcus Reed, Elena Rostova) from application runtime, headers, navigation bars, and modals.
+  - Eliminated "Instant Evaluator Demo Login" cards and "Skip to Planner" bypass on `/login` and `/signup`.
+  - Removed "Reset Demo State" controls from sidebar, settings, and mobile drawers.
+  - Removed simulated Google Calendar synchronization (`MockCalendarAdapter (Simulated API v3)`) and fake conflict simulation triggers; replaced with honest connection status and Google OAuth credentials flow.
+  - Removed static hardcoded suggested blocks (`studentSuggestedBlocks`, `proSuggestedBlocks`, `dualSuggestedBlocks`) and static course/sprint widgets from `/home`.
+  - Replaced demo intelligence banners in `/ai` with honest Gemini AI connectivity reporting and production prompt templates.
+- **Server-Side Authentication & Route Protection**:
+  - Implemented Next.js Server-Side Middleware (`src/middleware.ts`) powered by `@supabase/ssr` to securely enforce route protection:
+    - Unauthenticated requests to `/`, `/home`, `/ai`, `/my-day`, `/growth`, `/profile`, `/onboarding` strictly redirect to `/login`.
+    - Authenticated users are prevented from accessing `/login` and `/signup` and redirected to `/home`.
+  - Created `/forgot-password` route (`src/app/(auth)/forgot-password/page.tsx`) with password reset email dispatch via Supabase Auth.
+  - Created `/reset-password` route (`src/app/(auth)/reset-password/page.tsx`) with token validation and secure password updates.
+  - Extended `AuthProvider` (`src/context/auth-context.tsx`) with `forgotPassword`, `resetPassword`, session cookies, and multi-provider authentication (Google, GitHub, Email/Password).
+- **Supabase Database Architecture & Multi-User Isolation**:
+  - Created production evolution migration `supabase/migrations/20261105000000_production_evolution.sql`:
+    - Extended `public.profiles` with `onboarding_completed`, `timezone`, and `preferred_name`.
+    - Created `public.focus_sessions` table with flow-state tracking, absorption ratings, and Row Level Security (`auth.uid() = user_id`).
+    - Created `public.onboarding_records` table with multi-step draft saving and RLS.
+    - Created `public.academic_details` and `public.professional_details` tables with RLS.
+  - Implemented `dataService` (`src/lib/supabase/data-service.ts`) providing unified CRUD operations for profiles, tasks, calendar events, focus sessions, and onboarding records.
+- **Honest Gemini AI Integration**:
+  - Updated `src/lib/ai/index.ts` and `src/app/api/ai/chat/route.ts` to strictly require `GEMINI_API_KEY`.
+  - When keys are unconfigured, `/api/ai/chat` returns an honest `503 Service Unavailable` with `CONFIGURATION_REQUIRED` code rather than silently falling back to mock providers in production.
+  - In `/ai`, displayed dynamic status badges (`Gemini AI Connected` vs `Gemini AI: Setup Required`).
+- **First-Time User Onboarding & Interactive Tutorial**:
+  - Implemented interactive 4-step welcome tutorial modal (`src/components/dashboard/welcome-tutorial-modal.tsx`) guiding new users through the personal workspace, peak rhythm customization, intelligent timeline, and the Google Keep style floating `+` FAB.
+  - Integrated onboarding completion with Supabase, setting `onboarding_completed: true` upon user approval of their initial schedule.
+- **Automated Verification & Visual QA**:
+  - 130 / 130 tests passing across all 8 test suites.
+  - 22 / 22 routes compiled successfully with Next.js Turbopack (`npm run build`).
+  - Verified responsive viewports across 320px, 375px, 768px, and 1440px via Puppeteer.
+
 
 ### Fixed — Mobile Keyboard, Autofill Suppression & Chat / Task Action Remediation
 - **Complete Suppression of Annoying Password / Card Autofill Popup**:

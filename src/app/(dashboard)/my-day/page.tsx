@@ -322,6 +322,15 @@ export default function MyDayPage() {
               </span>
             </div>
           </div>
+        ) : totalTasks === 0 ? (
+          <div className="mt-4 max-w-md space-y-1">
+            <h2 className="font-serif text-xl sm:text-2xl font-normal text-[#201e1b] tracking-tight">
+              No tasks scheduled for today
+            </h2>
+            <p className="text-xs text-[#8a8479]">
+              Your agenda is completely clear. Plan your day with AI or tap the + button to add a task.
+            </p>
+          </div>
         ) : (
           <div className="mt-4 max-w-md space-y-1">
             <h2 className="font-serif text-xl sm:text-2xl font-normal text-[#201e1b] tracking-tight">
@@ -357,6 +366,23 @@ export default function MyDayPage() {
               <Play className="w-3.5 h-3.5 fill-[#f8f6f0]" />
               <span>Start Focus Session</span>
             </Link>
+          ) : totalTasks === 0 ? (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/ai"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] text-xs font-semibold shadow-xs active:scale-95 transition-all"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#e8decb]" />
+                <span>Plan Day with AI</span>
+              </Link>
+              <button
+                onClick={openQuickTask}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white hover:bg-[#f2eee6] text-[#201e1b] border border-[#e8e2d5] text-xs font-medium transition-colors shadow-2xs cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#545049]" />
+                <span>New Task</span>
+              </button>
+            </div>
           ) : (
             <button
               onClick={handleDynamicReschedule}

@@ -29,9 +29,9 @@
 - **Desktop & Mobile Requirements**:
   - Desktop: Full multi-column journal layout with persistent left sidebar, prominent 7-column calendar grid, side-by-side agenda and metrics, and docked assistant.
   - Mobile & Tablet: Seamless responsiveness down to 375px width, slide-out hamburger navigation drawer or bottom navigation bar, adaptive micro-calendar grid, vertical agenda cards with min 44x44px touch targets, and expandable assistant sheet.
-- **Assignment & Demo Objectives**:
-  - Run completely in a high-fidelity **DEMO / ASSIGNMENT MODE** without requiring real Google account OAuth or live payment infrastructure.
-  - Provide instant one-click demonstration presets for **Student (Aria Chen)**, **Professional (Marcus Reed)**, and **Dual Track (Elena Rostova)**.
+- **Production & Multi-User Architecture**:
+  - Live production deployment with Supabase multi-user isolation, Row Level Security (RLS) on all user tables, and SSR route guards (`src/middleware.ts`).
+  - Real user authentication via Supabase Auth (Email/Password, Google OAuth, Forgot/Reset password flows) with persistent session tokens.
 - **Technology Stack**:
   - **Frontend**: Next.js 16 (App Router with Turbopack), React 19, TypeScript, Tailwind CSS v4, Lucide Icons, date-fns.
   - **Backend**: Next.js Route Handlers, TypeScript, server-side Zod input validation.
@@ -121,11 +121,12 @@ Progressively implemented via Supabase PostgreSQL migrations with foreign key co
 15. `calendar_connections`: OAuth tokens, external calendar IDs, and sync metadata.
 16. `push_subscriptions`: Web Push endpoint registrations and VAPID public keys.
 
-### 2.4 AI Provider Architecture & Fallback Behavior
+### 2.4 AI Provider Architecture & Production Validation
 - **Provider Interface**: `AIProvider` in `src/lib/ai/provider.ts`.
 - **Active Provider**: Dynamically selected by `getAIProvider()` in `src/lib/ai/index.ts`:
   - If `GEMINI_API_KEY` is present in environment: Uses `GeminiProvider` (Google Gemini 2.5 Flash with structured `responseSchema`).
-  - If `GEMINI_API_KEY` is absent (Default evaluation mode): Uses `MockAIProvider` (rich context-aware offline NLP engine).
+  - If `GEMINI_API_KEY` is absent in production runtime: Returns an honest HTTP 503 `CONFIGURATION_REQUIRED` response prompting the user/admin to configure `GEMINI_API_KEY` in environment variables.
+  - Isolated test harness: `MockAIProvider` is strictly restricted to automated unit test environments (`NODE_ENV === "test"`).
 - **Conversational Intent Classification**:
   - Differentiates casual greetings (*"hello"*), identity queries (*"what are you doing"*), and agenda status checks (*"what's on my schedule"*) from actual scheduling requests.
   - Returns `intent: "general_query"` and `extractedTasks: []` (empty array) for non-task remarks, completely eliminating task hallucination.
@@ -534,45 +535,38 @@ All 37 unit tests pass across 4 separate domain test suites:
 
 ## 9. Current Project Status & Development Summary
 
-- **Current Status**: **FINAL PRE-DEPLOYMENT VERIFICATION & CORRECTION COMPLETE (v1.1.0)**
-  - **Headless Chrome Browser QA Suite (`scripts/manual-qa-suite.mjs`)**:
-    - Automated real-browser QA pass in Google Chrome across all 7 target viewports: `320px`, `375px`, `390px`, `430px`, `768px`, `1024px`, and `1440px`.
-    - 64 / 64 automated browser checks passing across all 5 workspaces (`/home`, `/ai`, `/my-day`, `/growth`, `/profile`).
-    - Fixed 320px Profile card overflow (`w-full min-w-0`) and SSR hydration mismatch (`mounted` guard).
-    - Verified calendar month title visibility (123px width, unclipped), bottom navigation touch targets ($\ge 44\times 44\text{px}$), modals, input composer, and hard-refresh persistence.
-  - **Mobile Month Name Visibility & Header Polish**:
-    - Fixed mobile month name truncation where "November 2026" was compressed down to a single character ("N") due to cramped toolbar layout on 320px–390px screens.
-    - Calendar header restructured into a responsive two-row mobile composition (Row 1: prominent Month & Year serif title + Today + `< >` navigator; Row 2: full-width touch-friendly Week/Month toggle), flowing into a single spacious row on desktop.
-  - **Elimination of Overlapping Floating Elements**:
-    - Removed duplicate fixed floating pills (`bottom-[68px]`) across Home, My Day, and Growth that collided with the persistent Bottom Navigation dock and covered scrollable content.
-    - Integrated clean contextual inline actions directly inside the primary cards ("Start Focus Session" and "Reschedule Day" inside My Day's Focus Spotlight Ring).
-  - **Spacious & Minimalist Visual Rhythm**:
-    - Increased vertical breathing room (`space-y-7 sm:space-y-10`) with uncluttered padding (`pb-16 md:pb-12`).
-    - Guarded mobile workspace swipe bar and AI Assistant header against horizontal text clipping.
-  - **Scientific Habit Automaticity Correction**:
-    - Removed arbitrary, unvalidated 0–100% automaticity calculations from domain types, mock data, Growth workspace, Habits page, and tests.
-    - Separated habit metrics into 3 distinct scientific components:
-      1. **7-Day Completion Rate**: Empirical weekly adherence percentage (`completedDays / 7 * 100`).
-      2. **Anchor Cue Consistency**: Adherence to the triggering cue context (`cueConsistencyScore` 0–100%).
-      3. **Self-Reported Automaticity (SRHI)**: Validated 1–5 scale (Verplanken & Orbell, Gardner) reflecting subjective cognitive automaticity with interactive UI controls.
-  - **Safe LocalStorage Schema Migration & Backup Subsystem (`src/lib/storage/index.ts`)**:
-    - `migrateState(raw)`: Forward-migrates older schema versions without discarding user tasks, habits, or reflections.
-    - Pre-migration backup saved to `KRONOS_BACKUP_KEY` whenever schema evolution is detected.
-    - Corrupt JSON payload preserved in `KRONOS_CORRUPT_BACKUP_KEY` to prevent silent data destruction.
-    - `restorePreMigrationBackup()`: One-click restoration of prior state, surfaced in `/profile` with a prominent alert banner.
-  - **Explicit Zero-Cost Demo Environment Labeling**:
-    - Header: Calendar sync pill clearly labeled `Demo GCal: Synced`, modal explicitly documents `MockCalendarAdapter (Simulated API v3)` with zero Google OAuth credentials required.
-    - AI Workspace: Header badge labeled `Offline Demo Intelligence (MockAIProvider)`, welcome card explicitly documents zero-cost local deterministic scheduling.
-    - Profile: Dedicated architecture cards for Calendar Sync and AI Intelligence clearly identifying offline mock adapters.
-  - **Comprehensive End-to-End Test Suite (`tests/e2e/e2e-scenarios.test.ts`)**:
-    - 50/50 tests passing in `tests/e2e/e2e-scenarios.test.ts` covering Scenarios A, B, C, D, and E (including migration safety, backup creation, and backup restoration).
+- **Current Status**: **PRODUCTION TRANSFORMATION COMPLETE (v2.0.0)**
+  - **Elimination of Prototype & Demo Infrastructure**:
+    - Purged hardcoded demo personas (Aria Chen, Marcus Reed, Elena Rostova) from application runtime, navigation headers, modals, and presets.
+    - Removed "Instant Evaluator Demo Login" bypass buttons and "Skip to Planner" controls from `/login` and `/signup`.
+    - Removed "Reset Demo State" buttons across the application.
+    - Replaced simulated Google Calendar synchronization with native Google OAuth integration and honest configuration reporting.
+    - Isolated mock AI fallback strictly to automated testing (`NODE_ENV === "test"`). Production runtime returns an honest HTTP 503 `CONFIGURATION_REQUIRED` when `GEMINI_API_KEY` is absent.
+  - **Multi-User Authentication & SSR Route Protection**:
+    - Created Next.js server-side route protection in `src/middleware.ts` using `@supabase/ssr` cookies and `kronos_auth_user` session token.
+    - Unauthenticated requests to `/`, `/home`, `/ai`, `/my-day`, `/growth`, `/profile`, `/onboarding` are strictly redirected to `/login`.
+    - Authenticated users attempting to visit `/login` or `/signup` are redirected to `/home`.
+    - Implemented `/forgot-password` and `/reset-password` flows with Supabase Auth dispatch and token verification.
+  - **Supabase Database Evolution & Multi-Tenant RLS**:
+    - Authored evolution migration `supabase/migrations/20261105000000_production_evolution.sql`.
+    - Added `onboarding_completed`, `timezone`, and `preferred_name` columns to `public.profiles`.
+    - Created `public.focus_sessions`, `public.onboarding_records`, `public.academic_details`, and `public.professional_details` tables with strict Row Level Security (`auth.uid() = user_id`).
+    - Implemented `dataService` (`src/lib/supabase/data-service.ts`) providing typed multi-user CRUD operations.
+  - **Production Onboarding Experience**:
+    - Connected `/onboarding` wizard to Supabase profile and onboarding records.
+    - Completing onboarding marks `onboarding_completed: true` in user profile.
+    - Interactive 4-step welcome tutorial modal (`src/components/dashboard/welcome-tutorial-modal.tsx`) guides first-time users.
+  - **Genuine Empty States & Visual Polish**:
+    - Designed authentic zero-task and zero-habit empty states with 1-click creation actions.
+    - Verified responsive viewports across 320px, 375px, 768px, and 1440px via Puppeteer screenshots.
+  - **Automated Verification**:
     - **130 / 130 total automated tests passing** across all 8 test suites (`npm test`).
     - **Zero TypeScript errors** (`npx tsc --noEmit`).
-    - **19/19 routes compiled cleanly** in Next.js 16 Turbopack production build (`npm run build`).
+    - **22 / 22 routes compiled cleanly** in Next.js 16 Turbopack production build (`npm run build`).
 - **Active Dev Server**:
   - Running on `http://localhost:3001`.
 - **Verification Commands**:
   - `npm test`: Runs all 130 tests across 8 test suites.
   - `npx tsc --noEmit`: Strict TypeScript compiler check (zero errors).
-  - `npm run build`: Next.js 16 production compilation (19 routes).
+  - `npm run build`: Next.js 16 production compilation (22 routes).
   - `npm run dev`: Dev server on port 3001.

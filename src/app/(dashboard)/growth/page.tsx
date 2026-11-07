@@ -412,9 +412,28 @@ function GrowthContent() {
             </div>
           </div>
 
-          {/* Habits Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {habits.map((habit) => (
+          {/* Habits Grid or Empty State */}
+          {habits.length === 0 ? (
+            <div className="p-8 sm:p-12 rounded-3xl bg-white border border-[#e8e2d5] text-center space-y-3 shadow-2xs">
+              <div className="w-12 h-12 rounded-2xl bg-[#f2eee6] text-[#b85437] flex items-center justify-center mx-auto shadow-2xs">
+                <Target className="w-6 h-6" />
+              </div>
+              <h3 className="font-serif text-lg font-normal text-[#201e1b]">No Habits Established Yet</h3>
+              <p className="text-xs text-[#8a8479] max-w-sm mx-auto leading-relaxed">
+                Build atomic daily routines anchored to reliable cues with 2-minute starter versions to build automaticity.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsNewHabitOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#201e1b] text-white text-xs font-medium hover:bg-[#38342f] cursor-pointer shadow-2xs transition-all"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#e8decb]" />
+                <span>Create Your First Habit</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {habits.map((habit) => (
               <div
                 key={habit.id}
                 className={cn(
@@ -555,8 +574,9 @@ function GrowthContent() {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    )}
 
       {/* ========================================================================= */}
       {/* TAB 2: FLOW (Csíkszentmihályi Flow Theory & Persistent Timer) */}

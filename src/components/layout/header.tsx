@@ -19,6 +19,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useDemo } from "@/context/demo-context";
+import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -27,6 +28,7 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
+  const { user, signInWithGoogle } = useAuth();
   const {
     profile,
     role,
@@ -37,12 +39,12 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
     lastSyncTime,
     syncConflicts,
     triggerCalendarSync,
-    simulateExternalCalendarConflict,
     resolveSyncConflict,
   } = useDemo();
 
+  const isGoogleConnected = user?.provider === "google";
+
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
-  const [showMaintenanceBanner, setShowMaintenanceBanner] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [greeting, setGreeting] = useState("Good morning");
@@ -67,26 +69,6 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
 
   return (
     <>
-      {/* Playful Construction Notice Banner */}
-      {showMaintenanceBanner && (
-        <aside className="bg-[#201e1b] text-[#f8f6f0] px-3 py-1.5 flex items-center justify-between text-xs border-b border-[#38342f] z-40 relative select-none animate-in fade-in-50">
-          <div className="flex items-center gap-1.5 mx-auto min-w-0 px-1">
-            <span className="text-xs">🚧</span>
-            <p className="text-[11px] sm:text-xs font-medium text-[#e8decb] truncate">
-              <strong>Renovation:</strong> Aligning timeblocks & brewing espresso ☕
-            </p>
-          </div>
-          <button
-            onClick={() => setShowMaintenanceBanner(false)}
-            className="p-1 text-[#8a8479] hover:text-[#f8f6f0] hover:bg-white/10 rounded-md transition-colors shrink-0 cursor-pointer"
-            title="Dismiss notice"
-            aria-label="Dismiss maintenance notice"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </aside>
-      )}
-
       <header className="border-b border-[#e8e2d5] bg-[#fbf9f5]/90 backdrop-blur-md sticky top-0 z-30 px-3.5 sm:px-6 md:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2.5 sm:gap-4">
         {/* Left: Mobile Avatar & Desktop Greeting */}
         <div className="flex items-center gap-2.5 min-w-0">
@@ -194,7 +176,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-semibold">Student Track</span>
-                      <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-mono", role === "student" ? "bg-white/20 text-white" : "bg-[#edf2ec] text-[#536b54]")}>Aria Chen</span>
+                      <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-mono", role === "student" ? "bg-white/20 text-white" : "bg-[#edf2ec] text-[#536b54]")}>Academic</span>
                     </div>
                     <p className={cn("text-[10px] mt-0.5 leading-snug", role === "student" ? "text-stone-300" : "text-[#8a8479]")}>
                       Course timetables, lectures, lab sessions, p-sets & semester exams.
@@ -221,7 +203,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-semibold">Professional Track</span>
-                      <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-mono", role === "professional" ? "bg-white/20 text-white" : "bg-[#faece7] text-[#b85437]")}>Marcus Reed</span>
+                      <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-mono", role === "professional" ? "bg-white/20 text-white" : "bg-[#faece7] text-[#b85437]")}>Career</span>
                     </div>
                     <p className={cn("text-[10px] mt-0.5 leading-snug", role === "professional" ? "text-stone-300" : "text-[#8a8479]")}>
                       Sprint deliverables, meeting triage, deep work blocks & architecture reviews.
@@ -248,10 +230,10 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-semibold">Dual Track (Work + Study)</span>
-                      <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-mono", role === "both" ? "bg-white/20 text-white" : "bg-[#f1f3ea] text-[#687050]")}>Elena Rostova</span>
+                      <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-mono", role === "both" ? "bg-white/20 text-white" : "bg-[#f1f3ea] text-[#687050]")}>Hybrid</span>
                     </div>
                     <p className={cn("text-[10px] mt-0.5 leading-snug", role === "both" ? "text-stone-300" : "text-[#8a8479]")}>
-                      Daytime software engineering + evening MS data science degree balance.
+                      Daytime professional responsibilities + evening coursework & degree balance.
                     </p>
                   </div>
                 </button>
@@ -263,33 +245,17 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
             onClick={() => setShowSyncModal(true)}
             className={cn(
               "h-9 px-2 sm:px-3 rounded-full text-xs font-medium border transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5",
-              syncStatus === "conflict"
-                ? "bg-[#faece7] text-[#b85437] border-[#f3cec3] animate-bounce"
-                : syncStatus === "syncing"
-                ? "bg-[#f1f3ea] text-[#687050] border-[#dce1d4]"
+              isGoogleConnected
+                ? "bg-[#edf2ec] text-[#536b54] border-[#d6e0d5]"
                 : "bg-white text-[#545049] border-[#e8e2d5] hover:bg-[#f2eee6] hover:text-[#201e1b]"
             )}
-            title="Click to view Google Calendar sync status"
-            aria-label="Calendar sync status"
+            title="Google Calendar Integration Status"
+            aria-label="Google Calendar Integration Status"
           >
-            {syncStatus === "conflict" ? (
-              <>
-                <AlertTriangle className="w-3.5 h-3.5 text-[#b85437] shrink-0" />
-                <span className="text-[11px] font-semibold text-[#b85437] hidden xs:inline">1 Conflict</span>
-              </>
-            ) : (
-              <>
-                <RefreshCw
-                  className={cn(
-                    "w-3.5 h-3.5 text-[#8a8479] shrink-0",
-                    syncStatus === "syncing" && "animate-spin text-[#687050]"
-                  )}
-                />
-                <span className="hidden md:inline text-[11px]">
-                  Demo GCal: {syncStatus === "syncing" ? "Syncing..." : "Synced"}
-                </span>
-              </>
-            )}
+            <Calendar className={cn("w-3.5 h-3.5 shrink-0", isGoogleConnected ? "text-[#536b54]" : "text-[#8a8479]")} />
+            <span className="hidden md:inline text-[11px]">
+              {isGoogleConnected ? "Google Calendar: Connected" : "Google Calendar"}
+            </span>
           </button>
 
           {/* Optional Desktop Quick Task Button (Mobile uses Google Keep style FAB) */}
@@ -387,9 +353,9 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
           <div className="bg-white rounded-t-2xl sm:rounded-2xl border-t sm:border border-[#e8e2d5] w-full sm:max-w-lg p-5 sm:p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#e8e2d5]">
               <div className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-[#687050]" />
+                <Calendar className="w-4 h-4 text-[#687050]" />
                 <h3 className="font-serif text-lg text-[#201e1b]">
-                  Google Calendar Two-Way Sync (Simulated Demo)
+                  Google Calendar Two-Way Integration
                 </h3>
               </div>
               <button
@@ -400,40 +366,64 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
               </button>
             </div>
 
-            {/* Simulated Demo Notice */}
-            <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-[11px] text-amber-900 leading-relaxed">
-              <strong>Zero-Cost Demo Mode:</strong> Powered by <code className="font-mono bg-white/70 px-1 py-0.5 rounded">MockCalendarAdapter</code>. No personal Google credentials or OAuth tokens are required. Remote events and schedule conflicts are simulated locally for review.
-            </div>
-
-            {/* Sync Status Banner */}
-            <div className="p-3.5 rounded-xl bg-[#fbf9f5] border border-[#e8e2d5] text-xs space-y-2">
+            {/* Live Integration Notice */}
+            <div className="p-3.5 rounded-xl bg-[#fbf9f5] border border-[#e8e2d5] text-xs space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[#545049] font-medium">Adapter Protocol:</span>
-                <span className="font-mono text-[#201e1b] font-semibold">
-                  MockCalendarAdapter (Simulated API v3)
+                <span className="text-[#545049] font-medium">Integration Status:</span>
+                <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider", isGoogleConnected ? "bg-[#edf2ec] text-[#536b54]" : "bg-[#f2eee6] text-[#8a8479]")}>
+                  {isGoogleConnected ? "Connected" : "Configuration Required"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#545049] font-medium">Last Synchronized:</span>
-                <span className="text-[#201e1b]">{lastSyncTime || "Just now"}</span>
+                <span className="text-[#545049] font-medium">Authenticated Account:</span>
+                <span className="text-[#201e1b] font-mono text-[11px] truncate max-w-[200px]">
+                  {user?.email || "No Google Account Linked"}
+                </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#545049] font-medium">Active Conflicts:</span>
-                <span
-                  className={cn(
-                    "font-bold",
-                    syncConflicts.length > 0 ? "text-[#b85437]" : "text-[#536b54]"
-                  )}
+                <span className="text-[#545049] font-medium">Active Schedule Conflicts:</span>
+                <span className={cn("font-bold", syncConflicts.length > 0 ? "text-[#b85437]" : "text-[#536b54]")}>
+                  {syncConflicts.length > 0 ? `${syncConflicts.length} Conflict Requiring Action` : "0 (Synchronized)"}
+                </span>
+              </div>
+            </div>
+
+            {/* Explanation / Connection Prompt */}
+            {!isGoogleConnected ? (
+              <div className="p-4 rounded-xl border border-[#e8e2d5] bg-stone-50 space-y-3 text-xs">
+                <p className="text-[#545049] leading-relaxed">
+                  Kronos AI synchronizes two-way with your Google Calendar using Google OAuth 2.0. External meetings, lectures, and invites are automatically mapped into your schedule as fixed, immovable commitments.
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await signInWithGoogle();
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
-                  {syncConflicts.length > 0
-                    ? `${syncConflicts.length} Conflict Requiring Action`
-                    : "0 (Clean)"}
-                </span>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                  </svg>
+                  <span>Connect Google Calendar Account</span>
+                </button>
               </div>
-            </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-[#edf2ec] border border-[#d6e0d5] text-xs text-[#536b54] space-y-1">
+                <div className="font-semibold flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-[#536b54]" />
+                  <span>Google Calendar Connected</span>
+                </div>
+                <p className="text-[11px] text-[#536b54]/90">
+                  Your agenda and external calendar events are in two-way synchronization.
+                </p>
+              </div>
+            )}
 
-            {/* Conflict Resolution Block */}
-            {syncConflicts.length > 0 ? (
+            {/* Conflict Resolution Block if any real conflicts exist */}
+            {syncConflicts.length > 0 && (
               <div className="space-y-3">
                 <h4 className="text-xs font-semibold text-[#201e1b] flex items-center gap-1.5">
                   <AlertTriangle className="w-4 h-4 text-[#b85437]" />
@@ -466,40 +456,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="p-4 rounded-xl bg-[#edf2ec] border border-[#d6e0d5] text-xs text-[#536b54] space-y-1">
-                <div className="font-semibold flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-[#536b54]" />
-                  <span>Calendar State Perfectly Harmonized</span>
-                </div>
-                <p className="text-[11px] text-[#536b54]/90">
-                  All local agenda blocks and remote events align without time collisions.
-                </p>
-              </div>
             )}
-
-            {/* Test Actions */}
-            <div className="pt-2 border-t border-[#e8e2d5] space-y-2">
-              <span className="text-[10px] font-semibold text-[#8a8479] uppercase tracking-wider block">
-                Evaluation Test Controls:
-              </span>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={triggerCalendarSync}
-                  className="px-3 py-1.5 rounded-lg bg-[#f2eee6] hover:bg-[#e8e2d5] text-[#201e1b] text-xs font-medium transition-colors cursor-pointer"
-                >
-                  Trigger Incremental Sync
-                </button>
-                <button
-                  type="button"
-                  onClick={simulateExternalCalendarConflict}
-                  className="px-3 py-1.5 rounded-lg bg-[#faece7] hover:bg-[#f6dfd7] text-[#b85437] text-xs font-medium transition-colors cursor-pointer"
-                >
-                  Simulate GCal Surprise Conflict
-                </button>
-              </div>
-            </div>
 
             <div className="flex items-center justify-end pt-3 border-t border-[#e8e2d5]">
               <button

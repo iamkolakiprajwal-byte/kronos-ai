@@ -28,82 +28,82 @@ import { cn } from "@/lib/utils";
 
 const studentPrompts = [
   {
-    title: "Morning Study & Gym",
-    prompt: "I need to complete two assignments, study economics for 1 hour, and hit the gym at 5 PM.",
+    title: "Morning Study & Exercise",
+    prompt: "I need to complete two assignments, review lecture notes for 1 hour, and go for a run at 5 PM.",
   },
   {
-    title: "CS 106B Lab Prep",
-    prompt: "Schedule 90 minutes of algorithm review before my CS lab at 11 AM.",
+    title: "Exam Preparation",
+    prompt: "Schedule 90 minutes of focused problem solving before my afternoon class.",
   },
   {
-    title: "ECON 201 Midterm",
-    prompt: "Break down my ECON 201 exam review over the next 3 days.",
+    title: "Multi-Day Exam Plan",
+    prompt: "Break down my upcoming exam review over the next 3 days.",
   },
   {
     title: "Build Reading Habit",
-    prompt: "Help me build a consistent 15-minute academic reading habit every morning.",
+    prompt: "Help me build a consistent 20-minute academic reading habit every morning.",
   },
   {
-    title: "Break Down Thesis",
-    prompt: "Can you break down my Senior Thesis project into a structured roadmap?",
+    title: "Break Down Project",
+    prompt: "Can you break down my semester project into an actionable, phased roadmap?",
   },
   {
-    title: "Catch Up Routine",
-    prompt: "I missed my morning study block. Reorganise the rest of today realistically around my afternoon class.",
+    title: "Mid-Day Catchup",
+    prompt: "I missed my morning study block. Reorganize the rest of today realistically around my remaining commitments.",
   },
 ];
 
 const proPrompts = [
   {
-    title: "Protect 2h Deep Code",
-    prompt: "Protect a 2-hour uninterrupted deep coding block this morning for Raft consensus development.",
+    title: "Protect 2h Deep Work",
+    prompt: "Protect a 2-hour uninterrupted deep focus block this morning for technical design.",
   },
   {
     title: "Meeting Reschedule",
     prompt: "I have an unexpected 4 PM stakeholder sync. Please reschedule my afternoon work blocks.",
   },
   {
-    title: "Sprint 42 Retro Prep",
-    prompt: "Find a 45-minute window before 5 PM to compile architecture metrics for tomorrow's retro.",
+    title: "Sprint Review Prep",
+    prompt: "Find a 45-minute window before 5 PM to compile deliverables for tomorrow's review.",
   },
   {
-    title: "Distributed Cache RFC",
-    prompt: "Schedule a 60-minute focused window to review distributed cache pull request comments.",
+    title: "Code Review Window",
+    prompt: "Schedule a 60-minute focused window to review high-priority pull requests.",
   },
   {
-    title: "6 PM Shutdown Routine",
+    title: "Evening Boundary",
     prompt: "Ensure all my tasks conclude before 6:00 PM so I can disconnect cleanly.",
   },
   {
-    title: "Incident Postmortem",
-    prompt: "Block 45 minutes for the European cluster failover mitigation document.",
+    title: "Project Breakdown",
+    prompt: "Decompose our architectural migration initiative into 3 actionable milestones.",
   },
 ];
 
 const dualPrompts = [
   {
-    title: "Work Demo & Evening Class",
-    prompt: "I have a 10 AM Synthetix demo and a 6 PM Berkeley seminar. Fit 1 hour of thesis writing between them.",
+    title: "Work & Evening Class",
+    prompt: "I have a morning team sync and an evening seminar. Fit 1 hour of coursework study between them.",
   },
   {
     title: "Resolve Schedule Collision",
-    prompt: "Check if my client meeting at 5:30 PM collides with my evening graduate lecture.",
+    prompt: "Check if my late meeting collides with my evening study commitments.",
   },
   {
-    title: "Thesis Deep Work Window",
-    prompt: "Find a 45-minute high-focus window for my MS data science thesis after finishing my work shift.",
+    title: "High-Focus Study Window",
+    prompt: "Find a 45-minute high-focus window for my coursework research after finishing my work shift.",
   },
   {
-    title: "Weekend Catchup Plan",
-    prompt: "Structure a realistic Saturday study plan to review Berkeley lecture notes without burning out.",
+    title: "Weekend Study Plan",
+    prompt: "Structure a realistic Saturday study plan to review coursework without burning out.",
   },
   {
-    title: "Context Switch Reset",
-    prompt: "Add a 15-minute mental buffer between my afternoon coding tasks and evening coursework.",
+    title: "Context Switch Buffer",
+    prompt: "Add a 15-minute mental buffer between my afternoon work tasks and evening study.",
   },
   {
-    title: "Decompress Boundary",
-    prompt: "Schedule an evening wind-down transition block after finishing master's study.",
+    title: "Evening Shutdown",
+    prompt: "Schedule an evening wind-down transition block after finishing my studies.",
   },
 ];
 
@@ -126,8 +126,20 @@ export default function AIPage() {
   const [appliedGoalIds, setAppliedGoalIds] = useState<Record<string, boolean>>({});
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [voiceDraft, setVoiceDraft] = useState("");
+  const [aiStatus, setAiStatus] = useState<"checking" | "connected" | "configuration_required">("checking");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch("/api/ai/chat")
+      .then((res) => res.json())
+      .then((data) => {
+        setAiStatus(data.configured ? "connected" : "configuration_required");
+      })
+      .catch(() => {
+        setAiStatus("configuration_required");
+      });
+  }, []);
 
   const suggestedPrompts =
     role === "student"
@@ -213,12 +225,17 @@ export default function AIPage() {
           <div className="min-w-0">
             <h1 className="font-serif text-base sm:text-xl font-normal text-[#201e1b] flex items-center gap-2">
               <span>Planning Assistant</span>
-              <span className="hidden sm:inline-flex text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[#f2eee6] text-[#687050] border border-[#e4ded2]">
-                Offline Demo Intelligence (MockAIProvider)
+              <span className={cn(
+                "hidden sm:inline-flex text-[10px] font-sans font-medium px-2 py-0.5 rounded-full border",
+                aiStatus === "connected"
+                  ? "bg-[#edf2ec] text-[#536b54] border-[#d6e0d5]"
+                  : "bg-[#faece7] text-[#b85437] border-[#f3cec3]"
+              )}>
+                {aiStatus === "checking" ? "Checking AI..." : aiStatus === "connected" ? "Gemini AI Connected" : "Gemini AI: Setup Required"}
               </span>
             </h1>
             <p className="text-[11px] sm:text-xs text-[#8a8479] truncate flex items-center gap-2">
-              <span>Persona: <strong className="text-[#545049] capitalize font-medium">{profile.name} ({role})</strong></span>
+              <span>Track: <strong className="text-[#545049] capitalize font-medium">{role === "student" ? "Academic" : role === "professional" ? "Professional" : "Dual"}</strong></span>
               <span className="text-[#d5cdbd]">•</span>
               <span>Peak: <strong className="text-[#545049] capitalize font-medium">{profile.mostProductivePeriod}</strong></span>
               <span className="text-[#d5cdbd] hidden md:inline">•</span>
@@ -249,16 +266,28 @@ export default function AIPage() {
 
       {/* Chat Messages Stream */}
       <div className="flex-1 overflow-y-auto py-3.5 sm:py-4 space-y-3.5 sm:space-y-4 pr-1">
-        {/* Welcome Briefing Card */}
-        <div className="bg-[#fdfcf9] border border-[#e8e2d5] rounded-2xl p-4 text-xs space-y-2 shadow-2xs">
-          <div className="flex items-center gap-2 text-[#201e1b] font-semibold">
-            <ShieldCheck className="w-4 h-4 text-[#536b54] shrink-0" />
-            <span className="font-serif text-sm">Constraint-Based Deterministic Planning (Demo Environment)</span>
+        {/* Status / Briefing Banner */}
+        {aiStatus === "configuration_required" ? (
+          <div className="bg-[#faece7]/50 border border-[#f3cec3] rounded-2xl p-4 text-xs space-y-2 shadow-2xs">
+            <div className="flex items-center gap-2 text-[#b85437] font-semibold">
+              <Zap className="w-4 h-4 text-[#b85437] shrink-0" />
+              <span className="font-serif text-sm">Gemini AI Setup Required</span>
+            </div>
+            <p className="text-[#545049] leading-relaxed text-[11px] sm:text-xs">
+              To activate real-time Gemini AI scheduling, add your <code className="font-mono bg-white px-1 py-0.5 rounded border border-[#e8e2d5]">GEMINI_API_KEY</code> to your environment variables or <code className="font-mono bg-white px-1 py-0.5 rounded border border-[#e8e2d5]">.env.local</code>. You can also manually add tasks with the floating <strong>+</strong> button below.
+            </p>
           </div>
-          <p className="text-[#545049] leading-relaxed text-[11px] sm:text-xs">
-            Powered by <code className="font-mono bg-white px-1 py-0.5 rounded border border-[#e8e2d5]">MockAIProvider</code> for zero-cost academic evaluation without external API keys. Tell Kronos your intentions to automatically fit study blocks and tasks around commitments ({profile.role === "student" ? "classes & labs" : profile.role === "professional" ? "meetings & reviews" : "classes & meetings"}), productive rhythms, and minimum buffer windows.
-          </p>
-        </div>
+        ) : (
+          <div className="bg-[#fdfcf9] border border-[#e8e2d5] rounded-2xl p-4 text-xs space-y-2 shadow-2xs">
+            <div className="flex items-center gap-2 text-[#201e1b] font-semibold">
+              <ShieldCheck className="w-4 h-4 text-[#536b54] shrink-0" />
+              <span className="font-serif text-sm">Adaptive Constraint-Based Planning</span>
+            </div>
+            <p className="text-[#545049] leading-relaxed text-[11px] sm:text-xs">
+              Tell Kronos your intentions to automatically fit study blocks and tasks around commitments, productive rhythms, and minimum buffer windows.
+            </p>
+          </div>
+        )}
 
         {chatMessages.map((msg) => {
           const isUser = msg.sender === "user";

@@ -133,25 +133,21 @@ export function Sidebar() {
         </Link>
 
         <div className="hidden lg:flex items-center justify-between gap-2 pt-1 border-t border-[#e8e2d5]/60 text-[10px]">
-          <button
-            onClick={() => {
-              if (typeof window !== "undefined" && window.confirm(`Reset Kronos demo state to pristine baseline for ${profile.name}?`)) {
-                resetDemoData();
-              }
-            }}
-            className="flex items-center gap-1 text-[#8a8479] hover:text-[#b85437] transition-colors cursor-pointer"
-            title="Reset sample data back to baseline"
+          <Link
+            href="/profile"
+            className="flex items-center gap-1 text-[#8a8479] hover:text-[#201e1b] transition-colors cursor-pointer"
+            title="Account Preferences"
           >
-            <RotateCcw className="w-3 h-3" />
-            <span>Reset Demo</span>
-          </button>
+            <Settings className="w-3 h-3" />
+            <span>Settings</span>
+          </Link>
 
           <button
             onClick={async () => {
               await signOut();
               router.push("/login");
             }}
-            className="flex items-center gap-1 text-[#8a8479] hover:text-[#201e1b] transition-colors cursor-pointer"
+            className="flex items-center gap-1 text-[#8a8479] hover:text-[#b85437] transition-colors cursor-pointer"
             title="Sign out of Kronos"
           >
             <LogOut className="w-3 h-3" />
@@ -279,31 +275,16 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           </Link>
 
           <button
-            onClick={() => {
-              if (typeof window !== "undefined" && window.confirm(`Reset Kronos demo state to pristine baseline for ${profile.name}?`)) {
-                resetDemoData();
-                onClose();
-              }
-            }}
-            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-[#e8e2d5] text-xs font-medium text-[#b85437] hover:bg-[#fdf2ee] transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <RotateCcw className="w-4 h-4 text-[#b85437]" />
-              <span>Reset Demo State</span>
-            </div>
-          </button>
-
-          <button
             onClick={async () => {
               onClose();
               await signOut();
               router.push("/login");
             }}
-            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-[#e8e2d5] text-xs font-medium text-[#545049] hover:bg-[#f2eee6] transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-white border border-[#e8e2d5] text-xs font-medium text-[#b85437] hover:bg-[#faece7] transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <LogOut className="w-4 h-4 text-[#8a8479]" />
-              <span>Sign Out / Switch User</span>
+              <LogOut className="w-4 h-4 text-[#b85437]" />
+              <span>Sign Out</span>
             </div>
           </button>
         </div>

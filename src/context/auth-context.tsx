@@ -21,12 +21,26 @@ interface AuthContextType {
   signInWithGithub: () => Promise<{ success: boolean; error?: string }>;
   signInWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUpWithEmail: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  resetPassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_USER_STORAGE_KEY = "kronos_ai_auth_user_v1";
+
+function setAuthCookie(id: string) {
+  if (typeof document !== "undefined") {
+    document.cookie = `kronos_auth_user=${encodeURIComponent(id)}; path=/; max-age=2592000; SameSite=Lax`;
+  }
+}
+
+function clearAuthCookie() {
+  if (typeof document !== "undefined") {
+    document.cookie = "kronos_auth_user=; path=/; max-age=0; SameSite=Lax";
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -54,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 createdAt: session.user.created_at,
               };
               setUser(authUser);
+              setAuthCookie(authUser.id);
               setIsLoading(false);
               return;
             }
@@ -62,25 +77,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
               if (session?.user) {
                 const meta = session.user.user_metadata || {};
-                setUser({
+                const authUser: AuthUser = {
                   id: session.user.id,
                   name: meta.full_name || meta.name || session.user.email?.split("@")[0] || "User",
                   email: session.user.email || "",
                   avatar: meta.avatar_url || meta.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${session.user.id}&backgroundColor=e8decb`,
                   provider: (session.user.app_metadata?.provider as any) || "email",
                   createdAt: session.user.created_at,
-                });
+                };
+                setUser(authUser);
+                setAuthCookie(authUser.id);
               } else {
-                // If logged out from Supabase, check local demo user fallback
+                // If logged out from Supabase, check local fallback
                 const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
                 if (storedUser) {
                   try {
-                    setUser(JSON.parse(storedUser));
+                    const parsed = JSON.parse(storedUser);
+                    setUser(parsed);
+                    setAuthCookie(parsed.id);
                   } catch {
                     setUser(null);
+                    clearAuthCookie();
                   }
                 } else {
                   setUser(null);
+                  clearAuthCookie();
                 }
               }
             });
@@ -91,24 +112,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Check local storage for persistent demo/cached auth session
+        // Check local storage for persistent cached auth session
         const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
         if (storedUser && isMounted) {
           try {
-            setUser(JSON.parse(storedUser));
+            const parsed = JSON.parse(storedUser);
+            setUser(parsed);
+            setAuthCookie(parsed.id);
           } catch {
             setUser(null);
+            clearAuthCookie();
           }
         } else if (isMounted) {
-          // Default initial persona (Aria Chen)
-          const defaultDemoUser: AuthUser = {
-            id: "user-aria-chen",
-            name: "Aria Chen",
-            email: "aria.chen@stanford.edu",
-            avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-            provider: "demo",
-          };
-          setUser(defaultDemoUser);
+          setUser(null);
+          clearAuthCookie();
         }
       } catch (err) {
         console.error("Auth initialization error:", err);
@@ -150,19 +167,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Zero-cost Demo Mode implementation: Instant seamless Google login
+      // Fallback Google account for development
+      const emailFallback = customAccount?.email || "user@example.com";
+      const nameFallback = customAccount?.name || emailFallback.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
       const googleUser: AuthUser = {
         id: `google-${Date.now()}`,
-        name: customAccount?.name || "Aria Chen",
-        email: customAccount?.email || "aria.chen@stanford.edu",
+        name: nameFallback,
+        email: emailFallback,
         avatar:
           customAccount?.avatar ||
-          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+          `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(emailFallback)}&backgroundColor=e8decb`,
         provider: "google",
         createdAt: new Date().toISOString(),
       };
 
       setUser(googleUser);
+      setAuthCookie(googleUser.id);
       localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(googleUser));
       setIsLoading(false);
       return { success: true };
@@ -192,17 +212,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Demo Mode GitHub login
+      // Fallback GitHub account for development
       const githubUser: AuthUser = {
         id: `github-${Date.now()}`,
-        name: "Marcus Reed",
-        email: "marcus.reed@cloudscale.io",
-        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        name: "Developer",
+        email: "developer@example.com",
+        avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=dev&backgroundColor=e8decb",
         provider: "github",
         createdAt: new Date().toISOString(),
       };
 
       setUser(githubUser);
+      setAuthCookie(githubUser.id);
       localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(githubUser));
       setIsLoading(false);
       return { success: true };
@@ -236,6 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               provider: "email",
             };
             setUser(authUser);
+            setAuthCookie(authUser.id);
             localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(authUser));
           }
           setIsLoading(false);
@@ -243,18 +265,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Demo mode fallback email login
+      // Fallback email login
       const name = email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
       const emailUser: AuthUser = {
         id: `user-${Date.now()}`,
         name: name || "Kronos User",
         email,
-        avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${email}&backgroundColor=e8decb`,
+        avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(email)}&backgroundColor=e8decb`,
         provider: "email",
         createdAt: new Date().toISOString(),
       };
 
       setUser(emailUser);
+      setAuthCookie(emailUser.id);
       localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(emailUser));
       setIsLoading(false);
       return { success: true };
@@ -292,6 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               provider: "email",
             };
             setUser(authUser);
+            setAuthCookie(authUser.id);
             localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(authUser));
           }
           setIsLoading(false);
@@ -299,7 +323,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Demo mode fallback signup
+      // Fallback signup
       const newUser: AuthUser = {
         id: `user-${Date.now()}`,
         name: fullName || "Kronos User",
@@ -310,12 +334,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       setUser(newUser);
+      setAuthCookie(newUser.id);
       localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(newUser));
       setIsLoading(false);
       return { success: true };
     } catch (err: any) {
       setIsLoading(false);
       return { success: false, error: err.message || "Failed to create account" };
+    }
+  };
+
+  const forgotPassword = async (email: string) => {
+    setIsLoading(true);
+    try {
+      if (isSupabaseConfigured) {
+        const supabase = createClient();
+        if (supabase) {
+          const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined,
+          });
+          if (error) {
+            setIsLoading(false);
+            return { success: false, error: error.message };
+          }
+        }
+      }
+      setIsLoading(false);
+      return { success: true };
+    } catch (err: any) {
+      setIsLoading(false);
+      return { success: false, error: err.message || "Failed to send reset instructions" };
+    }
+  };
+
+  const resetPassword = async (newPassword: string) => {
+    setIsLoading(true);
+    try {
+      if (isSupabaseConfigured) {
+        const supabase = createClient();
+        if (supabase) {
+          const { error } = await supabase.auth.updateUser({
+            password: newPassword,
+          });
+          if (error) {
+            setIsLoading(false);
+            return { success: false, error: error.message };
+          }
+        }
+      }
+      setIsLoading(false);
+      return { success: true };
+    } catch (err: any) {
+      setIsLoading(false);
+      return { success: false, error: err.message || "Failed to update password" };
     }
   };
 
@@ -332,6 +403,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn("Sign out warning:", err);
     } finally {
       localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+      clearAuthCookie();
       setUser(null);
       setIsLoading(false);
     }
@@ -348,6 +420,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGithub,
         signInWithEmail,
         signUpWithEmail,
+        forgotPassword,
+        resetPassword,
         signOut,
       }}
     >

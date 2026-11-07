@@ -1,0 +1,115 @@
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+export async function middleware(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  });
+
+  const pathname = request.nextUrl.pathname;
+
+  // Static assets, api routes, and auth callback bypass middleware
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/auth/callback") ||
+    pathname.includes(".")
+  ) {
+    return supabaseResponse;
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const isAuthRoute =
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password";
+
+  const isProtectedRoute =
+    pathname === "/" ||
+    pathname.startsWith("/home") ||
+    pathname.startsWith("/ai") ||
+    pathname.startsWith("/my-day") ||
+    pathname.startsWith("/growth") ||
+    pathname.startsWith("/profile") ||
+    pathname.startsWith("/onboarding");
+
+  // 1. Live Supabase Session Check
+  if (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes("your-project")) {
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({
+            request,
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    });
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // Root route: redirect to home if authenticated, else login
+    if (pathname === "/") {
+      if (user) {
+        return NextResponse.redirect(new URL("/home", request.url));
+      } else {
+        return NextResponse.redirect(new URL("/login", request.url));
+      }
+    }
+
+    // Unauthenticated user attempting to access protected route
+    if (!user && isProtectedRoute) {
+      const redirectUrl = new URL("/login", request.url);
+      redirectUrl.searchParams.set("redirectTo", pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    // Authenticated user attempting to access login/signup
+    if (user && isAuthRoute) {
+      return NextResponse.redirect(new URL("/home", request.url));
+    }
+
+    return supabaseResponse;
+  }
+
+  // 2. Cookie session check when Supabase is running locally/mocked
+  const authCookie = request.cookies.get("kronos_auth_user");
+  const isAuthenticated = Boolean(authCookie?.value);
+
+  if (pathname === "/") {
+    if (isAuthenticated) {
+      return NextResponse.redirect(new URL("/home", request.url));
+    } else {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  }
+
+  if (!isAuthenticated && isProtectedRoute) {
+    const redirectUrl = new URL("/login", request.url);
+    redirectUrl.searchParams.set("redirectTo", pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (isAuthenticated && isAuthRoute) {
+    return NextResponse.redirect(new URL("/home", request.url));
+  }
+
+  return supabaseResponse;
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
+};

@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getAIProvider } from "@/lib/ai";
+import { getAIProvider, isAIConfigured } from "@/lib/ai";
 import { saveUserMemory } from "@/lib/ai/memory";
+
+export async function GET() {
+  return NextResponse.json({
+    configured: isAIConfigured(),
+    provider: isAIConfigured() ? "Google Gemini" : "None",
+  });
+}
 
 const chatRequestSchema = z.object({
   prompt: z.string().min(1, "Prompt cannot be empty"),
@@ -78,12 +85,14 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("AI Chat Route Error:", error);
+    const isConfigError = error.message?.includes("GEMINI_API_KEY");
     return NextResponse.json(
       {
-        error: "Failed to generate schedule plan",
-        message: error.message || "Internal server error",
+        success: false,
+        error: isConfigError ? "CONFIGURATION_REQUIRED" : "AI_GENERATION_FAILED",
+        message: error.message || "Failed to generate schedule plan",
       },
-      { status: 500 }
+      { status: isConfigError ? 503 : 500 }
     );
   }
 }

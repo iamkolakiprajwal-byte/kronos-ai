@@ -24,9 +24,12 @@ import { StepReviewSummary } from "@/components/onboarding/step-review-summary";
 import { StepSchedulePreview } from "@/components/onboarding/step-schedule-preview";
 import Link from "next/link";
 import { Clock, X } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
+import { dataService } from "@/lib/supabase/data-service";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { onboardingDraft, setOnboardingDraft, completeOnboarding } = useDemo();
 
   const [formData, setFormData] = useState<OnboardingFormData>(
@@ -139,8 +142,11 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     completeOnboarding(formData);
+    if (user?.id) {
+      await dataService.saveOnboarding(user.id, totalSteps, formData, true);
+    }
     router.push("/home");
   };
 
