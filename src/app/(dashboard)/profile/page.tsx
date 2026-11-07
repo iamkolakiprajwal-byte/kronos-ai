@@ -539,44 +539,15 @@ export default function ProfilePage() {
               </div>
               <div>
                 <h3 className="font-serif text-lg font-normal text-[#201e1b]">
-                  Reset Demo State?
+                  Clear Local Workspace Data?
                 </h3>
                 <p className="text-xs text-[#545049] mt-1 leading-relaxed">
-                  This will clear custom tasks, focus session reflections, and chat messages in your browser and restore the pristine assignment demo baseline.
+                  This will clear custom tasks, focus session reflections, and chat messages in your local browser cache and reset your workspace to a clean state.
                 </p>
               </div>
             </div>
 
-            <div className="space-y-2 pt-2 border-t border-[#e8e2d5]">
-              <span className="text-[10px] uppercase font-bold text-[#8a8479] tracking-wider block">
-                Choose Persona Baseline to Restore:
-              </span>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <button
-                  onClick={() => handleConfirmReset("student")}
-                  className="p-2.5 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-center font-medium text-[#201e1b] cursor-pointer transition-colors"
-                >
-                  <span className="block font-semibold">Student</span>
-                  <span className="text-[10px] text-[#8a8479]">Aria Chen</span>
-                </button>
-                <button
-                  onClick={() => handleConfirmReset("professional")}
-                  className="p-2.5 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-center font-medium text-[#201e1b] cursor-pointer transition-colors"
-                >
-                  <span className="block font-semibold">Pro</span>
-                  <span className="text-[10px] text-[#8a8479]">Marcus Reed</span>
-                </button>
-                <button
-                  onClick={() => handleConfirmReset("both")}
-                  className="p-2.5 rounded-xl border border-[#e8e2d5] bg-white hover:bg-[#f2eee6] text-center font-medium text-[#201e1b] cursor-pointer transition-colors"
-                >
-                  <span className="block font-semibold">Dual</span>
-                  <span className="text-[10px] text-[#8a8479]">Elena Rostova</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e8e2d5]">
               <button
                 onClick={() => setIsResetModalOpen(false)}
                 className="px-4 py-2 rounded-xl text-xs font-medium text-[#545049] hover:bg-[#f2eee6] transition-colors cursor-pointer"
@@ -584,10 +555,10 @@ export default function ProfilePage() {
                 Cancel
               </button>
               <button
-                onClick={() => handleConfirmReset(role)}
-                className="px-4 py-2 rounded-xl bg-[#b85437] hover:bg-[#9e442b] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                onClick={() => handleConfirmReset()}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#ba4328] hover:bg-[#96341d] text-white transition-colors cursor-pointer"
               >
-                Confirm Reset ({role})
+                Clear Local Data
               </button>
             </div>
           </div>

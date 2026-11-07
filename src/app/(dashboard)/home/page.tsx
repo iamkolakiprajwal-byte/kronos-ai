@@ -66,7 +66,7 @@ export default function HomePage() {
               {isSelectedToday ? "Today's Agenda" : "Inspecting Selected Day"}
             </span>
             <span className="text-[9px] sm:text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-[#f8f6f0] text-[#545049] border border-[#e4ded2]">
-              {role === "student" ? "Stanford Junior Year" : role === "professional" ? "CloudScale Sprint 42" : "Synthetix + Berkeley MS"}
+              {profile.headline || (role === "student" ? "Academic Schedule" : role === "professional" ? "Workplace Focus" : "Dual Track Schedule")}
             </span>
             <span className="text-[9px] sm:text-[10px] text-[#8a8479]">
               • {profile.planningStyle} rhythm

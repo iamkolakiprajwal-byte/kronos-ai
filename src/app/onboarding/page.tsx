@@ -4,11 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDemo } from "@/context/demo-context";
 import { UserRole, OnboardingFormData } from "@/types";
-import {
-  studentOnboardingPreset,
-  professionalOnboardingPreset,
-  bothOnboardingPreset,
-} from "@/lib/mock/demo-data";
+import { cleanOnboardingInitialData } from "@/lib/onboarding/defaults";
 import { StepIndicator } from "@/components/onboarding/step-indicator";
 import { StepWelcome } from "@/components/onboarding/step-welcome";
 import { StepUserType } from "@/components/onboarding/step-user-type";
@@ -33,27 +29,29 @@ export default function OnboardingPage() {
   const { onboardingDraft, setOnboardingDraft, completeOnboarding } = useDemo();
 
   const [formData, setFormData] = useState<OnboardingFormData>(
-    () => onboardingDraft || studentOnboardingPreset
+    () => onboardingDraft || cleanOnboardingInitialData
   );
   const [currentStep, setCurrentStep] = useState(1);
+
+  // Automatically populate authenticated user's name & email from real session if available
+  React.useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || user.name || "",
+        email: prev.email || user.email || "",
+      }));
+    }
+  }, [user]);
 
   // Sync draft in context as user types
   const updateFormData = (fields: Partial<OnboardingFormData>) => {
     setFormData((prev) => {
-      const current = prev || studentOnboardingPreset;
+      const current = prev || cleanOnboardingInitialData;
       const updated = { ...current, ...fields };
       setOnboardingDraft(updated);
       return updated;
     });
-  };
-
-  const handleLoadPreset = (role: UserRole) => {
-    let preset = studentOnboardingPreset;
-    if (role === "professional") preset = professionalOnboardingPreset;
-    if (role === "both") preset = bothOnboardingPreset;
-
-    setFormData(preset);
-    setOnboardingDraft(preset);
   };
 
   // Determine dynamic step list based on userType
@@ -179,7 +177,6 @@ export default function OnboardingPage() {
           totalSteps={totalSteps}
           stepTitle={currentStepDef.title}
           userType={formData.userType}
-          onLoadPreset={handleLoadPreset}
         />
 
         {/* Step Component Routing */}

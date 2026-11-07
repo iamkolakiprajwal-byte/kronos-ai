@@ -63,7 +63,7 @@ export function StepPersonalInfo({ data, onChange, onNext, onBack }: StepPersona
               onChange({ name: e.target.value });
               if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
             }}
-            placeholder="e.g. Aria Chen or Marcus Reed"
+            placeholder="e.g. Alex Morgan"
             className="w-full px-3.5 py-2.5 bg-[#fbfaf7] border border-[#e6e3da] rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all"
           />
           {errors.name && <p className="text-[11px] text-rose-600 mt-1">{errors.name}</p>}
@@ -116,7 +116,7 @@ export function StepPersonalInfo({ data, onChange, onNext, onBack }: StepPersona
               type="text"
               value={data.institutionOrCompany}
               onChange={(e) => onChange({ institutionOrCompany: e.target.value })}
-              placeholder="e.g. Stanford University or CloudScale"
+              placeholder="e.g. University / Company name"
               className="w-full px-3.5 py-2.5 bg-[#fbfaf7] border border-[#e6e3da] rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all"
             />
           </div>

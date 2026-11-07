@@ -15,8 +15,8 @@ const chatRequestSchema = z.object({
   context: z.object({
     profile: z
       .object({
-        id: z.string().default("user-demo"),
-        name: z.string().default("Aria"),
+        id: z.string().default("user"),
+        name: z.string().default("Planner"),
         role: z.enum(["student", "professional", "both"]).default("student"),
         wakeTime: z.string().default("07:00"),
         sleepTime: z.string().default("23:00"),
@@ -28,8 +28,8 @@ const chatRequestSchema = z.object({
       })
       .passthrough()
       .default({
-        id: "user-demo",
-        name: "Aria",
+        id: "user",
+        name: "Planner",
         role: "student",
         wakeTime: "07:00",
         sleepTime: "23:00",

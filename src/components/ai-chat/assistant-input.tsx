@@ -346,7 +346,7 @@ export function AssistantInput() {
                 {[
                   "Study economics 1 hour and gym at 5",
                   "Reschedule afternoon tasks due to meeting",
-                  "Prepare 45m review for Stanford thesis",
+                  "Prepare 45m review for semester project",
                 ].map((preset, i) => (
                   <button
                     key={i}

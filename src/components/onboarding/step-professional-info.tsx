@@ -94,7 +94,7 @@ export function StepProfessionalInfo({ data, onChange, onNext, onBack }: StepPro
               type="text"
               value={data.company}
               onChange={(e) => onChange({ company: e.target.value })}
-              placeholder="e.g. CloudScale Distributed Systems"
+              placeholder="e.g. Acme Corp, Engineering Team"
               className="w-full px-3.5 py-2.5 bg-[#fbfaf7] border border-[#e6e3da] rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all"
             />
           </div>
@@ -236,7 +236,7 @@ export function StepProfessionalInfo({ data, onChange, onNext, onBack }: StepPro
           <div className="space-y-2">
             {data.recurringMeetings.length === 0 ? (
               <p className="text-xs text-slate-400 py-3 text-center">
-                No recurring meetings specified yet. Click "+ Add Meeting" above or use presets.
+                No recurring meetings specified yet. Click "+ Add Meeting" above.
               </p>
             ) : (
               data.recurringMeetings.map((rm) => (

@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.1.0] - 2026-11-07
+
+### Fixed & Cleaned — Real Google OAuth Integration, Complete Demo Purge & Clean Onboarding
+- **Elimination of Simulated Google Modal & Mock Authentication**:
+  - Removed `isGoogleModalOpen`, custom Google email/name input dialogs, and mock account generators (`google-${Date.now()}`, `user-${Date.now()}`) from `login/page.tsx`, `signup/page.tsx`, and `auth-context.tsx`.
+  - Implemented honest Google OAuth initiation via Supabase `signInWithOAuth({ provider: 'google' })`.
+  - When Supabase credentials or the Google OAuth provider are unconfigured in environment variables, the system displays an honest configuration notice instead of silently faking login.
+  - Enhanced `/auth/callback` to capture query error params, exchange codes for live Supabase sessions, extract Google profile metadata (`full_name`, `avatar_url`, `email`), create initial user profiles in `public.profiles`, and route returning users to `/home` and new users to `/onboarding`.
+- **Complete Eradication of Onboarding Presets & Pre-Populated Data**:
+  - Authored `cleanOnboardingInitialData` (`src/lib/onboarding/defaults.ts`) ensuring all new onboarding profiles begin with empty fields (empty strings, empty subjects, empty timetables, empty meetings, empty goals and habits).
+  - Removed `studentOnboardingPreset`, `professionalOnboardingPreset`, and `bothOnboardingPreset` from `/onboarding`.
+  - Removed "Auto-fill preset: Student / Pro / Both" buttons from `StepIndicator` (`src/components/onboarding/step-indicator.tsx`).
+  - Purged persona names and sample institutions from placeholders in `step-personal-info.tsx`, `step-academic-info.tsx`, and `step-professional-info.tsx`.
+  - Fixed `setRole` in `DemoProvider` to prevent overwriting user data with hardcoded demo baselines.
+- **Clean Storage Baseline**:
+  - Authored `getCleanInitialState()` in `src/lib/storage/index.ts` ensuring that new accounts, resets, and migrations default to zero tasks, zero calendar events, zero goals, and zero habits.
+  - Replaced the demo persona switcher in the `/profile` reset modal with a clean "Clear Local Workspace Data" action.
+- **Automated Verification**:
+  - Authored unit test suite `tests/auth/auth-clean-state.test.ts` (23 assertions passing).
+  - Executed Puppeteer browser verification confirming zero demo personas on `/login`, no modal popup on clicking Continue with Google, clean signup, and completely empty onboarding inputs.
+  - Total automated unit & integration tests passing: **153 / 153**.
+
 ## [2.0.0] - 2026-11-05
 
 ### Major — Production Transformation, Real Multi-User Authentication & Database Isolation

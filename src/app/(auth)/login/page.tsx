@@ -1,28 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Clock,
   Lock,
   Mail,
   ArrowRight,
-  GraduationCap,
-  Briefcase,
-  Compass,
-  ShieldCheck,
   Eye,
   EyeOff,
-  Check,
-  X,
-  User,
   Sparkles,
 } from "lucide-react";
-import { useDemo } from "@/context/demo-context";
 import { useAuth } from "@/context/auth-context";
-import { UserRole } from "@/types";
-import { cn } from "@/lib/utils";
 
 // Official Google 4-Color "G" SVG Icon
 function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -48,101 +38,188 @@ function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-// GitHub Mark SVG Icon
-function GithubIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-      />
-    </svg>
-  );
-}
-
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const { setRole } = useDemo();
-  const { signInWithGoogle, signInWithGithub, signInWithEmail, isSupabaseLive } = useAuth();
+  const searchParams = useSearchParams();
+  const { signInWithGoogle, signInWithEmail } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
+  const [noticeMessage, setNoticeMessage] = useState("");
 
-  // Custom Google account input for demo modal
-  const [customGoogleName, setCustomGoogleName] = useState("");
-  const [customGoogleEmail, setCustomGoogleEmail] = useState("");
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    const messageParam = searchParams.get("message");
+    if (errorParam) {
+      if (errorParam === "auth_exchange_failed") {
+        setErrorMessage("Authentication failed or authorization was cancelled. Please try again.");
+      } else {
+        setErrorMessage(decodeURIComponent(errorParam));
+      }
+    }
+    if (messageParam) {
+      setNoticeMessage(decodeURIComponent(messageParam));
+    }
+  }, [searchParams]);
 
   const handleGoogleClick = async () => {
-    if (isSupabaseLive) {
-      setLoading(true);
-      const res = await signInWithGoogle();
-      if (!res.success && res.error) {
-        setErrorMessage(res.error);
-        setLoading(false);
-      }
-    } else {
-      // In demo mode, open the interactive Google Account Selector
-      setIsGoogleModalOpen(true);
-    }
-  };
-
-  const handleSelectGoogleAccount = async (account: { name: string; email: string; avatar?: string; role?: UserRole }) => {
     setLoading(true);
-    setIsGoogleModalOpen(false);
-    if (account.role) {
-      setRole(account.role);
-    }
-    const res = await signInWithGoogle(account);
-    setLoading(false);
-    if (res.success) {
-      router.push("/home");
-    } else if (res.error) {
+    setErrorMessage("");
+    const res = await signInWithGoogle();
+    if (!res.success && res.error) {
       setErrorMessage(res.error);
-    }
-  };
-
-  const handleGithubClick = async () => {
-    setLoading(true);
-    const res = await signInWithGithub();
-    setLoading(false);
-    if (res.success) {
-      setRole("professional");
-      router.push("/home");
-    } else if (res.error) {
-      setErrorMessage(res.error);
+      setLoading(false);
     }
   };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      setErrorMessage("Please fill in both email and password.");
+      setErrorMessage("Please enter both email and password.");
       return;
     }
 
     setLoading(true);
     setErrorMessage("");
 
-    const res = await signInWithEmail(email, password);
+    const res = await signInWithEmail(email.trim(), password);
     setLoading(false);
 
     if (res.success) {
       router.push("/home");
     } else {
-      setErrorMessage(res.error || "Authentication failed.");
+      setErrorMessage(res.error || "Authentication failed. Please check your credentials.");
     }
   };
 
-  const handleQuickDemo = (role: UserRole) => {
-    setRole(role);
-    router.push("/home");
-  };
+  return (
+    <div className="max-w-md w-full bg-[#fdfcf9] rounded-3xl border border-[#e8e2d5] p-6 sm:p-8 shadow-sm space-y-6 animate-in fade-in-50 duration-200">
+      {/* Title & Briefing */}
+      <div className="space-y-1.5">
+        <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#687050] bg-[#edf2ec] border border-[#d6e0d5] px-2.5 py-0.5 rounded-full">
+          <Sparkles className="w-3 h-3 text-[#b37e2a]" />
+          <span>Authentication</span>
+        </div>
+        <h1 className="font-serif text-2xl sm:text-3xl font-normal text-[#201e1b] tracking-tight">
+          Sign in to Kronos
+        </h1>
+        <p className="text-xs text-[#545049] leading-relaxed">
+          Access your intelligent schedule, adaptive study blocks, and personalized calendar.
+        </p>
+      </div>
 
+      {/* Notice Banner */}
+      {noticeMessage && (
+        <div className="p-3 rounded-2xl bg-[#ecf4ec] border border-[#cbe3cb] text-xs text-[#2e622e] flex items-start gap-2">
+          <span className="font-bold">Info:</span>
+          <span className="flex-1">{noticeMessage}</span>
+        </div>
+      )}
+
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="p-3 rounded-2xl bg-[#faece7] border border-[#f3cec3] text-xs text-[#b85437] flex items-start gap-2">
+          <span className="font-bold">Notice:</span>
+          <span className="flex-1">{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Google OAuth Provider */}
+      <div>
+        <button
+          type="button"
+          onClick={handleGoogleClick}
+          disabled={loading}
+          className="w-full h-11 px-4 rounded-xl border border-[#d5cdbd] bg-white hover:bg-[#f2eee6] text-[#201e1b] text-xs font-semibold flex items-center justify-center gap-3 transition-all shadow-2xs active:scale-98 cursor-pointer disabled:opacity-50"
+        >
+          <GoogleIcon className="w-4 h-4 shrink-0" />
+          <span>Continue with Google</span>
+        </button>
+      </div>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-[1px] bg-[#e8e2d5]" />
+        <span className="text-[11px] uppercase tracking-wider text-[#8a8479] font-medium">
+          or with email
+        </span>
+        <div className="flex-1 h-[1px] bg-[#e8e2d5]" />
+      </div>
+
+      {/* Email / Password Form */}
+      <form onSubmit={handleEmailLogin} className="space-y-3.5" autoComplete="off">
+        <div>
+          <label className="block text-xs font-semibold text-[#545049] mb-1 flex items-center gap-1.5">
+            <Mail className="w-3.5 h-3.5 text-[#8a8479]" />
+            <span>Email Address</span>
+          </label>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="alex@example.com"
+            className="w-full px-3.5 py-2.5 bg-white border border-[#e8e2d5] rounded-xl text-xs text-[#201e1b] placeholder:text-[#8a8479] focus:outline-hidden focus:border-[#201e1b] transition-all"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#545049] mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5 text-[#8a8479]" />
+              <span>Password</span>
+            </span>
+            <Link
+              href="/forgot-password"
+              className="text-[10px] text-[#8a8479] cursor-pointer hover:underline hover:text-[#201e1b]"
+            >
+              Forgot?
+            </Link>
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••••••"
+              className="w-full pl-3.5 pr-10 py-2.5 bg-white border border-[#e8e2d5] rounded-xl text-xs text-[#201e1b] placeholder:text-[#8a8479] focus:outline-hidden focus:border-[#201e1b] transition-all font-mono"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8a8479] hover:text-[#201e1b] cursor-pointer"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full h-11 bg-[#201e1b] hover:bg-[#34302b] text-[#f8f6f0] rounded-xl text-xs font-semibold shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer disabled:opacity-50"
+        >
+          <span>{loading ? "Authenticating..." : "Sign In to Workspace"}</span>
+          <ArrowRight className="w-3.5 h-3.5 text-[#e8decb]" />
+        </button>
+      </form>
+
+      {/* Footer switch to Signup */}
+      <div className="text-center text-xs text-[#545049] pt-2 border-t border-[#e8e2d5]">
+        New to Kronos?{" "}
+        <Link href="/signup" className="font-semibold text-[#201e1b] hover:underline">
+          Create an account
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#f7f5f0] text-[#201e1b] flex flex-col justify-between selection:bg-[#e8decb] font-sans">
       {/* Top Header */}
@@ -160,194 +237,10 @@ export default function LoginPage() {
 
       {/* Main Container */}
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
-        <div className="max-w-md w-full bg-[#fdfcf9] rounded-3xl border border-[#e8e2d5] p-6 sm:p-8 shadow-sm space-y-6 animate-in fade-in-50 duration-200">
-          {/* Title & Briefing */}
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#687050] bg-[#edf2ec] border border-[#d6e0d5] px-2.5 py-0.5 rounded-full">
-              <Sparkles className="w-3 h-3 text-[#b37e2a]" />
-              <span>Authentication</span>
-            </div>
-            <h1 className="font-serif text-2xl sm:text-3xl font-normal text-[#201e1b] tracking-tight">
-              Sign in to Kronos
-            </h1>
-            <p className="text-xs text-[#545049] leading-relaxed">
-              Access your intelligent schedule, adaptive study blocks, and personalized calendar.
-            </p>
-          </div>
-
-          {/* Error Banner */}
-          {errorMessage && (
-            <div className="p-3 rounded-2xl bg-[#faece7] border border-[#f3cec3] text-xs text-[#b85437] flex items-start gap-2">
-              <span className="font-bold">Notice:</span>
-              <span className="flex-1">{errorMessage}</span>
-            </div>
-          )}
-
-          {/* Social OAuth Providers */}
-          <div className="space-y-2.5">
-            {/* Google Sign-In Button */}
-            <button
-              type="button"
-              onClick={handleGoogleClick}
-              disabled={loading}
-              className="w-full h-11 px-4 rounded-xl border border-[#d5cdbd] bg-white hover:bg-[#f2eee6] text-[#201e1b] text-xs font-semibold flex items-center justify-center gap-3 transition-all shadow-2xs active:scale-98 cursor-pointer disabled:opacity-50"
-            >
-              <GoogleIcon className="w-4 h-4 shrink-0" />
-              <span>Continue with Google</span>
-            </button>
-
-            {/* GitHub Sign-In Button */}
-            <button
-              type="button"
-              onClick={handleGithubClick}
-              disabled={loading}
-              className="w-full h-11 px-4 rounded-xl border border-[#d5cdbd] bg-white hover:bg-[#f2eee6] text-[#201e1b] text-xs font-semibold flex items-center justify-center gap-3 transition-all shadow-2xs active:scale-98 cursor-pointer disabled:opacity-50"
-            >
-              <GithubIcon className="w-4 h-4 shrink-0 text-[#201e1b]" />
-              <span>Continue with GitHub</span>
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-[1px] bg-[#e8e2d5]" />
-            <span className="text-[11px] uppercase tracking-wider text-[#8a8479] font-medium">
-              or with email
-            </span>
-            <div className="flex-1 h-[1px] bg-[#e8e2d5]" />
-          </div>
-
-          {/* Email / Password Form */}
-          <form onSubmit={handleEmailLogin} className="space-y-3.5">
-            <div>
-              <label className="block text-xs font-semibold text-[#545049] mb-1 flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-[#8a8479]" />
-                <span>Email Address</span>
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@stanford.edu or you@company.io"
-                className="w-full px-3.5 py-2.5 bg-white border border-[#e8e2d5] rounded-xl text-xs text-[#201e1b] placeholder:text-[#8a8479] focus:outline-hidden focus:border-[#201e1b] transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#545049] mb-1 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-[#8a8479]" />
-                  <span>Password</span>
-                </span>
-                <Link
-                  href="/forgot-password"
-                  className="text-[10px] text-[#8a8479] cursor-pointer hover:underline hover:text-[#201e1b]"
-                >
-                  Forgot?
-                </Link>
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-3.5 py-2.5 pr-10 bg-white border border-[#e8e2d5] rounded-xl text-xs text-[#201e1b] placeholder:text-[#8a8479] focus:outline-hidden focus:border-[#201e1b] transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8a8479] hover:text-[#201e1b] transition-colors cursor-pointer"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-11 bg-[#201e1b] hover:bg-[#34302b] text-[#f8f6f0] rounded-xl text-xs font-semibold shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer disabled:opacity-50"
-            >
-              <span>{loading ? "Authenticating..." : "Sign In to Workspace"}</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#e8decb]" />
-            </button>
-          </form>
-
-          {/* Footer switch to Signup */}
-          <div className="text-center text-xs text-[#545049] pt-2 border-t border-[#e8e2d5]">
-            New to Kronos?{" "}
-            <Link href="/signup" className="font-semibold text-[#201e1b] hover:underline">
-              Create an account
-            </Link>
-          </div>
-        </div>
+        <Suspense fallback={<div className="text-xs text-[#8a8479]">Loading...</div>}>
+          <LoginForm />
+        </Suspense>
       </main>
-
-      {/* Google Account Selector Dialog */}
-      {isGoogleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#201e1b]/50 backdrop-blur-xs animate-in fade-in-50 duration-150">
-          <div className="bg-white rounded-3xl border border-[#e8e2d5] max-w-sm w-full p-5 sm:p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#e8e2d5]">
-              <div className="flex items-center gap-2">
-                <GoogleIcon className="w-5 h-5" />
-                <h3 className="font-medium text-sm text-[#201e1b]">Sign in with Google</h3>
-              </div>
-              <button
-                onClick={() => setIsGoogleModalOpen(false)}
-                className="p-1 rounded-md text-[#8a8479] hover:text-[#201e1b] hover:bg-[#f2eee6]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-[#545049] leading-relaxed">
-              Enter your Google account credentials to access your personalized planner workspace:
-            </p>
-
-            <div className="space-y-2.5 pt-1">
-              <div>
-                <label className="block text-[11px] font-semibold text-[#545049] mb-1">Full Name</label>
-                <input
-                  type="text"
-                  value={customGoogleName}
-                  onChange={(e) => setCustomGoogleName(e.target.value)}
-                  placeholder="e.g. Alex Johnson"
-                  className="w-full px-3 py-2 bg-[#fbf9f5] border border-[#e8e2d5] rounded-xl text-xs text-[#201e1b]"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-[#545049] mb-1">Google Email Address</label>
-                <input
-                  type="email"
-                  value={customGoogleEmail}
-                  onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                  placeholder="alex@gmail.com"
-                  className="w-full px-3 py-2 bg-[#fbf9f5] border border-[#e8e2d5] rounded-xl text-xs text-[#201e1b]"
-                />
-              </div>
-
-              <button
-                type="button"
-                disabled={!customGoogleEmail.trim()}
-                onClick={() =>
-                  handleSelectGoogleAccount({
-                    name: customGoogleName.trim() || customGoogleEmail.split("@")[0],
-                    email: customGoogleEmail.trim(),
-                  })
-                }
-                className="w-full h-10 mt-2 bg-[#201e1b] hover:bg-[#34302b] disabled:opacity-40 text-[#f8f6f0] rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <span>Continue as Google User</span>
-                <ArrowRight className="w-3.5 h-3.5 text-[#e8decb]" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Footer */}
       <footer className="p-4 text-center text-xs text-[#8a8479] border-t border-[#e8e2d5]">

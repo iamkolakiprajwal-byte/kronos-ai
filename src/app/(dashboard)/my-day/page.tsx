@@ -200,10 +200,10 @@ export default function MyDayPage() {
           </div>
           <p className="text-[11px] sm:text-xs text-[#8a8479] mt-0.5">
             {role === "student"
-              ? "Stanford Timetable • Midterm Buffers • Walk-Time Windows"
+              ? "Class Timetable • Study Buffers • Transition Windows"
               : role === "professional"
-              ? "CloudScale Sprint 42 • Deep Work Ratio • Hard 6 PM Boundary"
-              : "Synthetix Eng (Day) + UC Berkeley MS (Evening) • Overlap Protected"}
+              ? "Core Work Hours • Deep Work Focus • Protected Boundaries"
+              : "Work Shifts & Academic Classes • Overlap Protected"}
           </p>
         </div>
 

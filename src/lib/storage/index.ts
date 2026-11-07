@@ -57,13 +57,65 @@ export interface PersistedKronosState {
   lastSavedTimestamp: number;
 }
 
+export const cleanDefaultProfile: UserProfile = {
+  id: "user-default",
+  name: "",
+  email: "",
+  avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Kronos&backgroundColor=e8decb",
+  role: "student",
+  headline: "",
+  institutionOrCompany: "",
+  wakeTime: "07:00",
+  sleepTime: "23:00",
+  mostProductivePeriod: "morning",
+  preferredFocusDuration: 45,
+  preferredBreakDuration: 10,
+  planningStyle: "time-blocked",
+  sustainabilityOptIn: true,
+};
+
+export function getCleanInitialState(role: UserRole = "student"): PersistedKronosState {
+  const welcomeMessage: ChatMessage = {
+    id: `msg-welcome-${role}`,
+    sender: "assistant",
+    text: "Welcome to Kronos AI! What would you like to accomplish today?",
+    timestamp: "Just now",
+  };
+
+  return {
+    version: KRONOS_STORAGE_VERSION,
+    role,
+    profile: { ...cleanDefaultProfile, role },
+    tasks: [],
+    calendarEvents: [],
+    goals: [],
+    habits: [],
+    habitTransitions: [],
+    focusSessions: [],
+    chatMessages: [welcomeMessage],
+    notifications: [
+      {
+        id: "notif-welcome",
+        title: "Welcome to Kronos AI",
+        message: "Your adaptive planner is ready. Tap the + button in the bottom right or ask AI to schedule your first task.",
+        timestamp: "Just now",
+        read: false,
+        type: "system",
+      },
+    ],
+    ecoEntries: [],
+    selectedDateStr: DEMO_REFERENCE_DATE,
+    lastSavedTimestamp: Date.now(),
+  };
+}
+
 /**
  * Safely migrates raw stored state forward into the current schema version without data loss.
  * Preserves existing user tasks, habits, reflections, and goals while populating any newly required fields.
  */
 export function migrateState(raw: any): PersistedKronosState {
   const role: UserRole = raw.role === "professional" || raw.role === "both" ? raw.role : "student";
-  const baseline = getInitialDemoState(role);
+  const baseline = getCleanInitialState(role);
 
   // Migrate habits, ensuring separated metrics (completion rate, cue consistency, self-reported automaticity)
   const migratedHabits: Habit[] = Array.isArray(raw.habits)

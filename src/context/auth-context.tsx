@@ -143,142 +143,128 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const signInWithGoogle = async (customAccount?: { name: string; email: string; avatar?: string }) => {
+  const signInWithGoogle = async () => {
     setIsLoading(true);
     try {
-      if (isSupabaseConfigured) {
-        const supabase = createClient();
-        if (supabase) {
-          const { error } = await supabase.auth.signInWithOAuth({
-            provider: "google",
-            options: {
-              redirectTo: `${window.location.origin}/auth/callback`,
-              queryParams: {
-                access_type: "offline",
-                prompt: "consent",
-              },
-            },
-          });
-          if (error) {
-            setIsLoading(false);
-            return { success: false, error: error.message };
-          }
-          return { success: true };
-        }
+      if (!isSupabaseConfigured) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error:
+            "Google Authentication requires Supabase to be configured with NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables, and the Google provider enabled in your Supabase dashboard.",
+        };
       }
 
-      // Fallback Google account for development
-      const emailFallback = customAccount?.email || "user@example.com";
-      const nameFallback = customAccount?.name || emailFallback.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-      const googleUser: AuthUser = {
-        id: `google-${Date.now()}`,
-        name: nameFallback,
-        email: emailFallback,
-        avatar:
-          customAccount?.avatar ||
-          `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(emailFallback)}&backgroundColor=e8decb`,
-        provider: "google",
-        createdAt: new Date().toISOString(),
-      };
+      const supabase = createClient();
+      if (!supabase) {
+        setIsLoading(false);
+        return { success: false, error: "Failed to initialize Supabase client." };
+      }
 
-      setUser(googleUser);
-      setAuthCookie(googleUser.id);
-      localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(googleUser));
-      setIsLoading(false);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+
+      if (error) {
+        setIsLoading(false);
+        return { success: false, error: error.message };
+      }
+
       return { success: true };
     } catch (err: any) {
       setIsLoading(false);
-      return { success: false, error: err.message || "Failed to sign in with Google" };
+      return { success: false, error: err.message || "Failed to initiate Google authentication" };
     }
   };
 
   const signInWithGithub = async () => {
     setIsLoading(true);
     try {
-      if (isSupabaseConfigured) {
-        const supabase = createClient();
-        if (supabase) {
-          const { error } = await supabase.auth.signInWithOAuth({
-            provider: "github",
-            options: {
-              redirectTo: `${window.location.origin}/auth/callback`,
-            },
-          });
-          if (error) {
-            setIsLoading(false);
-            return { success: false, error: error.message };
-          }
-          return { success: true };
-        }
+      if (!isSupabaseConfigured) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error:
+            "GitHub Authentication requires Supabase to be configured with NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables, and the GitHub provider enabled in your Supabase dashboard.",
+        };
       }
 
-      // Fallback GitHub account for development
-      const githubUser: AuthUser = {
-        id: `github-${Date.now()}`,
-        name: "Developer",
-        email: "developer@example.com",
-        avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=dev&backgroundColor=e8decb",
-        provider: "github",
-        createdAt: new Date().toISOString(),
-      };
+      const supabase = createClient();
+      if (!supabase) {
+        setIsLoading(false);
+        return { success: false, error: "Failed to initialize Supabase client." };
+      }
 
-      setUser(githubUser);
-      setAuthCookie(githubUser.id);
-      localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(githubUser));
-      setIsLoading(false);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        setIsLoading(false);
+        return { success: false, error: error.message };
+      }
+
       return { success: true };
     } catch (err: any) {
       setIsLoading(false);
-      return { success: false, error: err.message || "Failed to sign in with GitHub" };
+      return { success: false, error: err.message || "Failed to initiate GitHub authentication" };
     }
   };
 
   const signInWithEmail = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      if (isSupabaseConfigured) {
-        const supabase = createClient();
-        if (supabase) {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          if (error) {
-            setIsLoading(false);
-            return { success: false, error: error.message };
-          }
-          if (data.user) {
-            const meta = data.user.user_metadata || {};
-            const authUser: AuthUser = {
-              id: data.user.id,
-              name: meta.full_name || meta.name || email.split("@")[0],
-              email: data.user.email || email,
-              avatar: meta.avatar_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${data.user.id}&backgroundColor=e8decb`,
-              provider: "email",
-            };
-            setUser(authUser);
-            setAuthCookie(authUser.id);
-            localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(authUser));
-          }
-          setIsLoading(false);
-          return { success: true };
-        }
+      if (!isSupabaseConfigured) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error:
+            "Authentication service is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables.",
+        };
       }
 
-      // Fallback email login
-      const name = email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-      const emailUser: AuthUser = {
-        id: `user-${Date.now()}`,
-        name: name || "Kronos User",
-        email,
-        avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(email)}&backgroundColor=e8decb`,
-        provider: "email",
-        createdAt: new Date().toISOString(),
-      };
+      const supabase = createClient();
+      if (!supabase) {
+        setIsLoading(false);
+        return { success: false, error: "Failed to initialize Supabase client." };
+      }
 
-      setUser(emailUser);
-      setAuthCookie(emailUser.id);
-      localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(emailUser));
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setIsLoading(false);
+        return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        const meta = data.user.user_metadata || {};
+        const authUser: AuthUser = {
+          id: data.user.id,
+          name: meta.full_name || meta.name || email.split("@")[0],
+          email: data.user.email || email,
+          avatar:
+            meta.avatar_url ||
+            `https://api.dicebear.com/7.x/notionists/svg?seed=${data.user.id}&backgroundColor=e8decb`,
+          provider: "email",
+        };
+        setUser(authUser);
+        setAuthCookie(authUser.id);
+        localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(authUser));
+      }
+
       setIsLoading(false);
       return { success: true };
     } catch (err: any) {
@@ -290,52 +276,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUpWithEmail = async (fullName: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      if (isSupabaseConfigured) {
-        const supabase = createClient();
-        if (supabase) {
-          const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                full_name: fullName,
-              },
-            },
-          });
-          if (error) {
-            setIsLoading(false);
-            return { success: false, error: error.message };
-          }
-          if (data.user) {
-            const authUser: AuthUser = {
-              id: data.user.id,
-              name: fullName,
-              email,
-              avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${data.user.id}&backgroundColor=e8decb`,
-              provider: "email",
-            };
-            setUser(authUser);
-            setAuthCookie(authUser.id);
-            localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(authUser));
-          }
-          setIsLoading(false);
-          return { success: true };
-        }
+      if (!isSupabaseConfigured) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error:
+            "Authentication service is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables.",
+        };
       }
 
-      // Fallback signup
-      const newUser: AuthUser = {
-        id: `user-${Date.now()}`,
-        name: fullName || "Kronos User",
-        email,
-        avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(fullName)}&backgroundColor=e8decb`,
-        provider: "email",
-        createdAt: new Date().toISOString(),
-      };
+      const supabase = createClient();
+      if (!supabase) {
+        setIsLoading(false);
+        return { success: false, error: "Failed to initialize Supabase client." };
+      }
 
-      setUser(newUser);
-      setAuthCookie(newUser.id);
-      localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(newUser));
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+
+      if (error) {
+        setIsLoading(false);
+        return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        const authUser: AuthUser = {
+          id: data.user.id,
+          name: fullName,
+          email,
+          avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${data.user.id}&backgroundColor=e8decb`,
+          provider: "email",
+        };
+        setUser(authUser);
+        setAuthCookie(authUser.id);
+        localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(authUser));
+      }
+
       setIsLoading(false);
       return { success: true };
     } catch (err: any) {
@@ -347,18 +330,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const forgotPassword = async (email: string) => {
     setIsLoading(true);
     try {
-      if (isSupabaseConfigured) {
-        const supabase = createClient();
-        if (supabase) {
-          const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined,
-          });
-          if (error) {
-            setIsLoading(false);
-            return { success: false, error: error.message };
-          }
-        }
+      if (!isSupabaseConfigured) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error:
+            "Authentication service is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables.",
+        };
       }
+
+      const supabase = createClient();
+      if (!supabase) {
+        setIsLoading(false);
+        return { success: false, error: "Failed to initialize Supabase client." };
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined,
+      });
+
+      if (error) {
+        setIsLoading(false);
+        return { success: false, error: error.message };
+      }
+
       setIsLoading(false);
       return { success: true };
     } catch (err: any) {
@@ -370,18 +365,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resetPassword = async (newPassword: string) => {
     setIsLoading(true);
     try {
-      if (isSupabaseConfigured) {
-        const supabase = createClient();
-        if (supabase) {
-          const { error } = await supabase.auth.updateUser({
-            password: newPassword,
-          });
-          if (error) {
-            setIsLoading(false);
-            return { success: false, error: error.message };
-          }
-        }
+      if (!isSupabaseConfigured) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error:
+            "Authentication service is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables.",
+        };
       }
+
+      const supabase = createClient();
+      if (!supabase) {
+        setIsLoading(false);
+        return { success: false, error: "Failed to initialize Supabase client." };
+      }
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        setIsLoading(false);
+        return { success: false, error: error.message };
+      }
+
       setIsLoading(false);
       return { success: true };
     } catch (err: any) {

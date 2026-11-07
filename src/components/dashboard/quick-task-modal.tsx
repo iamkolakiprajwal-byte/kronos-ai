@@ -20,7 +20,7 @@ export function QuickTaskModal({ isOpen, onClose }: QuickTaskModalProps) {
   const [duration, setDuration] = useState(45);
   const [startTime, setStartTime] = useState("");
   const [isFixed, setIsFixed] = useState(false);
-  const [tag, setTag] = useState(role === "student" ? "CS 106B" : "Architecture");
+  const [tag, setTag] = useState(role === "student" ? "Study" : "Core");
 
   if (!isOpen) return null;
 

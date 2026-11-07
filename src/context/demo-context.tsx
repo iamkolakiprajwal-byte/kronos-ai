@@ -42,9 +42,9 @@ import {
   professionalHabitTransitions,
   dualHabitTransitions,
   sampleNotifications,
-  studentOnboardingPreset,
   DEMO_REFERENCE_DATE,
 } from "@/lib/mock/demo-data";
+import { cleanOnboardingInitialData } from "@/lib/onboarding/defaults";
 import {
   loadStoredState,
   saveStoredState,
@@ -222,7 +222,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   };
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([initialWelcomeMessage]);
-  const [onboardingDraft, setOnboardingDraft] = useState<OnboardingFormData>(studentOnboardingPreset);
+  const [onboardingDraft, setOnboardingDraft] = useState<OnboardingFormData>(cleanOnboardingInitialData);
 
   // Sprint 2: Productivity & Integrations State
   const [focusSessions, setFocusSessions] = useState<FocusSessionLog[]>([]);
@@ -358,52 +358,10 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);
-    if (newRole === "student") {
-      setProfile(studentProfile);
-      setTasks(initialStudentTasks);
-      setCalendarEvents(studentCalendarEvents);
-      setGoals(studentGoals);
-      setHabits(studentHabits);
-      setHabitTransitions(studentHabitTransitions);
-      setChatMessages([
-        {
-          id: "msg-welcome-student",
-          sender: "assistant",
-          text: "Good morning, Aria! I have your Stanford timetable and deadlines ready. What would you like to accomplish today?",
-          timestamp: "Just now",
-        },
-      ]);
-    } else if (newRole === "professional") {
-      setProfile(professionalProfile);
-      setTasks(initialProfessionalTasks);
-      setCalendarEvents(professionalCalendarEvents);
-      setGoals(professionalGoals);
-      setHabits(professionalHabits);
-      setHabitTransitions(professionalHabitTransitions);
-      setChatMessages([
-        {
-          id: "msg-welcome-pro",
-          sender: "assistant",
-          text: "Good morning, Marcus! Morning standup is scheduled at 9:30 AM. What are your key focus outcomes for today?",
-          timestamp: "Just now",
-        },
-      ]);
-    } else {
-      setProfile(dualProfile);
-      setTasks(initialDualTasks);
-      setCalendarEvents(dualCalendarEvents);
-      setGoals(dualGoals);
-      setHabits(dualHabits);
-      setHabitTransitions(dualHabitTransitions);
-      setChatMessages([
-        {
-          id: "msg-welcome-dual",
-          sender: "assistant",
-          text: "Good morning, Elena! Both your Synthetix engineering blocks and UC Berkeley coursework are aligned. Ready to plan your day?",
-          timestamp: "Just now",
-        },
-      ]);
-    }
+    setProfile((prev) => ({
+      ...prev,
+      role: newRole,
+    }));
   };
 
   const completeOnboarding = (data: OnboardingFormData) => {

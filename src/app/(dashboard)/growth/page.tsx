@@ -743,7 +743,7 @@ function GrowthContent() {
                       timerState.habitId
                     )
                   }
-                  placeholder="e.g. Stanford CS Thesis Proofs, RFC Architecture Review..."
+                  placeholder="e.g. Deep Study Proofs, Architecture Review RFC, Client Proposal..."
                   className="w-full px-3 py-2 bg-[#fdfcf9] border border-[#e8e2d5] rounded-xl text-[#201e1b] text-xs focus:ring-1 focus:ring-[#201e1b] focus:outline-hidden"
                 />
               </div>

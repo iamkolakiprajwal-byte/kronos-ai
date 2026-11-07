@@ -535,7 +535,20 @@ All 37 unit tests pass across 4 separate domain test suites:
 
 ## 9. Current Project Status & Development Summary
 
-- **Current Status**: **PRODUCTION TRANSFORMATION COMPLETE (v2.0.0)**
+- **Current Status**: **PRODUCTION AUTH & CLEAN ONBOARDING COMPLETE (v2.1.0)**
+  - **Real Google OAuth & Elimination of Simulated Modal**:
+    - Completely removed fake Google name/email prompt dialogs and mock user generation.
+    - Implemented real `signInWithOAuth({ provider: 'google' })` via Supabase with honest error reporting when unconfigured.
+    - Updated `/auth/callback` to handle authorization code exchange, profile creation, and dynamic routing to `/home` (returning users) or `/onboarding` (new users).
+  - **Complete Removal of Onboarding Presets & Pre-Filled Data**:
+    - Removed `studentOnboardingPreset`, `professionalOnboardingPreset`, and `bothOnboardingPreset`.
+    - Removed "Auto-fill preset: Student / Pro / Both" buttons from `StepIndicator`.
+    - Every onboarding field starts clean and empty unless pre-populated from authentic Google OAuth metadata or detected timezone.
+    - Authored `getCleanInitialState()` in `src/lib/storage/index.ts` guaranteeing that user accounts, resets, and migrations default to 0 tasks, 0 calendar events, 0 goals, and 0 habits.
+  - **Automated Verification**:
+    - **153 / 153 total automated tests passing** (`npm test`), including new `tests/auth/auth-clean-state.test.ts`.
+    - **Zero TypeScript errors** (`npx tsc --noEmit`).
+    - **22 / 22 routes compiled cleanly** in Next.js 16 Turbopack production build (`npm run build`).
   - **Elimination of Prototype & Demo Infrastructure**:
     - Purged hardcoded demo personas (Aria Chen, Marcus Reed, Elena Rostova) from application runtime, navigation headers, modals, and presets.
     - Removed "Instant Evaluator Demo Login" bypass buttons and "Skip to Planner" controls from `/login` and `/signup`.

@@ -133,7 +133,7 @@ export function StepAcademicInfo({ data, onChange, onNext, onBack }: StepAcademi
                   handleAddSubject();
                 }
               }}
-              placeholder="e.g. CS 106B, ECON 201"
+              placeholder="e.g. Data Structures, Economics 101"
               className="flex-1 px-3 py-2 bg-[#fbfaf7] border border-[#e6e3da] rounded-xl text-xs text-slate-900 placeholder:text-slate-400"
             />
             <button
@@ -257,7 +257,7 @@ export function StepAcademicInfo({ data, onChange, onNext, onBack }: StepAcademi
           <div className="space-y-2">
             {data.timetable.length === 0 ? (
               <p className="text-xs text-slate-400 py-3 text-center">
-                No classes added yet. Click "+ Add Class" above or use presets.
+                No classes added yet. Click "+ Add Class" above.
               </p>
             ) : (
               data.timetable.map((slot) => (
