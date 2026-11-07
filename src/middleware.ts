@@ -18,8 +18,9 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = rawUrl ? rawUrl.trim().replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "") : undefined;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
   const isAuthRoute =
     pathname === "/login" ||

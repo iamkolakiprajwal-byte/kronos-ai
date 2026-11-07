@@ -1,7 +1,19 @@
 import { createBrowserClient } from "@supabase/ssr";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+export function cleanSupabaseUrl(url?: string): string {
+  if (!url) return "";
+  return url
+    .trim()
+    .replace(/\/rest\/v1\/?$/, "")
+    .replace(/\/auth\/v1\/?$/, "")
+    .replace(/\/+$/, "");
+}
+
+const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+export const supabaseUrl = cleanSupabaseUrl(rawUrl);
+export const supabaseAnonKey = rawKey?.trim() || "";
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
@@ -12,9 +24,8 @@ export const isSupabaseConfigured = Boolean(
 
 export function createClient() {
   if (!isSupabaseConfigured) {
-    // Return null or simulated client in demo mode
     return null;
   }
 
-  return createBrowserClient(supabaseUrl!, supabaseAnonKey!);
+  return createBrowserClient(supabaseUrl, supabaseAnonKey);
 }
