@@ -13,7 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import { isSecretKeyMisconfigured } from "@/lib/supabase/client";
+import { isSecretKeyMisconfigured, createClient } from "@/lib/supabase/client";
 
 // Official Google 4-Color "G" SVG Icon
 function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -97,6 +97,26 @@ function LoginForm() {
     setLoading(false);
 
     if (res.success) {
+      try {
+        const supabase = createClient();
+        if (supabase) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("onboarding_completed")
+              .eq("id", user.id)
+              .maybeSingle();
+
+            if (profile && profile.onboarding_completed === false) {
+              router.push("/onboarding");
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Could not check onboarding state:", err);
+      }
       router.push("/home");
     } else {
       setErrorMessage(res.error || "Authentication failed. Please check your credentials.");

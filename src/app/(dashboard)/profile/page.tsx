@@ -56,9 +56,33 @@ export default function ProfilePage() {
   } = useDemo();
 
   const isGoogleConnected =
-    user?.provider === "google" ||
-    (typeof window !== "undefined" &&
-      Boolean(localStorage.getItem("kronos_google_provider_token")));
+    (user?.provider === "google" ||
+      syncStatus === "synced" ||
+      (typeof window !== "undefined" &&
+        Boolean(localStorage.getItem("kronos_google_provider_token")))) &&
+    syncStatus !== "offline" &&
+    syncStatus !== "error";
+
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const handleDisconnectCalendar = async () => {
+    setIsDisconnecting(true);
+    try {
+      await fetch("/api/calendar/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disconnect" }),
+      });
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("kronos_google_provider_token");
+      }
+      setResetNotice("Google Calendar and Google Tasks disconnected.");
+      setTimeout(() => setResetNotice(null), 3500);
+    } catch (e) {
+      console.warn("Failed to disconnect calendar:", e);
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
 
   const [ecoNotice, setEcoNotice] = useState<string | null>(null);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -412,19 +436,32 @@ export default function ProfilePage() {
 
           <div className="pt-1">
             {isGoogleConnected ? (
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#faf7f0] border border-[#e8e2d5] text-[11px] text-[#545049]">
-                <span>Last synchronized: <strong>{lastSyncTime || "Never"}</strong></span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await triggerCalendarSync();
-                  }}
-                  disabled={syncStatus === "syncing"}
-                  className="px-3 py-1 rounded-lg bg-[#536b54] text-white hover:bg-[#3f5340] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <RefreshCw className={cn("w-3 h-3", syncStatus === "syncing" && "animate-spin")} />
-                  <span>{syncStatus === "syncing" ? "Syncing..." : "Sync Now"}</span>
-                </button>
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-[#faf7f0] border border-[#e8e2d5] text-[11px] text-[#545049]">
+                  <span>Last synchronized: <strong>{lastSyncTime || "Never"}</strong></span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await triggerCalendarSync();
+                      }}
+                      disabled={syncStatus === "syncing"}
+                      className="px-3 py-1 rounded-lg bg-[#536b54] text-white hover:bg-[#3f5340] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={cn("w-3 h-3", syncStatus === "syncing" && "animate-spin")} />
+                      <span>{syncStatus === "syncing" ? "Syncing..." : "Sync Now"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDisconnectCalendar}
+                      disabled={isDisconnecting}
+                      className="px-2.5 py-1 rounded-lg bg-white border border-[#e8e2d5] hover:bg-red-50 hover:text-red-700 text-[#545049] text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                      title="Disconnect Google Calendar and Google Tasks"
+                    >
+                      <span>{isDisconnecting ? "Disconnecting..." : "Disconnect"}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <button

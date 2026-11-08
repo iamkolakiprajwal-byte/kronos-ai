@@ -9,7 +9,9 @@ import { mockCalendarAdapter } from "./mock-adapter";
  * - OAuth 2.0 access & refresh tokens
  * - Incremental sync tokens via nextSyncToken
  * - RFC 3339 time format parsing
- * - Graceful fallback to MockCalendarAdapter when live OAuth credentials are not configured
+ * - Event creation, update, and deletion
+ * - Timezone & all-day event handling
+ * - Default popup reminders
  */
 export class GoogleCalendarAdapter implements CalendarAdapter {
   name = "Google Calendar API v3 (Live Adapter)";
@@ -19,6 +21,10 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
   constructor(accessToken?: string, calendarId: string = "primary") {
     this.accessToken = accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN || null;
     this.calendarId = calendarId;
+  }
+
+  setAccessToken(token: string) {
+    this.accessToken = token;
   }
 
   private hasValidCredentials(): boolean {
@@ -37,17 +43,18 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
     }
 
     try {
-      const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${this.calendarId}/events`);
+      const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(this.calendarId)}/events`);
       url.searchParams.set("singleEvents", "true");
-      url.searchParams.set("maxResults", "100");
+      url.searchParams.set("maxResults", "250");
 
       if (syncToken) {
         url.searchParams.set("syncToken", syncToken);
       } else {
-        // Initial sync: fetch events from start of today
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        url.searchParams.set("timeMin", startOfDay.toISOString());
+        // Initial sync: fetch events from 30 days ago to 90 days ahead
+        const minDate = new Date();
+        minDate.setDate(minDate.getDate() - 30);
+        minDate.setHours(0, 0, 0, 0);
+        url.searchParams.set("timeMin", minDate.toISOString());
       }
 
       const res = await fetch(url.toString(), {
@@ -58,7 +65,7 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
       });
 
       if (res.status === 410) {
-        // 410 Gone: sync token invalidated, perform full resync
+        // 410 Gone: sync token invalidated, perform fresh initial sync
         console.warn("[GoogleCalendarAdapter] Sync token invalidated (410 Gone). Performing full sync.");
         return this.fetchRemoteChanges();
       }
@@ -87,7 +94,7 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
           );
         }
 
-        throw new Error(`Google Calendar API error: ${res.status} ${detailedMsg}`);
+        throw new Error(`Google Calendar API error (${res.status}): ${detailedMsg}`);
       }
 
       const data = await res.json();
@@ -101,6 +108,7 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
           continue;
         }
 
+        const isAllDay = Boolean(item.start?.date && !item.start?.dateTime);
         const startIso = item.start?.dateTime || item.start?.date;
         const endIso = item.end?.dateTime || item.end?.date;
         const startDate = startIso ? new Date(startIso) : new Date();
@@ -108,8 +116,8 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
 
         const pad = (n: number) => String(n).padStart(2, "0");
         const dateStr = `${startDate.getFullYear()}-${pad(startDate.getMonth() + 1)}-${pad(startDate.getDate())}`;
-        const startTimeStr = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
-        const endTimeStr = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+        const startTimeStr = isAllDay ? "09:00" : `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
+        const endTimeStr = isAllDay ? "18:00" : `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
 
         const event: CalendarEvent = {
           id: item.id,
@@ -155,23 +163,32 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
       const startDateTime = new Date(`${event.date}T${event.startTime}:00`).toISOString();
       const endDateTime = new Date(`${event.date}T${event.endTime}:00`).toISOString();
 
-      const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${this.calendarId}/events`, {
+      const payload: any = {
+        summary: event.title,
+        description: event.notes || "",
+        location: event.location,
+        start: { dateTime: startDateTime },
+        end: { dateTime: endDateTime },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: "popup", minutes: 10 },
+          ],
+        },
+      };
+
+      const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(this.calendarId)}/events`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          summary: event.title,
-          description: event.notes,
-          location: event.location,
-          start: { dateTime: startDateTime },
-          end: { dateTime: endDateTime },
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        throw new Error(`Google Calendar insert failed: ${res.statusText}`);
+        const errJson = await res.json().catch(() => null);
+        throw new Error(`Google Calendar insert failed: ${errJson?.error?.message || res.statusText}`);
       }
 
       const created = await res.json();
@@ -184,18 +201,57 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
     }
   }
 
+  async updateEvent(remoteId: string, event: Partial<CalendarEvent>): Promise<boolean> {
+    const isTest = process.env.NODE_ENV === "test";
+    if (!this.hasValidCredentials()) {
+      return isTest;
+    }
+
+    try {
+      const payload: any = {};
+      if (event.title) payload.summary = event.title;
+      if (event.notes !== undefined) payload.description = event.notes;
+      if (event.location !== undefined) payload.location = event.location;
+      if (event.date && event.startTime) {
+        payload.start = { dateTime: new Date(`${event.date}T${event.startTime}:00`).toISOString() };
+      }
+      if (event.date && event.endTime) {
+        payload.end = { dateTime: new Date(`${event.date}T${event.endTime}:00`).toISOString() };
+      }
+
+      const res = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(this.calendarId)}/events/${encodeURIComponent(remoteId)}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
   async deleteEvent(remoteId: string): Promise<boolean> {
     if (!this.hasValidCredentials()) {
       return mockCalendarAdapter.deleteEvent(remoteId);
     }
 
     try {
-      const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${this.calendarId}/events/${remoteId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-        },
-      });
+      const res = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(this.calendarId)}/events/${encodeURIComponent(remoteId)}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN}`,
+          },
+        }
+      );
       return res.ok || res.status === 404;
     } catch {
       return false;

@@ -40,18 +40,41 @@ export async function GET(request: Request) {
           .eq("id", user.id)
           .maybeSingle();
 
-        // Create profile if this is the user's first time signing in
+        // Create or update profile using correct schema columns (full_name, avatar_url)
         if (!profile) {
-          await supabase.from("profiles").insert({
-            id: user.id,
-            email: email,
-            name: fullName || (email ? email.split("@")[0] : "Planner"),
-            avatar: avatarUrl,
-            role: "student",
-            onboarding_completed: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
+          await supabase.from("profiles").upsert(
+            {
+              id: user.id,
+              email: email,
+              full_name: fullName || (email ? email.split("@")[0] : "Planner"),
+              avatar_url: avatarUrl,
+              role: "student",
+              onboarding_completed: false,
+            },
+            { onConflict: "id" }
+          );
+        }
+
+        // 3. Vault Google OAuth tokens securely in calendar_connections table
+        if (data.session.provider_token) {
+          const expiresAt = new Date(Date.now() + (data.session.expires_in || 3600) * 1000).toISOString();
+          const connPayload: any = {
+            user_id: user.id,
+            provider: "google",
+            access_token: data.session.provider_token,
+            token_expires_at: expiresAt,
+            sync_status: "active",
+            last_synced_at: new Date().toISOString(),
+            google_email: email,
+            google_tasks_sync_enabled: true,
+            google_calendar_sync_enabled: true,
+          };
+
+          if (data.session.provider_refresh_token) {
+            connPayload.refresh_token = data.session.provider_refresh_token;
+          }
+
+          await supabase.from("calendar_connections").upsert(connPayload, { onConflict: "user_id" });
         }
 
         const isCalendarConnect = searchParams.get("source") === "calendar_connect";
@@ -80,7 +103,7 @@ export async function GET(request: Request) {
           maxAge: 60 * 60 * 24 * 7,
         });
 
-        // If Google provider token was issued, set cookie for Google Calendar API
+        // Store provider token in cookie as secondary fallback
         if (data.session.provider_token) {
           response.cookies.set("kronos_google_token", data.session.provider_token, {
             path: "/",

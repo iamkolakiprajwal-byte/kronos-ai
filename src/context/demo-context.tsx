@@ -49,11 +49,14 @@ import {
   loadStoredState,
   saveStoredState,
   resetStoredStateToDemo,
+  resetStoredStateToClean,
+  clearStoredState,
   exportStateAsJSON,
   importStateFromJSON,
   restorePreMigrationBackup,
   KRONOS_STORAGE_VERSION,
 } from "@/lib/storage";
+import { dataService } from "@/lib/supabase/data-service";
 
 interface DemoContextType {
   role: UserRole;
@@ -254,54 +257,155 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     sessionCompleted: false,
   });
 
-  // Hydrate application state from localStorage on initial client mount
+  // Strict User Data Isolation: Hydrate application state for authenticated user or clean baseline
   useEffect(() => {
-    const stored = loadStoredState();
-    if (stored) {
-      setRoleState(stored.role);
-      setProfile(stored.profile);
-      setTasks(stored.tasks);
-      setCalendarEvents(stored.calendarEvents);
-      setGoals(stored.goals);
-      setHabits(stored.habits);
-      setHabitTransitions(stored.habitTransitions || []);
-      setFocusSessions(stored.focusSessions || []);
-      if (stored.chatMessages && stored.chatMessages.length > 0) {
-        setChatMessages(stored.chatMessages);
-      }
-      if (stored.notifications && stored.notifications.length > 0) {
-        setNotifications(stored.notifications);
-      }
-      if (stored.ecoEntries && stored.ecoEntries.length > 0) {
-        setEcoEntries(stored.ecoEntries);
-      }
-      // Always initialize active planner to today's current date
-      setSelectedDate(new Date());
-    }
-    setIsHydrated(true);
-  }, []);
+    let isCurrent = true;
 
-  // Persist state changes to localStorage whenever core data changes
+    async function hydrateUserWorkspace() {
+      if (!authUser?.id) {
+        // Guest or logged out: initialize clean baseline
+        const stored = loadStoredState();
+        if (stored && isCurrent) {
+          setRoleState(stored.role);
+          setProfile(stored.profile);
+          setTasks(stored.tasks);
+          setCalendarEvents(stored.calendarEvents);
+          setGoals(stored.goals);
+          setHabits(stored.habits);
+          setHabitTransitions(stored.habitTransitions || []);
+          setFocusSessions(stored.focusSessions || []);
+          if (stored.chatMessages?.length) setChatMessages(stored.chatMessages);
+          if (stored.notifications?.length) setNotifications(stored.notifications);
+          if (stored.ecoEntries?.length) setEcoEntries(stored.ecoEntries);
+        } else if (isCurrent) {
+          setTasks([]);
+          setCalendarEvents([]);
+          setGoals([]);
+          setHabits([]);
+          setFocusSessions([]);
+          setHabitTransitions([]);
+        }
+        if (isCurrent) {
+          setSelectedDate(new Date());
+          setIsHydrated(true);
+        }
+        return;
+      }
+
+      // Authenticated User: Load exclusively from remote Supabase tables protected by RLS
+      try {
+        const [
+          remoteProfile,
+          remoteTasks,
+          remoteEvents,
+          remoteGoals,
+          remoteHabits,
+          remoteFocus,
+          conn,
+        ] = await Promise.all([
+          dataService.getProfile(authUser.id),
+          dataService.getTasks(authUser.id),
+          dataService.getCalendarEvents(authUser.id),
+          dataService.getGoals(authUser.id),
+          dataService.getHabits(authUser.id),
+          dataService.getFocusSessions(authUser.id),
+          dataService.getCalendarConnection(authUser.id),
+        ]);
+
+        if (!isCurrent) return;
+
+        if (remoteProfile) {
+          setProfile((prev) => ({
+            ...prev,
+            ...remoteProfile,
+            name: authUser.name || remoteProfile.name,
+            email: authUser.email || remoteProfile.email,
+            avatar: authUser.avatar || remoteProfile.avatar,
+          }));
+          setRoleState(remoteProfile.role);
+        } else {
+          setProfile((prev) => ({
+            ...prev,
+            id: authUser.id,
+            name: authUser.name || prev.name,
+            email: authUser.email || prev.email,
+            avatar: authUser.avatar || prev.avatar,
+          }));
+        }
+
+        // Set remote records (fresh users get genuine empty arrays: 0 tasks, 0 events, 0 goals, 0 habits)
+        setTasks(remoteTasks);
+        setCalendarEvents(remoteEvents);
+        setGoals(remoteGoals);
+        setHabits(remoteHabits);
+        setFocusSessions(remoteFocus);
+
+        if (conn) {
+          setSyncStatus(conn.sync_status === "synced" ? "synced" : conn.sync_status === "error" ? "error" : "offline");
+          if (conn.last_synced_at) {
+            setLastSyncTime(new Date(conn.last_synced_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+          }
+        }
+      } catch (err) {
+        console.warn("[Kronos] Supabase fetch fallback to user-partitioned local storage:", err);
+        const stored = loadStoredState(authUser.id);
+        if (stored && isCurrent) {
+          setRoleState(stored.role);
+          setProfile(stored.profile);
+          setTasks(stored.tasks);
+          setCalendarEvents(stored.calendarEvents);
+          setGoals(stored.goals);
+          setHabits(stored.habits);
+          setHabitTransitions(stored.habitTransitions || []);
+          setFocusSessions(stored.focusSessions || []);
+        } else if (isCurrent) {
+          setTasks([]);
+          setCalendarEvents([]);
+          setGoals([]);
+          setHabits([]);
+          setFocusSessions([]);
+          setHabitTransitions([]);
+        }
+      } finally {
+        if (isCurrent) {
+          setSelectedDate(new Date());
+          setIsHydrated(true);
+        }
+      }
+    }
+
+    hydrateUserWorkspace();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [authUser?.id]);
+
+  // Persist state changes to user-partitioned localStorage whenever core data changes
   useEffect(() => {
     if (!isHydrated) return;
-    saveStoredState({
-      version: KRONOS_STORAGE_VERSION,
-      role,
-      profile,
-      tasks,
-      calendarEvents,
-      goals,
-      habits,
-      habitTransitions,
-      focusSessions,
-      chatMessages,
-      notifications,
-      ecoEntries,
-      selectedDateStr: format(selectedDate, "yyyy-MM-dd"),
-      lastSavedTimestamp: Date.now(),
-    });
+    saveStoredState(
+      {
+        version: KRONOS_STORAGE_VERSION,
+        role,
+        profile,
+        tasks,
+        calendarEvents,
+        goals,
+        habits,
+        habitTransitions,
+        focusSessions,
+        chatMessages,
+        notifications,
+        ecoEntries,
+        selectedDateStr: format(selectedDate, "yyyy-MM-dd"),
+        lastSavedTimestamp: Date.now(),
+      },
+      authUser?.id
+    );
   }, [
     isHydrated,
+    authUser?.id,
     role,
     profile,
     tasks,
@@ -578,18 +682,39 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       },
       ...prev,
     ]);
+
+    // Persist onboarding setup directly to authenticated user's database tables
+    if (authUser?.id) {
+      dataService.saveOnboarding(authUser.id, 10, data, true).catch((e) =>
+        console.warn("Onboarding record persist warning:", e)
+      );
+      dataService.updateProfile(authUser.id, customizedProfile).catch((e) =>
+        console.warn("Profile persist warning:", e)
+      );
+      generatedTasks.forEach((t) => dataService.createTask(authUser.id, t));
+      generatedEvents.forEach((e) => dataService.createCalendarEvent(authUser.id, e));
+      newGoals.forEach((g) => dataService.createGoal(authUser.id, g));
+      newHabits.forEach((h) => dataService.createHabit(authUser.id, h));
+    }
   };
 
   const toggleTaskStatus = (id: string) => {
+    let nextStatus: Task["status"] = "todo";
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === id) {
-          const nextStatus = t.status === "completed" ? "todo" : "completed";
+          nextStatus = t.status === "completed" ? "todo" : "completed";
           return { ...t, status: nextStatus };
         }
         return t;
       })
     );
+
+    if (authUser?.id) {
+      dataService
+        .updateTask(authUser.id, id, { status: nextStatus })
+        .catch((err) => console.warn("Failed to persist task status to Supabase:", err));
+    }
   };
 
   const addTask = (newTask: Omit<Task, "id">) => {
@@ -598,10 +723,27 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       id: `task-custom-${Date.now()}`,
     };
     setTasks((prev) => [created, ...prev]);
+
+    if (authUser?.id) {
+      dataService
+        .createTask(authUser.id, created)
+        .then((saved) => {
+          if (saved?.id && saved.id !== created.id) {
+            setTasks((prev) => prev.map((t) => (t.id === created.id ? { ...t, id: saved.id } : t)));
+          }
+        })
+        .catch((err) => console.warn("Failed to persist task to Supabase:", err));
+    }
   };
 
   const deleteTask = (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
+
+    if (authUser?.id) {
+      dataService
+        .deleteTask(authUser.id, id)
+        .catch((err) => console.warn("Failed to delete task from Supabase:", err));
+    }
   };
 
   const updateTaskSchedule = (placements: { id: string; startTime: string; endTime: string }[]) => {
@@ -615,13 +757,20 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         return t;
       })
     );
+
+    if (authUser?.id) {
+      dataService
+        .batchUpdateTaskSchedule(authUser.id, placements)
+        .catch((err: any) => console.warn("Failed to persist schedule to Supabase:", err));
+    }
   };
 
   const toggleHabit = (id: string) => {
+    let nextCompleted = false;
     setHabits((prev) =>
       prev.map((h) => {
         if (h.id === id) {
-          const nextCompleted = !h.completedToday;
+          nextCompleted = !h.completedToday;
           const updatedHistory = [
             nextCompleted,
             ...(h.recentHistory?.slice(1) || [false, false, false, false, false, false]),
@@ -645,6 +794,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         return h;
       })
     );
+
+    if (authUser?.id) {
+      dataService
+        .toggleHabitLog(authUser.id, id, nextCompleted)
+        .catch((err) => console.warn("Failed to persist habit log to Supabase:", err));
+    }
   };
 
   const setHabitSelfReportedAutomaticity = (habitId: string, score: number) => {
@@ -827,6 +982,25 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   const resetDemoData = (targetRole?: UserRole) => {
     const roleToReset = targetRole || role;
+    if (authUser?.id) {
+      // Authenticated user reset: wipe user's workspace to clean empty baseline
+      dataService.resetUserWorkspace(authUser.id).catch((err) =>
+        console.warn("Failed to reset remote workspace:", err)
+      );
+      const clean = resetStoredStateToClean(roleToReset, authUser.id);
+      setRoleState(clean.role);
+      setProfile(clean.profile);
+      setTasks([]);
+      setCalendarEvents([]);
+      setGoals([]);
+      setHabits([]);
+      setHabitTransitions([]);
+      setFocusSessions([]);
+      setNotifications([]);
+      setEcoEntries([]);
+      setSelectedDate(new Date());
+      return;
+    }
     const fresh = resetStoredStateToDemo(roleToReset);
     setRoleState(fresh.role);
     setProfile(fresh.profile);
@@ -1134,12 +1308,17 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   // Sprint 2 Handlers
   const toggleMilestone = (goalId: string, milestoneId: string) => {
+    let nextCompleted = false;
     setGoals((prev) =>
       prev.map((g) => {
         if (g.id !== goalId) return g;
-        const updatedMilestones = g.milestones.map((m) =>
-          m.id === milestoneId ? { ...m, completed: !m.completed } : m
-        );
+        const updatedMilestones = g.milestones.map((m) => {
+          if (m.id === milestoneId) {
+            nextCompleted = !m.completed;
+            return { ...m, completed: nextCompleted };
+          }
+          return m;
+        });
         const completedCount = updatedMilestones.filter((m) => m.completed).length;
         const progress = Math.round((completedCount / updatedMilestones.length) * 100);
         return {
@@ -1149,6 +1328,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         };
       })
     );
+
+    if (authUser?.id) {
+      dataService
+        .updateMilestone(authUser.id, milestoneId, nextCompleted)
+        .catch((err: any) => console.warn("Failed to persist milestone update to Supabase:", err));
+    }
   };
 
   const addGoal = (newGoal: Omit<Goal, "id" | "progress">) => {
@@ -1158,6 +1343,18 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       progress: 0,
     };
     setGoals((prev) => [goal, ...prev]);
+
+    if (authUser?.id) {
+      dataService
+        .createGoal(authUser.id, goal)
+        .then((saved) => {
+          if (saved?.id && saved.id !== goal.id) {
+            setGoals((prev) => prev.map((g) => (g.id === goal.id ? { ...g, id: saved.id } : g)));
+          }
+        })
+        .catch((err) => console.warn("Failed to persist goal to Supabase:", err));
+    }
+
     setNotifications((prev) => [
       {
         id: `notif-goal-${Date.now()}`,
@@ -1192,6 +1389,18 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       id: `task-ms-${Date.now()}`,
     };
     setTasks((prev) => [created, ...prev]);
+
+    if (authUser?.id) {
+      dataService
+        .createTask(authUser.id, created)
+        .then((saved) => {
+          if (saved?.id && saved.id !== created.id) {
+            setTasks((prev) => prev.map((t) => (t.id === created.id ? { ...t, id: saved.id } : t)));
+          }
+        })
+        .catch((err) => console.warn("Failed to persist milestone task to Supabase:", err));
+    }
+
     setNotifications((prev) => [
       {
         id: `notif-task-${Date.now()}`,
@@ -1227,6 +1436,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     };
 
     setFocusSessions((prev) => [newSession, ...prev]);
+
+    if (authUser?.id) {
+      dataService
+        .logFocusSession(authUser.id, newSession)
+        .catch((err) => console.warn("Failed to persist focus session to Supabase:", err));
+    }
 
     if (session.habitId) {
       setHabits((prev) =>
@@ -1272,6 +1487,17 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       recentHistory: [false, false, false, false, false, false, false],
     };
     setHabits((prev) => [created, ...prev]);
+
+    if (authUser?.id) {
+      dataService
+        .createHabit(authUser.id, created)
+        .then((saved) => {
+          if (saved?.id && saved.id !== created.id) {
+            setHabits((prev) => prev.map((h) => (h.id === created.id ? { ...h, id: saved.id } : h)));
+          }
+        })
+        .catch((err) => console.warn("Failed to persist habit to Supabase:", err));
+    }
   };
 
   const addHabitTransition = (newTransition: Omit<HabitResetTransition, "id">) => {
@@ -1519,8 +1745,15 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus("synced");
         setLastSyncTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
 
-        // Incorporate real events fetched from Google Calendar into state
-        if (data.result?.added && Array.isArray(data.result.added) && data.result.added.length > 0) {
+        // Incorporate real events & tasks fetched from Google into active state
+        if (authUser?.id) {
+          const [remoteEvents, remoteTasks] = await Promise.all([
+            dataService.getCalendarEvents(authUser.id),
+            dataService.getTasks(authUser.id),
+          ]);
+          setCalendarEvents(remoteEvents);
+          setTasks(remoteTasks);
+        } else if (data.result?.added && Array.isArray(data.result.added) && data.result.added.length > 0) {
           setCalendarEvents((prev) => {
             const existingIds = new Set(prev.map((e) => e.id));
             const newOnes = data.result.added.filter((e: CalendarEvent) => !existingIds.has(e.id));
@@ -1528,18 +1761,21 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           });
         }
 
+        const eventsCount = data.calendarEventsImported ?? data.result?.added?.length ?? 0;
+        const tasksCount = data.googleTasksImported ?? 0;
+
         setNotifications((prev) => [
           {
             id: `notif-sync-${Date.now()}`,
-            title: "Google Calendar Synchronized",
-            message: `Synchronized with Google Calendar (${data.result?.added?.length || 0} events verified).`,
+            title: "Google Calendar & Tasks Synchronized",
+            message: `Synchronized ${eventsCount} calendar events and ${tasksCount} Google tasks.`,
             timestamp: "Just now",
             type: "calendar",
             read: false,
           },
           ...prev,
         ]);
-        return { success: true, count: data.result?.added?.length || 0 };
+        return { success: true, count: eventsCount };
       } else {
         setSyncStatus(data.connected === false ? "offline" : "error");
         setNotifications((prev) => [

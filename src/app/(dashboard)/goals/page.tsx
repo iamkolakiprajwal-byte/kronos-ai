@@ -205,9 +205,25 @@ export default function GoalsPage() {
         ))}
       </div>
 
-      {/* Goals Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-        {filteredGoals.map((goal) => {
+      {/* Goals Grid / Empty State */}
+      {filteredGoals.length === 0 ? (
+        <div className="p-10 sm:p-14 text-center bg-white rounded-2xl border border-[#e6e3da] shadow-xs space-y-3">
+          <Target className="w-10 h-10 text-slate-300 mx-auto" />
+          <h3 className="font-serif text-base font-semibold text-slate-800">No goals tracked yet</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+            Create your first strategic goal to break down your horizon into actionable milestones.
+          </p>
+          <button
+            onClick={() => setIsNewGoalModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Your First Goal</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {filteredGoals.map((goal) => {
           const isDecomposing = decomposingGoalId === goal.id;
           const completedCount = goal.milestones.filter((m) => m.completed).length;
 
@@ -332,6 +348,7 @@ export default function GoalsPage() {
           );
         })}
       </div>
+      )}
 
       {/* New Goal Modal (Bottom Sheet on Mobile) */}
       {isNewGoalModalOpen && (

@@ -89,8 +89,11 @@ export default function PlanPage() {
 
         <div className="divide-y divide-[#f0ede6]">
           {filteredTasks.length === 0 ? (
-            <div className="p-8 sm:p-12 text-center text-xs text-slate-400">
-              No tasks found for this filter view.
+            <div className="p-8 sm:p-12 text-center text-xs text-slate-400 space-y-1">
+              <p className="font-serif text-sm text-slate-600">No tasks scheduled yet</p>
+              <p className="text-[11px] text-slate-400">
+                Tap the floating + button in the bottom right or ask AI to schedule your first task.
+              </p>
             </div>
           ) : (
             filteredTasks.map((task) => {

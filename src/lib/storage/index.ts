@@ -40,6 +40,16 @@ export const KRONOS_BACKUP_KEY = "kronos_ai_local_state_backup";
 export const KRONOS_CORRUPT_BACKUP_KEY = "kronos_ai_corrupt_data_backup";
 export const KRONOS_STORAGE_VERSION = 1;
 
+/**
+ * Returns a user-partitioned storage key ensuring strict isolation between user workspaces.
+ */
+export function getUserStorageKey(userId?: string): string {
+  if (!userId || userId === "user-default") {
+    return KRONOS_STORAGE_KEY;
+  }
+  return `kronos_user_state_${userId}`;
+}
+
 export interface PersistedKronosState {
   version: number;
   role: UserRole;
@@ -260,17 +270,17 @@ export function getInitialDemoState(role: UserRole = "student"): PersistedKronos
 }
 
 /**
- * Loads the persisted state from localStorage safely.
- * Safeguards user data: version mismatches and structural additions are automatically
- * migrated forward and safely backed up to KRONOS_BACKUP_KEY rather than destroyed.
+ * Loads the persisted state from localStorage safely with strict user partitioning.
  */
-export function loadStoredState(): PersistedKronosState | null {
+export function loadStoredState(userId?: string): PersistedKronosState | null {
   if (typeof window === "undefined" || !window.localStorage) {
     return null;
   }
 
+  const storageKey = getUserStorageKey(userId);
+
   try {
-    const raw = window.localStorage.getItem(KRONOS_STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) return null;
 
     let parsed: any;
@@ -305,7 +315,7 @@ export function loadStoredState(): PersistedKronosState | null {
         console.warn("Unable to write pre-migration backup:", backupErr);
       }
       const migrated = migrateState(parsed);
-      saveStoredState(migrated);
+      saveStoredState(migrated, userId);
       return migrated;
     }
 
@@ -317,12 +327,14 @@ export function loadStoredState(): PersistedKronosState | null {
 }
 
 /**
- * Saves the given state to localStorage safely.
+ * Saves the given state to localStorage safely with strict user partitioning.
  */
-export function saveStoredState(state: PersistedKronosState): boolean {
+export function saveStoredState(state: PersistedKronosState, userId?: string): boolean {
   if (typeof window === "undefined" || !window.localStorage) {
     return false;
   }
+
+  const storageKey = getUserStorageKey(userId);
 
   try {
     const serialized = JSON.stringify({
@@ -330,7 +342,7 @@ export function saveStoredState(state: PersistedKronosState): boolean {
       version: KRONOS_STORAGE_VERSION,
       lastSavedTimestamp: Date.now(),
     });
-    window.localStorage.setItem(KRONOS_STORAGE_KEY, serialized);
+    window.localStorage.setItem(storageKey, serialized);
     return true;
   } catch (err) {
     console.warn("Failed to persist Kronos state to localStorage (quota or privacy mode):", err);
@@ -339,14 +351,45 @@ export function saveStoredState(state: PersistedKronosState): boolean {
 }
 
 /**
- * Clears local storage and resets state to pristine demo baseline for the specified role.
+ * Clears local storage for the specified user workspace.
  */
-export function resetStoredStateToDemo(role: UserRole = "student"): PersistedKronosState {
+export function clearStoredState(userId?: string): void {
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      const storageKey = getUserStorageKey(userId);
+      window.localStorage.removeItem(storageKey);
+    } catch (err) {
+      console.warn("Failed to clear user storage:", err);
+    }
+  }
+}
+
+/**
+ * Resets state to clean pristine empty baseline for a genuine user.
+ */
+export function resetStoredStateToClean(role: UserRole = "student", userId?: string): PersistedKronosState {
+  const clean = getCleanInitialState(role);
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      clearStoredState(userId);
+      saveStoredState(clean, userId);
+    } catch (err) {
+      console.warn("Failed to reset localStorage to clean state:", err);
+    }
+  }
+  return clean;
+}
+
+/**
+ * Resets state to pristine demo baseline for evaluation/test runner environments only.
+ */
+export function resetStoredStateToDemo(role: UserRole = "student", userId?: string): PersistedKronosState {
   const fresh = getInitialDemoState(role);
   if (typeof window !== "undefined" && window.localStorage) {
     try {
-      window.localStorage.removeItem(KRONOS_STORAGE_KEY);
-      saveStoredState(fresh);
+      const storageKey = getUserStorageKey(userId);
+      window.localStorage.removeItem(storageKey);
+      saveStoredState(fresh, userId);
     } catch (err) {
       console.warn("Failed to reset localStorage:", err);
     }

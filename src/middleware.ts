@@ -35,9 +35,12 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/my-day") ||
     pathname.startsWith("/growth") ||
     pathname.startsWith("/profile") ||
-    pathname.startsWith("/onboarding");
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/plan") ||
+    pathname.startsWith("/goals") ||
+    pathname.startsWith("/habits");
 
-  // 1. Live Supabase Session Check
+  // 1. Live Supabase Session Check (Primary Authority)
   if (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes("your-project")) {
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
@@ -73,7 +76,10 @@ export async function middleware(request: NextRequest) {
     if (!user && isProtectedRoute) {
       const redirectUrl = new URL("/login", request.url);
       redirectUrl.searchParams.set("redirectTo", pathname);
-      return NextResponse.redirect(redirectUrl);
+      const res = NextResponse.redirect(redirectUrl);
+      res.cookies.delete("kronos_auth_user");
+      res.cookies.delete("kronos_google_token");
+      return res;
     }
 
     // Authenticated user attempting to access login/signup
@@ -84,26 +90,30 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // 2. Cookie session check when Supabase is running locally/mocked
-  const authCookie = request.cookies.get("kronos_auth_user");
-  const isAuthenticated = Boolean(authCookie?.value);
+  // 2. Fallback only permitted in isolated test runner environment
+  if (process.env.NODE_ENV === "test") {
+    const authCookie = request.cookies.get("kronos_auth_user");
+    const isAuthenticated = Boolean(authCookie?.value);
 
-  if (pathname === "/") {
-    if (isAuthenticated) {
-      return NextResponse.redirect(new URL("/home", request.url));
-    } else {
-      return NextResponse.redirect(new URL("/login", request.url));
+    if (pathname === "/") {
+      return NextResponse.redirect(new URL(isAuthenticated ? "/home" : "/login", request.url));
     }
+    if (!isAuthenticated && isProtectedRoute) {
+      const redirectUrl = new URL("/login", request.url);
+      redirectUrl.searchParams.set("redirectTo", pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+    if (isAuthenticated && isAuthRoute) {
+      return NextResponse.redirect(new URL("/home", request.url));
+    }
+    return supabaseResponse;
   }
 
-  if (!isAuthenticated && isProtectedRoute) {
+  // In production without Supabase configuration, block protected routes
+  if (isProtectedRoute && pathname !== "/login") {
     const redirectUrl = new URL("/login", request.url);
-    redirectUrl.searchParams.set("redirectTo", pathname);
+    redirectUrl.searchParams.set("error", encodeURIComponent("Authentication service is not configured."));
     return NextResponse.redirect(redirectUrl);
-  }
-
-  if (isAuthenticated && isAuthRoute) {
-    return NextResponse.redirect(new URL("/home", request.url));
   }
 
   return supabaseResponse;

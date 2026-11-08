@@ -76,7 +76,9 @@ export default function HomePage() {
             {format(selectedDate, "EEEE, MMMM d")}
           </h1>
           <p className="text-xs sm:text-sm text-[#545049] font-sans leading-relaxed max-w-2xl">
-            {role === "student"
+            {selectedDayEvents.length === 0 && selectedDayTasks.length === 0
+              ? "Your agenda is clear for this day. Tap + to add an intention, or connect Google Calendar to synchronize your events."
+              : role === "student"
               ? `${selectedDayEvents.length} fixed classes/labs and ${selectedDayTasks.length} prioritized study blocks balanced around your peak energy hours.`
               : role === "professional"
               ? `${selectedDayEvents.length} stakeholder syncs and ${selectedDayTasks.length} engineering deliverables balanced with protected deep work.`

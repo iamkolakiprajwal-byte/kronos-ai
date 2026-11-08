@@ -4,18 +4,21 @@ import {
   Task,
   CalendarEvent,
   Goal,
+  Milestone,
   Habit,
   FocusSessionLog,
+  NotificationItem,
   OnboardingFormData,
 } from "@/types";
 
 /**
- * Service layer for Supabase persistence with multi-user isolation.
- * Automatically checks configuration and interacts with tables protected by RLS.
+ * Service layer for Supabase persistence with strict multi-user isolation.
+ * Interacts directly with database tables protected by Row Level Security (RLS).
  */
-
 export const dataService = {
-  // Profiles
+  // ---------------------------------------------------------------------------
+  // PROFILES & USER PREFERENCES
+  // ---------------------------------------------------------------------------
   async getProfile(userId: string): Promise<UserProfile | null> {
     if (!isSupabaseConfigured) return null;
     const supabase = createClient();
@@ -25,7 +28,7 @@ export const dataService = {
       .from("profiles")
       .select("*, user_preferences(*)")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (error || !data) return null;
 
@@ -36,8 +39,8 @@ export const dataService = {
       email: data.email || "",
       avatar: data.avatar_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${data.id}&backgroundColor=e8decb`,
       role: data.role || "student",
-      headline: data.headline || "Personal Time Workspace",
-      institutionOrCompany: data.institution_or_company || "My Workspace",
+      headline: data.headline || "",
+      institutionOrCompany: data.institution_or_company || "",
       wakeTime: pref.wake_time || "07:30",
       sleepTime: pref.sleep_time || "23:30",
       mostProductivePeriod: pref.most_productive_period || "morning",
@@ -53,20 +56,46 @@ export const dataService = {
     const supabase = createClient();
     if (!supabase) return false;
 
-    const { error } = await supabase
+    const profileUpdates: any = {};
+    if (updates.name !== undefined) profileUpdates.full_name = updates.name;
+    if (updates.role !== undefined) profileUpdates.role = updates.role;
+    if (updates.headline !== undefined) profileUpdates.headline = updates.headline;
+    if (updates.institutionOrCompany !== undefined) profileUpdates.institution_or_company = updates.institutionOrCompany;
+
+    const { error: pErr } = await supabase
       .from("profiles")
-      .update({
-        full_name: updates.name,
-        role: updates.role,
-        headline: updates.headline,
-        institution_or_company: updates.institutionOrCompany,
-      })
+      .update(profileUpdates)
       .eq("id", userId);
 
-    return !error;
+    if (pErr) return false;
+
+    // Update preferences if routine params were provided
+    if (
+      updates.wakeTime ||
+      updates.sleepTime ||
+      updates.planningStyle ||
+      updates.preferredFocusDuration !== undefined ||
+      updates.sustainabilityOptIn !== undefined
+    ) {
+      const prefUpdates: any = {};
+      if (updates.wakeTime) prefUpdates.wake_time = updates.wakeTime;
+      if (updates.sleepTime) prefUpdates.sleep_time = updates.sleepTime;
+      if (updates.planningStyle) prefUpdates.planning_style = updates.planningStyle;
+      if (updates.preferredFocusDuration) prefUpdates.preferred_focus_duration = updates.preferredFocusDuration;
+      if (updates.preferredBreakDuration) prefUpdates.preferred_break_duration = updates.preferredBreakDuration;
+      if (updates.sustainabilityOptIn !== undefined) prefUpdates.sustainability_opt_in = updates.sustainabilityOptIn;
+
+      await supabase
+        .from("user_preferences")
+        .upsert({ user_id: userId, ...prefUpdates }, { onConflict: "user_id" });
+    }
+
+    return true;
   },
 
-  // Tasks
+  // ---------------------------------------------------------------------------
+  // TASKS
+  // ---------------------------------------------------------------------------
   async getTasks(userId: string, date?: string): Promise<Task[]> {
     if (!isSupabaseConfigured) return [];
     const supabase = createClient();
@@ -119,11 +148,28 @@ export const dataService = {
         is_fixed: task.isFixed || false,
         tag: task.tag,
         energy_level: task.energyLevel || "high",
+        sync_source: "local",
       })
       .select()
       .single();
 
     if (error || !data) return null;
+
+    // If task is scheduled with time block, create corresponding calendar_events row
+    if (data.start_time && data.end_time && data.scheduled_date) {
+      await supabase.from("calendar_events").insert({
+        user_id: userId,
+        task_id: data.id,
+        title: data.title,
+        event_date: data.scheduled_date,
+        start_time: data.start_time,
+        end_time: data.end_time,
+        category: data.category === "study" ? "academic" : data.category === "work" ? "meeting" : "deep_work",
+        is_fixed: data.is_fixed || false,
+        source: "local",
+      });
+    }
+
     return {
       id: data.id,
       title: data.title,
@@ -151,6 +197,9 @@ export const dataService = {
     if (updates.startTime !== undefined) payload.start_time = updates.startTime;
     if (updates.endTime !== undefined) payload.end_time = updates.endTime;
     if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.scheduledDate !== undefined) payload.scheduled_date = updates.scheduledDate;
+    if (updates.priority !== undefined) payload.priority = updates.priority;
+    if (updates.status === "completed") payload.completed_at = new Date().toISOString();
 
     const { error } = await supabase
       .from("tasks")
@@ -158,7 +207,24 @@ export const dataService = {
       .eq("id", taskId)
       .eq("user_id", userId);
 
-    return !error;
+    if (error) return false;
+
+    // Keep linked calendar_events in sync
+    if (updates.startTime || updates.endTime || updates.title || updates.scheduledDate) {
+      const calPayload: any = {};
+      if (updates.title) calPayload.title = updates.title;
+      if (updates.startTime) calPayload.start_time = updates.startTime;
+      if (updates.endTime) calPayload.end_time = updates.endTime;
+      if (updates.scheduledDate) calPayload.event_date = updates.scheduledDate;
+
+      await supabase
+        .from("calendar_events")
+        .update(calPayload)
+        .eq("task_id", taskId)
+        .eq("user_id", userId);
+    }
+
+    return true;
   },
 
   async deleteTask(userId: string, taskId: string): Promise<boolean> {
@@ -175,7 +241,354 @@ export const dataService = {
     return !error;
   },
 
-  // Focus Sessions
+  async batchUpdateTaskSchedule(
+    userId: string,
+    placements: { id: string; startTime: string; endTime: string }[]
+  ): Promise<boolean> {
+    if (!isSupabaseConfigured || placements.length === 0) return false;
+    const supabase = createClient();
+    if (!supabase) return false;
+
+    try {
+      await Promise.all(
+        placements.map((p) =>
+          supabase
+            .from("tasks")
+            .update({ start_time: p.startTime, end_time: p.endTime, updated_at: new Date().toISOString() })
+            .eq("id", p.id)
+            .eq("user_id", userId)
+        )
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // CALENDAR EVENTS
+  // ---------------------------------------------------------------------------
+  async getCalendarEvents(userId: string, startDate?: string, endDate?: string): Promise<CalendarEvent[]> {
+    if (!isSupabaseConfigured) return [];
+    const supabase = createClient();
+    if (!supabase) return [];
+
+    let query = supabase.from("calendar_events").select("*").eq("user_id", userId);
+    if (startDate) query = query.gte("event_date", startDate);
+    if (endDate) query = query.lte("event_date", endDate);
+
+    const { data, error } = await query.order("event_date", { ascending: true });
+    if (error || !data) return [];
+
+    return data.map((e: any) => ({
+      id: e.id,
+      title: e.title,
+      date: e.event_date,
+      startTime: e.start_time,
+      endTime: e.end_time,
+      category: e.category,
+      isFixed: e.is_fixed,
+      location: e.location,
+      notes: e.source === "google" ? "Google Calendar Event" : undefined,
+    }));
+  },
+
+  async createCalendarEvent(userId: string, event: Omit<CalendarEvent, "id">): Promise<CalendarEvent | null> {
+    if (!isSupabaseConfigured) return null;
+    const supabase = createClient();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+      .from("calendar_events")
+      .insert({
+        user_id: userId,
+        title: event.title,
+        event_date: event.date,
+        start_time: event.startTime,
+        end_time: event.endTime,
+        category: event.category || "meeting",
+        is_fixed: event.isFixed !== undefined ? event.isFixed : true,
+        location: event.location,
+        source: "local",
+      })
+      .select()
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      title: data.title,
+      date: data.event_date,
+      startTime: data.start_time,
+      endTime: data.end_time,
+      category: data.category,
+      isFixed: data.is_fixed,
+      location: data.location,
+    };
+  },
+
+  async deleteCalendarEvent(userId: string, eventId: string): Promise<boolean> {
+    if (!isSupabaseConfigured) return false;
+    const supabase = createClient();
+    if (!supabase) return false;
+
+    const { error } = await supabase
+      .from("calendar_events")
+      .delete()
+      .eq("id", eventId)
+      .eq("user_id", userId);
+
+    return !error;
+  },
+
+  // ---------------------------------------------------------------------------
+  // GOALS & MILESTONES
+  // ---------------------------------------------------------------------------
+  async getGoals(userId: string): Promise<Goal[]> {
+    if (!isSupabaseConfigured) return [];
+    const supabase = createClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("goals")
+      .select("*, goal_milestones(*)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+
+    if (error || !data) return [];
+
+    return data.map((g: any) => ({
+      id: g.id,
+      title: g.title,
+      description: g.description || "",
+      targetDate: g.target_date,
+      priority: g.priority,
+      progress: g.progress,
+      category: g.category,
+      milestones: (g.goal_milestones || []).map((m: any) => ({
+        id: m.id,
+        title: m.title,
+        dueDate: m.due_date,
+        completed: m.completed,
+      })),
+    }));
+  },
+
+  async createGoal(userId: string, goal: Omit<Goal, "id" | "progress">): Promise<Goal | null> {
+    if (!isSupabaseConfigured) return null;
+    const supabase = createClient();
+    if (!supabase) return null;
+
+    const { data: createdGoal, error: gErr } = await supabase
+      .from("goals")
+      .insert({
+        user_id: userId,
+        title: goal.title,
+        description: goal.description || "",
+        target_date: goal.targetDate,
+        priority: goal.priority || "medium",
+        progress: 0,
+        category: goal.category || "skills",
+      })
+      .select()
+      .single();
+
+    if (gErr || !createdGoal) return null;
+
+    const createdMilestones: Milestone[] = [];
+    if (goal.milestones && goal.milestones.length > 0) {
+      for (const m of goal.milestones) {
+        const { data: mData } = await supabase
+          .from("goal_milestones")
+          .insert({
+            goal_id: createdGoal.id,
+            title: m.title,
+            due_date: m.dueDate,
+            completed: m.completed || false,
+          })
+          .select()
+          .single();
+
+        if (mData) {
+          createdMilestones.push({
+            id: mData.id,
+            title: mData.title,
+            dueDate: mData.due_date,
+            completed: mData.completed,
+          });
+        }
+      }
+    }
+
+    return {
+      id: createdGoal.id,
+      title: createdGoal.title,
+      description: createdGoal.description,
+      targetDate: createdGoal.target_date,
+      priority: createdGoal.priority,
+      progress: createdGoal.progress,
+      category: createdGoal.category,
+      milestones: createdMilestones,
+    };
+  },
+
+  async toggleMilestone(userId: string, goalId: string, milestoneId: string, completed: boolean): Promise<boolean> {
+    if (!isSupabaseConfigured) return false;
+    const supabase = createClient();
+    if (!supabase) return false;
+
+    const { error } = await supabase
+      .from("goal_milestones")
+      .update({ completed })
+      .eq("id", milestoneId)
+      .eq("goal_id", goalId);
+
+    if (error) return false;
+
+    // Recalculate goal progress
+    const { data: milestones } = await supabase
+      .from("goal_milestones")
+      .select("completed")
+      .eq("goal_id", goalId);
+
+    if (milestones && milestones.length > 0) {
+      const completedCount = milestones.filter((m) => m.completed).length;
+      const progress = Math.round((completedCount / milestones.length) * 100);
+      await supabase.from("goals").update({ progress }).eq("id", goalId).eq("user_id", userId);
+    }
+
+    return true;
+  },
+
+  async updateMilestone(userId: string, milestoneId: string, completed: boolean): Promise<boolean> {
+    if (!isSupabaseConfigured) return false;
+    const supabase = createClient();
+    if (!supabase) return false;
+
+    const { error } = await supabase
+      .from("goal_milestones")
+      .update({ completed })
+      .eq("id", milestoneId);
+
+    return !error;
+  },
+
+  // ---------------------------------------------------------------------------
+  // HABITS & HABIT LOGS
+  // ---------------------------------------------------------------------------
+  async getHabits(userId: string): Promise<Habit[]> {
+    if (!isSupabaseConfigured) return [];
+    const supabase = createClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("habits")
+      .select("*, habit_logs(*)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+
+    if (error || !data) return [];
+
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    return data.map((h: any) => {
+      const logs = h.habit_logs || [];
+      const completedToday = logs.some((l: any) => l.log_date === todayStr && l.completed);
+      return {
+        id: h.id,
+        title: h.title,
+        frequency: h.frequency,
+        cue: h.cue,
+        targetDurationMinutes: h.target_duration_minutes,
+        currentStreak: h.current_streak,
+        bestStreak: h.best_streak,
+        automaticityScore: h.automaticity_score,
+        category: h.category,
+        completedToday,
+        totalCompletions: logs.filter((l: any) => l.completed).length,
+      };
+    });
+  },
+
+  async createHabit(
+    userId: string,
+    habit: Omit<Habit, "id" | "currentStreak" | "bestStreak" | "completedToday" | "automaticityScore">
+  ): Promise<Habit | null> {
+    if (!isSupabaseConfigured) return null;
+    const supabase = createClient();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+      .from("habits")
+      .insert({
+        user_id: userId,
+        title: habit.title,
+        frequency: habit.frequency || "daily",
+        cue: habit.cue || "Daily Routine",
+        target_duration_minutes: habit.targetDurationMinutes || 20,
+        category: habit.category || "focus",
+        current_streak: 0,
+        best_streak: 0,
+        automaticity_score: 20,
+      })
+      .select()
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      title: data.title,
+      frequency: data.frequency,
+      cue: data.cue,
+      targetDurationMinutes: data.target_duration_minutes,
+      currentStreak: 0,
+      bestStreak: 0,
+      automaticityScore: 20,
+      category: data.category,
+      completedToday: false,
+    };
+  },
+
+  async toggleHabitLog(userId: string, habitId: string, completed: boolean): Promise<boolean> {
+    if (!isSupabaseConfigured) return false;
+    const supabase = createClient();
+    if (!supabase) return false;
+
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    const { error } = await supabase.from("habit_logs").upsert(
+      {
+        habit_id: habitId,
+        user_id: userId,
+        log_date: todayStr,
+        completed,
+      },
+      { onConflict: "habit_id,log_date" }
+    );
+
+    if (error) return false;
+
+    // Update streak on parent habit
+    if (completed) {
+      const { data: h } = await supabase.from("habits").select("current_streak, best_streak").eq("id", habitId).single();
+      if (h) {
+        const nextStreak = (h.current_streak || 0) + 1;
+        const nextBest = Math.max(h.best_streak || 0, nextStreak);
+        await supabase
+          .from("habits")
+          .update({ current_streak: nextStreak, best_streak: nextBest })
+          .eq("id", habitId);
+      }
+    }
+
+    return true;
+  },
+
+  // ---------------------------------------------------------------------------
+  // FOCUS SESSIONS
+  // ---------------------------------------------------------------------------
   async getFocusSessions(userId: string): Promise<FocusSessionLog[]> {
     if (!isSupabaseConfigured) return [];
     const supabase = createClient();
@@ -226,28 +639,121 @@ export const dataService = {
     return !error;
   },
 
-  // Onboarding Record
-  async saveOnboarding(userId: string, currentStep: number, stepData: Partial<OnboardingFormData>, completed: boolean): Promise<boolean> {
+  // ---------------------------------------------------------------------------
+  // CALENDAR CONNECTION & INTEGRATION STATUS
+  // ---------------------------------------------------------------------------
+  async getCalendarConnection(userId: string): Promise<any> {
+    if (!isSupabaseConfigured) return null;
+    const supabase = createClient();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+      .from("calendar_connections")
+      .select("provider, sync_status, last_synced_at, external_calendar_id, google_email, google_tasks_sync_enabled, google_calendar_sync_enabled")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return data;
+  },
+
+  async disconnectCalendar(userId: string): Promise<boolean> {
     if (!isSupabaseConfigured) return false;
     const supabase = createClient();
     if (!supabase) return false;
 
     const { error } = await supabase
-      .from("onboarding_records")
-      .upsert({
+      .from("calendar_connections")
+      .update({
+        sync_status: "disconnected",
+        access_token: null,
+        refresh_token: null,
+        sync_token: null,
+      })
+      .eq("user_id", userId);
+
+    return !error;
+  },
+
+  // ---------------------------------------------------------------------------
+  // ONBOARDING RECORDS
+  // ---------------------------------------------------------------------------
+  async saveOnboarding(
+    userId: string,
+    currentStep: number,
+    stepData: Partial<OnboardingFormData>,
+    completed: boolean
+  ): Promise<boolean> {
+    if (!isSupabaseConfigured) return false;
+    const supabase = createClient();
+    if (!supabase) return false;
+
+    const { error } = await supabase.from("onboarding_records").upsert(
+      {
         user_id: userId,
         current_step: currentStep,
         step_data: stepData,
         is_completed: completed,
-      }, { onConflict: "user_id" });
+      },
+      { onConflict: "user_id" }
+    );
 
     if (completed) {
-      await supabase
-        .from("profiles")
-        .update({ onboarding_completed: true })
-        .eq("id", userId);
+      await supabase.from("profiles").update({ onboarding_completed: true }).eq("id", userId);
     }
 
     return !error;
+  },
+
+  async getOnboarding(userId: string): Promise<{ isCompleted: boolean; currentStep: number; stepData: any } | null> {
+    if (!isSupabaseConfigured) return null;
+    const supabase = createClient();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+      .from("onboarding_records")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    const record = data as any;
+    return {
+      isCompleted: Boolean(record.is_completed),
+      currentStep: record.current_step || 1,
+      stepData: record.step_data || {},
+    };
+  },
+
+  // ---------------------------------------------------------------------------
+  // COMPLETE USER WORKSPACE RESET (Targeted account reset preserving identity)
+  // ---------------------------------------------------------------------------
+  async resetUserWorkspace(userId: string): Promise<boolean> {
+    if (!isSupabaseConfigured) return false;
+    const supabase = createClient();
+    if (!supabase) return false;
+
+    try {
+      await Promise.all([
+        supabase.from("tasks").delete().eq("user_id", userId),
+        supabase.from("calendar_events").delete().eq("user_id", userId),
+        supabase.from("goals").delete().eq("user_id", userId),
+        supabase.from("habits").delete().eq("user_id", userId),
+        supabase.from("focus_sessions").delete().eq("user_id", userId),
+        supabase.from("habit_transitions").delete().eq("user_id", userId),
+        supabase.from("onboarding_records").delete().eq("user_id", userId),
+        supabase.from("sync_audit_log").delete().eq("user_id", userId),
+      ]);
+
+      await supabase
+        .from("profiles")
+        .update({ onboarding_completed: false })
+        .eq("id", userId);
+
+      return true;
+    } catch (e) {
+      console.error("Failed to reset user workspace:", e);
+      return false;
+    }
   },
 };

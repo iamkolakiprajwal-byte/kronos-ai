@@ -422,21 +422,44 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                 <p className="text-[11px] text-[#536b54]/90">
                   Your agenda and external calendar events are in two-way synchronization.
                 </p>
-                <div className="flex items-center justify-between pt-1 border-t border-[#d6e0d5]/60">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-[#d6e0d5]/60">
                   <span className="text-[11px] text-[#536b54]">
                     Last synced: {lastSyncTime || "Not yet synced"}
                   </span>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await triggerCalendarSync();
-                    }}
-                    disabled={syncStatus === "syncing"}
-                    className="px-3 py-1.5 rounded-lg bg-[#536b54] text-white hover:bg-[#3f5340] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    <RefreshCw className={cn("w-3.5 h-3.5", syncStatus === "syncing" && "animate-spin")} />
-                    <span>{syncStatus === "syncing" ? "Syncing..." : "Sync Now"}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await triggerCalendarSync();
+                      }}
+                      disabled={syncStatus === "syncing"}
+                      className="px-3 py-1.5 rounded-lg bg-[#536b54] text-white hover:bg-[#3f5340] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={cn("w-3.5 h-3.5", syncStatus === "syncing" && "animate-spin")} />
+                      <span>{syncStatus === "syncing" ? "Syncing..." : "Sync Now"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await fetch("/api/calendar/sync", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "disconnect" }),
+                          });
+                          if (typeof window !== "undefined") {
+                            localStorage.removeItem("kronos_google_provider_token");
+                          }
+                          setShowSyncModal(false);
+                        } catch (e) {
+                          console.warn("Failed to disconnect calendar:", e);
+                        }
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-white border border-[#d6e0d5] hover:bg-red-50 hover:text-red-700 text-[#545049] text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      <span>Disconnect</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

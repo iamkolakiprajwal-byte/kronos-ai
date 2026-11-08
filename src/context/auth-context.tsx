@@ -197,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks",
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -243,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?source=calendar_connect`,
-          scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar",
+          scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks",
           queryParams: {
             access_type: "offline",
             prompt: "consent",
