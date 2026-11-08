@@ -173,11 +173,11 @@ export function MonthCalendar() {
         {/* View Switcher and Desktop Navigator Controls */}
         <div className="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-[#f0eae0]">
           {/* Week / Month Toggle */}
-          <div className="flex items-center p-0.5 bg-[#f2eee6] rounded-xl border border-[#e4ded2] w-full sm:w-auto">
+          <div className="flex items-center p-0.5 bg-[#f2eee6] rounded-xl border border-[#e4ded2] w-full sm:w-auto h-8">
             <button
               onClick={() => setMobileView("week")}
               className={cn(
-                "flex-1 sm:flex-initial px-3.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer text-center",
+                "flex-1 sm:flex-initial h-full px-3 text-xs font-medium rounded-lg transition-all cursor-pointer flex items-center justify-center",
                 mobileView === "week"
                   ? "bg-white text-[#201e1b] shadow-2xs font-semibold"
                   : "text-[#8a8479] hover:text-[#201e1b]"
@@ -188,7 +188,7 @@ export function MonthCalendar() {
             <button
               onClick={() => setMobileView("month")}
               className={cn(
-                "flex-1 sm:flex-initial px-3.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer text-center",
+                "flex-1 sm:flex-initial h-full px-3 text-xs font-medium rounded-lg transition-all cursor-pointer flex items-center justify-center",
                 mobileView === "month"
                   ? "bg-white text-[#201e1b] shadow-2xs font-semibold"
                   : "text-[#8a8479] hover:text-[#201e1b]"
@@ -202,14 +202,14 @@ export function MonthCalendar() {
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <button
               onClick={goToToday}
-              className="px-3 py-1.5 text-xs font-medium text-[#545049] hover:text-[#201e1b] hover:bg-[#f2eee6] rounded-xl transition-colors border border-[#e8e2d5] cursor-pointer shadow-2xs"
+              className="h-8 px-3 text-xs font-medium text-[#545049] hover:text-[#201e1b] hover:bg-[#f2eee6] rounded-xl transition-colors border border-[#e8e2d5] cursor-pointer shadow-2xs inline-flex items-center justify-center"
             >
               Today
             </button>
-            <div className="flex items-center border border-[#e8e2d5] rounded-xl bg-white shadow-2xs overflow-hidden">
+            <div className="h-8 flex items-center border border-[#e8e2d5] rounded-xl bg-white shadow-2xs overflow-hidden">
               <button
                 onClick={prevPeriod}
-                className="p-1.5 hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] transition-colors cursor-pointer"
+                className="h-full px-2.5 hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] transition-colors cursor-pointer flex items-center justify-center"
                 aria-label="Previous period"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -217,7 +217,7 @@ export function MonthCalendar() {
               <div className="w-[1px] h-4 bg-[#e8e2d5]" />
               <button
                 onClick={nextPeriod}
-                className="p-1.5 hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] transition-colors cursor-pointer"
+                className="h-full px-2.5 hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] transition-colors cursor-pointer flex items-center justify-center"
                 aria-label="Next period"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -227,13 +227,13 @@ export function MonthCalendar() {
         </div>
       </div>
 
-      {/* Days of Week Header */}
-      <div className="grid grid-cols-7 border-b border-[#e8e2d5] bg-[#faf8f4] text-center">
+      {/* Days of Week Header with matching vertical column dividers */}
+      <div className="grid grid-cols-7 divide-x divide-[#f0eae0] border-b border-[#e8e2d5] bg-[#faf8f4] text-center">
         {weekDayNames.map((d, i) => (
           <div
             key={d.full}
             className={cn(
-              "py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-medium uppercase tracking-wider",
+              "py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider",
               i === 0 || i === 6 ? "text-[#a39c8e]" : "text-[#6d665b]"
             )}
           >
@@ -264,10 +264,11 @@ export function MonthCalendar() {
                   className={cn(
                     "min-h-[54px] sm:min-h-[74px] lg:min-h-[84px] p-1.5 sm:p-2.5 flex flex-col justify-between text-left transition-all relative group focus:outline-hidden cursor-pointer",
                     !isCurrentMonthDay && "bg-[#fbf9f5]/50 text-[#b5ad9e]",
-                    isCurrentMonthDay && "hover:bg-[#f7f4ee]",
-                    isToday && !isSelected && "bg-[#f5f8f3] border-t-2 border-t-[#536b54] ring-1 ring-[#536b54]/30 shadow-2xs",
-                    isSelected && "bg-[#faece7]/90 ring-2 ring-[#b85437] z-10",
-                    isToday && isSelected && "border-t-2 border-t-[#b85437]"
+                    isCurrentMonthDay && !isSelected && !isToday && "hover:bg-[#f7f4ee]",
+                    // Pure Today (unselected)
+                    isToday && !isSelected && "bg-[#f5f8f3] ring-1 ring-inset ring-[#536b54]/40 hover:bg-[#edf2ec]",
+                    // Selected day (flush inset ring that strictly respects grid lines without protruding)
+                    isSelected && "bg-[#faece7]/80 ring-2 ring-inset ring-[#b85437] z-10"
                   )}
                 >
                   {/* Day Number and Count Pill */}
@@ -276,9 +277,7 @@ export function MonthCalendar() {
                       <span
                         className={cn(
                           "text-[11px] sm:text-xs font-sans rounded-full w-6 h-6 flex items-center justify-center transition-all",
-                          isToday && isSelected
-                            ? "bg-[#201e1b] text-white font-bold ring-2 ring-[#b85437] shadow-xs"
-                            : isToday
+                          isToday
                             ? "bg-[#201e1b] text-white font-bold shadow-xs"
                             : isSelected
                             ? "bg-[#b85437] text-white font-semibold shadow-2xs"
@@ -290,7 +289,7 @@ export function MonthCalendar() {
                         {format(dayItem, "d")}
                       </span>
                       {isToday && (
-                        <span className="inline-block text-[8px] sm:text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-[#536b54] text-white shadow-2xs">
+                        <span className="inline-flex items-center text-[8px] sm:text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-[#536b54] text-white shadow-2xs leading-none">
                           Today
                         </span>
                       )}
