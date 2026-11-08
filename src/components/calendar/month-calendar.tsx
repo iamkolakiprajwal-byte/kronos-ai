@@ -246,8 +246,12 @@ export function MonthCalendar() {
         {(mobileView === "week" ? [activeWeekRow] : rows).map((row, rowIndex) => (
           <div key={rowIndex} className="grid grid-cols-7 divide-x divide-[#f0eae0]">
             {row.map((dayItem, dayIndex) => {
-              const isSelected = isSameDay(dayItem, selectedDate);
-              const isToday = isSameDay(dayItem, todayDate);
+              const dayItemStr = format(dayItem, "yyyy-MM-dd");
+              const todayStr = format(todayDate, "yyyy-MM-dd");
+              const selectedStr = format(selectedDate, "yyyy-MM-dd");
+
+              const isSelected = dayItemStr === selectedStr || isSameDay(dayItem, selectedDate);
+              const isToday = dayItemStr === todayStr || isSameDay(dayItem, todayDate);
               const isCurrentMonthDay = isSameMonth(dayItem, currentMonth);
               const indicators = getIndicatorsForDate(dayItem);
 

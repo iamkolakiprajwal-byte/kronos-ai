@@ -270,9 +270,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       if (stored.ecoEntries && stored.ecoEntries.length > 0) {
         setEcoEntries(stored.ecoEntries);
       }
-      if (stored.selectedDateStr) {
-        setSelectedDate(new Date(`${stored.selectedDateStr}T00:00:00`));
-      }
+      // Always initialize active planner to today's current date
+      setSelectedDate(new Date());
     }
     setIsHydrated(true);
   }, []);
