@@ -56,6 +56,22 @@ assert(!proClean.chatMessages[0].text.includes("Marcus"), "Clean welcome message
 assert(!dualClean.chatMessages[0].text.includes("Elena"), "Clean welcome message does not mention Elena");
 assert(!dualClean.chatMessages[0].text.includes("Synthetix"), "Clean welcome message does not mention Synthetix");
 
+// Test 4: Supabase Secret Key Detection Guardrails
+import { isSupabaseSecretKey } from "../../src/lib/supabase/client";
+import { formatAuthError } from "../../src/context/auth-context";
+
+const dummySecretRoleJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + Buffer.from(JSON.stringify({ role: "service_role" })).toString("base64") + ".sig";
+const dummyAnonRoleJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + Buffer.from(JSON.stringify({ role: "anon" })).toString("base64") + ".sig";
+
+assert(isSupabaseSecretKey(dummySecretRoleJwt) === true, "Detects service_role JWT as secret key");
+assert(isSupabaseSecretKey("sb_secret_123456789") === true, "Detects sb_secret_ prefix as secret key");
+assert(isSupabaseSecretKey(dummyAnonRoleJwt) === false, "Recognizes anon JWT as safe public key");
+assert(isSupabaseSecretKey("sb_publishable_12345") === false, "Recognizes sb_publishable_ prefix as safe public key");
+
+const formattedSecretErr = formatAuthError("Forbidden use of secret API key in browser");
+assert(formattedSecretErr.includes("service_role"), "Transforms secret API key error into actionable message");
+assert(formattedSecretErr.includes("NEXT_PUBLIC_SUPABASE_ANON_KEY"), "Actionable message mentions NEXT_PUBLIC_SUPABASE_ANON_KEY");
+
 console.log("=================================================");
-console.log("TEST RESULTS: ALL 23 CHECKS PASSED");
+console.log("TEST RESULTS: ALL 29 CHECKS PASSED");
 console.log("=================================================");

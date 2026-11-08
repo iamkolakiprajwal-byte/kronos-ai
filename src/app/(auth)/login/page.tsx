@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { isSecretKeyMisconfigured } from "@/lib/supabase/client";
 
 // Official Google 4-Color "G" SVG Icon
 function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -51,6 +52,13 @@ function LoginForm() {
   const [noticeMessage, setNoticeMessage] = useState("");
 
   useEffect(() => {
+    if (isSecretKeyMisconfigured) {
+      setErrorMessage(
+        "Configuration error: NEXT_PUBLIC_SUPABASE_ANON_KEY is set to Supabase's Secret / service_role key. In Vercel, replace it with your public 'anon' key from Supabase Dashboard > Project Settings > API Keys."
+      );
+      return;
+    }
+
     const errorParam = searchParams.get("error");
     const messageParam = searchParams.get("message");
     if (errorParam) {

@@ -1,7 +1,27 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { isSupabaseConfigured, createClient } from "@/lib/supabase/client";
+import {
+  isSupabaseConfigured,
+  createClient,
+  isSecretKeyMisconfigured,
+} from "@/lib/supabase/client";
+
+export function formatAuthError(rawMessage?: string): string {
+  if (!rawMessage) return "Authentication failed. Please try again.";
+  const lower = rawMessage.toLowerCase();
+  if (
+    lower.includes("secret api key") ||
+    lower.includes("forbidden use of secret") ||
+    lower.includes("forbidden use of secret api key in browser")
+  ) {
+    return "Configuration error: The Supabase secret 'service_role' key was placed in NEXT_PUBLIC_SUPABASE_ANON_KEY. Please replace it in Vercel with your public 'anon' key from Supabase Dashboard > Project Settings > API.";
+  }
+  return rawMessage;
+}
+
+const SECRET_KEY_MISCONFIGURED_NOTICE =
+  "Configuration error: NEXT_PUBLIC_SUPABASE_ANON_KEY is set to Supabase's Secret / service_role key. In Vercel, replace this value with the public 'anon' key from Supabase Dashboard > Project Settings > API Keys.";
 
 export interface AuthUser {
   id: string;
@@ -155,6 +175,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
+      if (isSecretKeyMisconfigured) {
+        setIsLoading(false);
+        return { success: false, error: SECRET_KEY_MISCONFIGURED_NOTICE };
+      }
+
       const supabase = createClient();
       if (!supabase) {
         setIsLoading(false);
@@ -174,13 +199,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         setIsLoading(false);
-        return { success: false, error: error.message };
+        return { success: false, error: formatAuthError(error.message) };
       }
 
       return { success: true };
     } catch (err: any) {
       setIsLoading(false);
-      return { success: false, error: err.message || "Failed to initiate Google authentication" };
+      return { success: false, error: formatAuthError(err.message || "Failed to initiate Google authentication") };
     }
   };
 
@@ -194,6 +219,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           error:
             "GitHub Authentication requires Supabase to be configured with NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables, and the GitHub provider enabled in your Supabase dashboard.",
         };
+      }
+
+      if (isSecretKeyMisconfigured) {
+        setIsLoading(false);
+        return { success: false, error: SECRET_KEY_MISCONFIGURED_NOTICE };
       }
 
       const supabase = createClient();
@@ -211,13 +241,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         setIsLoading(false);
-        return { success: false, error: error.message };
+        return { success: false, error: formatAuthError(error.message) };
       }
 
       return { success: true };
     } catch (err: any) {
       setIsLoading(false);
-      return { success: false, error: err.message || "Failed to initiate GitHub authentication" };
+      return { success: false, error: formatAuthError(err.message || "Failed to initiate GitHub authentication") };
     }
   };
 
@@ -233,6 +263,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
+      if (isSecretKeyMisconfigured) {
+        setIsLoading(false);
+        return { success: false, error: SECRET_KEY_MISCONFIGURED_NOTICE };
+      }
+
       const supabase = createClient();
       if (!supabase) {
         setIsLoading(false);
@@ -246,7 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         setIsLoading(false);
-        return { success: false, error: error.message };
+        return { success: false, error: formatAuthError(error.message) };
       }
 
       if (data.user) {
@@ -269,7 +304,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     } catch (err: any) {
       setIsLoading(false);
-      return { success: false, error: err.message || "Invalid credentials" };
+      return { success: false, error: formatAuthError(err.message || "Invalid credentials") };
     }
   };
 
@@ -283,6 +318,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           error:
             "Authentication service is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables.",
         };
+      }
+
+      if (isSecretKeyMisconfigured) {
+        setIsLoading(false);
+        return { success: false, error: SECRET_KEY_MISCONFIGURED_NOTICE };
       }
 
       const supabase = createClient();
@@ -303,7 +343,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         setIsLoading(false);
-        return { success: false, error: error.message };
+        return { success: false, error: formatAuthError(error.message) };
       }
 
       if (data.user) {
@@ -323,7 +363,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     } catch (err: any) {
       setIsLoading(false);
-      return { success: false, error: err.message || "Failed to create account" };
+      return { success: false, error: formatAuthError(err.message || "Failed to create account") };
     }
   };
 
@@ -339,6 +379,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
+      if (isSecretKeyMisconfigured) {
+        setIsLoading(false);
+        return { success: false, error: SECRET_KEY_MISCONFIGURED_NOTICE };
+      }
+
       const supabase = createClient();
       if (!supabase) {
         setIsLoading(false);
@@ -351,14 +396,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         setIsLoading(false);
-        return { success: false, error: error.message };
+        return { success: false, error: formatAuthError(error.message) };
       }
 
       setIsLoading(false);
       return { success: true };
     } catch (err: any) {
       setIsLoading(false);
-      return { success: false, error: err.message || "Failed to send reset instructions" };
+      return { success: false, error: formatAuthError(err.message || "Failed to send reset instructions") };
     }
   };
 
@@ -374,6 +419,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
+      if (isSecretKeyMisconfigured) {
+        setIsLoading(false);
+        return { success: false, error: SECRET_KEY_MISCONFIGURED_NOTICE };
+      }
+
       const supabase = createClient();
       if (!supabase) {
         setIsLoading(false);
@@ -386,14 +436,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         setIsLoading(false);
-        return { success: false, error: error.message };
+        return { success: false, error: formatAuthError(error.message) };
       }
 
       setIsLoading(false);
       return { success: true };
     } catch (err: any) {
       setIsLoading(false);
-      return { success: false, error: err.message || "Failed to update password" };
+      return { success: false, error: formatAuthError(err.message || "Failed to update password") };
     }
   };
 
