@@ -87,7 +87,7 @@ export default function ProfilePage() {
   const handleConfirmReset = (targetRole?: any) => {
     resetDemoData(targetRole || role);
     setIsResetModalOpen(false);
-    setResetNotice(`Application state reset to pristine demo baseline (${targetRole || role} persona).`);
+    setResetNotice("Workspace data has been refreshed to a clean baseline state.");
     setTimeout(() => setResetNotice(null), 5000);
   };
 
@@ -447,15 +447,15 @@ export default function ProfilePage() {
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-[#b37e2a]" />
               <h3 className="font-serif text-sm font-bold text-[#201e1b]">
-                AI Intelligence Mode
+                AI Cognitive Engine
               </h3>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#fdf2ee] text-[#b85437] font-medium border border-[#f2cfc2]">
-              Offline Provider
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#edf2ec] text-[#536b54] font-medium border border-[#d6e0d5]">
+              Active Engine
             </span>
           </div>
           <p className="text-xs text-[#545049] leading-relaxed">
-            Running on <strong className="text-[#201e1b]">MockAIProvider</strong> for zero-cost demonstration. Natural language intent classification and deterministic schedule generation run locally without external OpenAI or Anthropic API billing.
+            Local intelligent scheduling engine for instant response and private data processing. Deterministic priority scheduling, energy-level matching, and natural language understanding execute seamlessly in your workspace.
           </p>
           <div className="p-2.5 rounded-xl bg-[#faf7f0] border border-[#e8e2d5] text-[11px] text-[#545049]">
             ✓ Deterministic interval-scheduling engine places tasks around protected fixed commitments.
@@ -463,7 +463,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Local Storage Persistence & Demo Controls Card */}
+      {/* Local Storage Persistence & Data Management Card */}
       <div className="bg-white rounded-2xl border border-[#e8e2d5] p-4 sm:p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-[#e8e2d5]">
           <div className="flex items-center gap-2.5">
@@ -472,16 +472,16 @@ export default function ProfilePage() {
             </div>
             <div>
               <h3 className="font-serif text-sm sm:text-base font-semibold text-[#201e1b]">
-                Local Persistence & Demo Control Center
+                Workspace Data & Storage
               </h3>
               <p className="text-[11px] text-[#8a8479]">
-                Zero external database costs — state persists across browser restarts in localStorage with migration & backup protection.
+                Your agenda, habits, and focus sessions are securely stored in your browser workspace with automatic backup protection and export capabilities.
               </p>
             </div>
           </div>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#edf2ec] text-[#536b54] text-[10px] font-semibold border border-[#d6e0d5] self-start sm:self-auto">
             <Check className="w-3 h-3" />
-            LocalStorage Active (v1)
+            Storage Active
           </span>
         </div>
 
@@ -572,12 +572,12 @@ export default function ProfilePage() {
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#fdf2ee] hover:bg-[#fae4dc] border border-[#f2cfc2] text-[#b85437] text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Demo Baseline</span>
+            <span>Clear Workspace Data</span>
           </button>
         </div>
       </div>
 
-      {/* Demo Reset Confirmation Modal */}
+      {/* Workspace Clear Confirmation Modal */}
       {isResetModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#201e1b]/40 backdrop-blur-xs animate-in fade-in-50">
           <div className="bg-[#fbf9f5] rounded-3xl border border-[#e8e2d5] w-full max-w-md p-6 shadow-2xl space-y-4">
