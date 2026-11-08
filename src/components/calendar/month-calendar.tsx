@@ -21,10 +21,13 @@ import { cn } from "@/lib/utils";
 
 export function MonthCalendar() {
   const { selectedDate, setSelectedDate, calendarEvents, tasks } = useDemo();
-  const demoRefDate = React.useMemo(() => new Date(`${DEMO_REFERENCE_DATE}T00:00:00`), []);
-  const [currentMonth, setCurrentMonth] = useState<Date>(demoRefDate);
-  const [todayDate] = useState<Date>(demoRefDate);
+  const [todayDate, setTodayDate] = useState<Date>(() => new Date());
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => startOfMonth(new Date()));
   const [mobileView, setMobileView] = useState<"week" | "month">("month");
+
+  React.useEffect(() => {
+    setTodayDate(new Date());
+  }, []);
 
   // Synchronize current month with selectedDate if selected date changes outside current view
   React.useEffect(() => {
@@ -54,8 +57,10 @@ export function MonthCalendar() {
   };
 
   const goToToday = () => {
-    setCurrentMonth(todayDate);
-    setSelectedDate(todayDate);
+    const now = new Date();
+    setTodayDate(now);
+    setCurrentMonth(startOfMonth(now));
+    setSelectedDate(now);
   };
 
   const monthStart = startOfMonth(currentMonth);
@@ -254,29 +259,39 @@ export function MonthCalendar() {
                     "min-h-[54px] sm:min-h-[74px] lg:min-h-[84px] p-1.5 sm:p-2.5 flex flex-col justify-between text-left transition-all relative group focus:outline-hidden cursor-pointer",
                     !isCurrentMonthDay && "bg-[#fbf9f5]/50 text-[#b5ad9e]",
                     isCurrentMonthDay && "hover:bg-[#f7f4ee]",
-                    isSelected && "bg-[#faece7]/90 ring-1.5 ring-[#b85437]/40 z-10",
-                    isToday && !isSelected && "bg-[#edf2ec]/40"
+                    isToday && !isSelected && "bg-[#f5f8f3] border-t-2 border-t-[#536b54] ring-1 ring-[#536b54]/30 shadow-2xs",
+                    isSelected && "bg-[#faece7]/90 ring-2 ring-[#b85437] z-10",
+                    isToday && isSelected && "border-t-2 border-t-[#b85437]"
                   )}
                 >
                   {/* Day Number and Count Pill */}
                   <div className="flex items-center justify-between w-full">
-                    <span
-                      className={cn(
-                        "text-[11px] sm:text-xs font-sans rounded-lg w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center transition-all",
-                        isToday
-                          ? "bg-[#201e1b] text-[#f8f6f0] font-semibold shadow-2xs"
-                          : isSelected
-                          ? "text-[#b85437] font-bold"
-                          : isCurrentMonthDay
-                          ? "text-[#201e1b] font-medium"
-                          : "text-[#b5ad9e]"
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={cn(
+                          "text-[11px] sm:text-xs font-sans rounded-full w-6 h-6 flex items-center justify-center transition-all",
+                          isToday && isSelected
+                            ? "bg-[#201e1b] text-white font-bold ring-2 ring-[#b85437] shadow-xs"
+                            : isToday
+                            ? "bg-[#201e1b] text-white font-bold shadow-xs"
+                            : isSelected
+                            ? "bg-[#b85437] text-white font-semibold shadow-2xs"
+                            : isCurrentMonthDay
+                            ? "text-[#201e1b] font-medium"
+                            : "text-[#b5ad9e]"
+                        )}
+                      >
+                        {format(dayItem, "d")}
+                      </span>
+                      {isToday && (
+                        <span className="inline-block text-[8px] sm:text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-[#536b54] text-white shadow-2xs">
+                          Today
+                        </span>
                       )}
-                    >
-                      {format(dayItem, "d")}
-                    </span>
+                    </div>
 
                     {indicators.totalCount > 0 && (
-                      <span className="hidden sm:inline-block text-[9px] text-[#8a8479] font-medium px-1 rounded-sm bg-[#f2eee6]">
+                      <span className="hidden sm:inline-block text-[9px] text-[#545049] font-medium px-1.5 py-0.5 rounded-md bg-[#f2eee6] border border-[#e4ded2]">
                         {indicators.totalCount}
                       </span>
                     )}

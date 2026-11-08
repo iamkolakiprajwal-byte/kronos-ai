@@ -104,7 +104,7 @@ export function getCleanInitialState(role: UserRole = "student"): PersistedKrono
       },
     ],
     ecoEntries: [],
-    selectedDateStr: DEMO_REFERENCE_DATE,
+    selectedDateStr: new Date().toISOString().split("T")[0],
     lastSavedTimestamp: Date.now(),
   };
 }

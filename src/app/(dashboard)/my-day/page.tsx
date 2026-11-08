@@ -49,7 +49,7 @@ export default function MyDayPage() {
   // Day navigation - anchors to consistent demo reference date
   const handlePrevDay = () => setSelectedDate(subDays(selectedDate, 1));
   const handleNextDay = () => setSelectedDate(addDays(selectedDate, 1));
-  const handleToday = () => setSelectedDate(new Date(`${DEMO_REFERENCE_DATE}T00:00:00`));
+  const handleToday = () => setSelectedDate(new Date());
 
   // Tasks for selected day
   const dayTasks = tasks.filter((t) => t.scheduledDate === selectedDateStr);

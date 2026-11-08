@@ -193,13 +193,13 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       type: "system",
     },
   ]);
-  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date(`${DEMO_REFERENCE_DATE}T00:00:00`));
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isQuickTaskOpen, setIsQuickTaskOpen] = useState(false);
   const openQuickTask = () => setIsQuickTaskOpen(true);
   const closeQuickTask = () => setIsQuickTaskOpen(false);
-  const referenceDate = DEMO_REFERENCE_DATE;
+  const referenceDate = new Date().toISOString().split("T")[0];
   const { user: authUser } = useAuth();
 
   // Synchronize authenticated user profile (Google / GitHub / Email) from AuthContext
