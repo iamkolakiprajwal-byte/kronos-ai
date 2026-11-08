@@ -193,13 +193,18 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       type: "system",
     },
   ]);
-  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date("2026-11-08T00:00:00"));
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isQuickTaskOpen, setIsQuickTaskOpen] = useState(false);
   const openQuickTask = () => setIsQuickTaskOpen(true);
   const closeQuickTask = () => setIsQuickTaskOpen(false);
-  const referenceDate = new Date().toISOString().split("T")[0];
+  const [referenceDate, setReferenceDate] = useState<string>("2026-11-08");
+
+  useEffect(() => {
+    setSelectedDate(new Date());
+    setReferenceDate(new Date().toISOString().split("T")[0]);
+  }, []);
   const { user: authUser } = useAuth();
 
   // Synchronize authenticated user profile (Google / GitHub / Email) from AuthContext

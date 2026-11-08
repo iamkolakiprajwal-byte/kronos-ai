@@ -63,20 +63,31 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
         return this.fetchRemoteChanges();
       }
 
-      if (res.status === 401) {
-        throw new Error(
-          "Google Calendar authorization has expired or is invalid. Please reconnect your Google Calendar."
-        );
-      }
-
-      if (res.status === 403) {
-        throw new Error(
-          "Google Calendar API is not enabled in Google Cloud Console. Please enable the Google Calendar API in console.cloud.google.com."
-        );
-      }
-
       if (!res.ok) {
-        throw new Error(`Google Calendar API error: ${res.status} ${res.statusText}`);
+        const errJson = await res.json().catch(() => null);
+        const detailedMsg = errJson?.error?.message || res.statusText;
+
+        if (res.status === 401) {
+          throw new Error(
+            "Google Calendar authorization has expired or is invalid. Please reconnect your Google Calendar."
+          );
+        }
+
+        if (res.status === 403) {
+          if (
+            detailedMsg.toLowerCase().includes("insufficient") ||
+            detailedMsg.toLowerCase().includes("permission")
+          ) {
+            throw new Error(
+              "Insufficient Google Calendar permissions on your current login session. Please click 'Connect Google Calendar' in the header to authorize calendar access."
+            );
+          }
+          throw new Error(
+            `Google Calendar API: ${detailedMsg}. If you just enabled the API in Google Cloud Console, please allow 2 minutes for Google to propagate, then reconnect your account.`
+          );
+        }
+
+        throw new Error(`Google Calendar API error: ${res.status} ${detailedMsg}`);
       }
 
       const data = await res.json();

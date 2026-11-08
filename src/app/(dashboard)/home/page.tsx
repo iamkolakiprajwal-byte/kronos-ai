@@ -37,7 +37,7 @@ export default function HomePage() {
     openQuickTask,
   } = useDemo();
 
-  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const todayStr = referenceDate;
   const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
   const isSelectedToday = selectedDateStr === todayStr;
 

@@ -21,12 +21,14 @@ import { cn } from "@/lib/utils";
 
 export function MonthCalendar() {
   const { selectedDate, setSelectedDate, calendarEvents, tasks } = useDemo();
-  const [todayDate, setTodayDate] = useState<Date>(() => new Date());
-  const [currentMonth, setCurrentMonth] = useState<Date>(() => startOfMonth(new Date()));
+  const [todayDate, setTodayDate] = useState<Date>(() => new Date("2026-11-08T00:00:00"));
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => startOfMonth(new Date("2026-11-08T00:00:00")));
   const [mobileView, setMobileView] = useState<"week" | "month">("month");
 
   React.useEffect(() => {
-    setTodayDate(new Date());
+    const now = new Date();
+    setTodayDate(now);
+    setCurrentMonth(startOfMonth(selectedDate || now));
   }, []);
 
   // Synchronize current month with selectedDate if selected date changes outside current view
