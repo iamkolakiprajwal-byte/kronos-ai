@@ -22,19 +22,18 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
   }
 
   private hasValidCredentials(): boolean {
-    return Boolean(
-      (this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN) &&
-        process.env.GOOGLE_CLIENT_ID &&
-        process.env.GOOGLE_CLIENT_SECRET
-    );
+    return Boolean(this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN);
   }
 
   async fetchRemoteChanges(syncToken?: string): Promise<SyncResult> {
+    const isTest = process.env.NODE_ENV === "test";
     if (!this.hasValidCredentials()) {
-      console.info(
-        "[GoogleCalendarAdapter] No live Google OAuth credentials found in environment. Falling back to MockCalendarAdapter."
+      if (isTest) {
+        return mockCalendarAdapter.fetchRemoteChanges(syncToken);
+      }
+      throw new Error(
+        "Google Calendar is not connected. Please connect your Google Calendar account."
       );
-      return mockCalendarAdapter.fetchRemoteChanges(syncToken);
     }
 
     try {
@@ -53,7 +52,7 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
 
       const res = await fetch(url.toString(), {
         headers: {
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN}`,
           Accept: "application/json",
         },
       });
@@ -62,6 +61,18 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
         // 410 Gone: sync token invalidated, perform full resync
         console.warn("[GoogleCalendarAdapter] Sync token invalidated (410 Gone). Performing full sync.");
         return this.fetchRemoteChanges();
+      }
+
+      if (res.status === 401) {
+        throw new Error(
+          "Google Calendar authorization has expired or is invalid. Please reconnect your Google Calendar."
+        );
+      }
+
+      if (res.status === 403) {
+        throw new Error(
+          "Google Calendar API is not enabled in Google Cloud Console. Please enable the Google Calendar API in console.cloud.google.com."
+        );
       }
 
       if (!res.ok) {
@@ -113,14 +124,20 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
         syncedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
     } catch (err) {
-      console.error("[GoogleCalendarAdapter] Sync error, delegating to Mock:", err);
-      return mockCalendarAdapter.fetchRemoteChanges(syncToken);
+      if (isTest) {
+        return mockCalendarAdapter.fetchRemoteChanges(syncToken);
+      }
+      throw err;
     }
   }
 
   async pushEvent(event: CalendarEvent): Promise<{ success: boolean; remoteId: string }> {
+    const isTest = process.env.NODE_ENV === "test";
     if (!this.hasValidCredentials()) {
-      return mockCalendarAdapter.pushEvent(event);
+      if (isTest) {
+        return mockCalendarAdapter.pushEvent(event);
+      }
+      throw new Error("Google Calendar is not connected.");
     }
 
     try {
@@ -130,7 +147,7 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
       const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${this.calendarId}/events`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -149,8 +166,10 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
       const created = await res.json();
       return { success: true, remoteId: created.id };
     } catch (err) {
-      console.error("[GoogleCalendarAdapter] Push failed, falling back to mock:", err);
-      return mockCalendarAdapter.pushEvent(event);
+      if (isTest) {
+        return mockCalendarAdapter.pushEvent(event);
+      }
+      throw err;
     }
   }
 

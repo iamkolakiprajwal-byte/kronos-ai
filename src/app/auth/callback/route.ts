@@ -54,8 +54,13 @@ export async function GET(request: Request) {
           });
         }
 
+        const isCalendarConnect = searchParams.get("source") === "calendar_connect";
         const isOnboardingCompleted = profile ? Boolean(profile.onboarding_completed) : false;
-        const destination = isOnboardingCompleted ? "/home" : "/onboarding";
+        const destination = isCalendarConnect
+          ? "/home?calendar_connected=true"
+          : isOnboardingCompleted
+          ? "/home"
+          : "/onboarding";
 
         const forwardedHost = request.headers.get("x-forwarded-host");
         const redirectBase =
@@ -74,6 +79,16 @@ export async function GET(request: Request) {
           sameSite: "lax",
           maxAge: 60 * 60 * 24 * 7,
         });
+
+        // If Google provider token was issued, set cookie for Google Calendar API
+        if (data.session.provider_token) {
+          response.cookies.set("kronos_google_token", data.session.provider_token, {
+            path: "/",
+            httpOnly: false,
+            sameSite: "lax",
+            maxAge: 60 * 60,
+          });
+        }
 
         return response;
       }

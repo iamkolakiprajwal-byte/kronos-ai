@@ -38,6 +38,7 @@ interface AuthContextType {
   isLoading: boolean;
   isSupabaseLive: boolean;
   signInWithGoogle: (customAccount?: { name: string; email: string; avatar?: string }) => Promise<{ success: boolean; error?: string }>;
+  connectGoogleCalendar: () => Promise<{ success: boolean; error?: string }>;
   signInWithGithub: () => Promise<{ success: boolean; error?: string }>;
   signInWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUpWithEmail: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -78,6 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (supabase) {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user && isMounted) {
+              if (session.provider_token) {
+                localStorage.setItem("kronos_google_provider_token", session.provider_token);
+              }
               const meta = session.user.user_metadata || {};
               const authUser: AuthUser = {
                 id: session.user.id,
@@ -96,6 +100,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Listen for changes
             const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
               if (session?.user) {
+                if (session.provider_token) {
+                  localStorage.setItem("kronos_google_provider_token", session.provider_token);
+                }
                 const meta = session.user.user_metadata || {};
                 const authUser: AuthUser = {
                   id: session.user.id,
@@ -190,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar",
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -206,6 +214,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       setIsLoading(false);
       return { success: false, error: formatAuthError(err.message || "Failed to initiate Google authentication") };
+    }
+  };
+
+  const connectGoogleCalendar = async () => {
+    setIsLoading(true);
+    try {
+      if (!isSupabaseConfigured) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error:
+            "Authentication service is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables.",
+        };
+      }
+
+      if (isSecretKeyMisconfigured) {
+        setIsLoading(false);
+        return { success: false, error: SECRET_KEY_MISCONFIGURED_NOTICE };
+      }
+
+      const supabase = createClient();
+      if (!supabase) {
+        setIsLoading(false);
+        return { success: false, error: "Failed to initialize Supabase client." };
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?source=calendar_connect`,
+          scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar",
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+
+      if (error) {
+        setIsLoading(false);
+        return { success: false, error: formatAuthError(error.message) };
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      setIsLoading(false);
+      return { success: false, error: formatAuthError(err.message || "Failed to connect Google Calendar") };
     }
   };
 
@@ -474,6 +529,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isSupabaseLive,
         signInWithGoogle,
+        connectGoogleCalendar,
         signInWithGithub,
         signInWithEmail,
         signUpWithEmail,

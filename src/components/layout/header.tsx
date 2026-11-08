@@ -28,7 +28,7 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
-  const { user, signInWithGoogle } = useAuth();
+  const { user, signInWithGoogle, connectGoogleCalendar } = useAuth();
   const {
     profile,
     role,
@@ -42,7 +42,10 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
     resolveSyncConflict,
   } = useDemo();
 
-  const isGoogleConnected = user?.provider === "google";
+  const isGoogleConnected =
+    user?.provider === "google" ||
+    (typeof window !== "undefined" &&
+      Boolean(localStorage.getItem("kronos_google_provider_token")));
 
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -397,7 +400,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                 <button
                   type="button"
                   onClick={async () => {
-                    await signInWithGoogle();
+                    await connectGoogleCalendar();
                   }}
                   className="w-full py-2.5 px-4 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
@@ -411,7 +414,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                 </button>
               </div>
             ) : (
-              <div className="p-3.5 rounded-xl bg-[#edf2ec] border border-[#d6e0d5] text-xs text-[#536b54] space-y-1">
+              <div className="p-3.5 rounded-xl bg-[#edf2ec] border border-[#d6e0d5] text-xs text-[#536b54] space-y-2">
                 <div className="font-semibold flex items-center gap-1.5">
                   <Check className="w-4 h-4 text-[#536b54]" />
                   <span>Google Calendar Connected</span>
@@ -419,6 +422,22 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                 <p className="text-[11px] text-[#536b54]/90">
                   Your agenda and external calendar events are in two-way synchronization.
                 </p>
+                <div className="flex items-center justify-between pt-1 border-t border-[#d6e0d5]/60">
+                  <span className="text-[11px] text-[#536b54]">
+                    Last synced: {lastSyncTime || "Not yet synced"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await triggerCalendarSync();
+                    }}
+                    disabled={syncStatus === "syncing"}
+                    className="px-3 py-1.5 rounded-lg bg-[#536b54] text-white hover:bg-[#3f5340] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={cn("w-3.5 h-3.5", syncStatus === "syncing" && "animate-spin")} />
+                    <span>{syncStatus === "syncing" ? "Syncing..." : "Sync Now"}</span>
+                  </button>
+                </div>
               </div>
             )}
 

@@ -151,7 +151,7 @@ interface DemoContextType {
   syncStatus: CalendarSyncStatus;
   lastSyncTime: string | null;
   syncConflicts: SyncConflict[];
-  triggerCalendarSync: () => Promise<void>;
+  triggerCalendarSync: () => Promise<any>;
   simulateExternalCalendarConflict: () => Promise<void>;
   resolveSyncConflict: (conflictId: string, resolution: "keep_local" | "accept_remote") => Promise<void>;
 
@@ -1495,31 +1495,65 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const triggerCalendarSync = async () => {
     setSyncStatus("syncing");
     try {
+      const storedToken =
+        typeof window !== "undefined"
+          ? localStorage.getItem("kronos_google_provider_token")
+          : null;
+
       const res = await fetch("/api/calendar/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "sync", useMock: true }),
+        body: JSON.stringify({
+          action: "sync",
+          accessToken: storedToken || undefined,
+          useMock: false,
+        }),
       });
-      if (res.ok) {
-        const data = await res.json();
+
+      const data = await res.json();
+      if (res.ok && data.success) {
         setSyncStatus("synced");
         setLastSyncTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+
+        // Incorporate real events fetched from Google Calendar into state
+        if (data.result?.added && Array.isArray(data.result.added) && data.result.added.length > 0) {
+          setCalendarEvents((prev) => {
+            const existingIds = new Set(prev.map((e) => e.id));
+            const newOnes = data.result.added.filter((e: CalendarEvent) => !existingIds.has(e.id));
+            return [...prev, ...newOnes];
+          });
+        }
+
         setNotifications((prev) => [
           {
             id: `notif-sync-${Date.now()}`,
-            title: "Calendar Synchronized",
-            message: `Synchronized with Google Calendar adapter (${data.result?.added?.length || 0} events verified).`,
+            title: "Google Calendar Synchronized",
+            message: `Synchronized with Google Calendar (${data.result?.added?.length || 0} events verified).`,
             timestamp: "Just now",
             type: "calendar",
             read: false,
           },
           ...prev,
         ]);
+        return { success: true, count: data.result?.added?.length || 0 };
       } else {
-        setSyncStatus("synced");
+        setSyncStatus(data.connected === false ? "offline" : "error");
+        setNotifications((prev) => [
+          {
+            id: `notif-sync-err-${Date.now()}`,
+            title: "Calendar Sync Notice",
+            message: data.error || "Google Calendar is not connected.",
+            timestamp: "Just now",
+            type: "calendar",
+            read: false,
+          },
+          ...prev,
+        ]);
+        return { success: false, error: data.error };
       }
-    } catch {
-      setSyncStatus("synced");
+    } catch (err: any) {
+      setSyncStatus("error");
+      return { success: false, error: err.message };
     }
   };
 

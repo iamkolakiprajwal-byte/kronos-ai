@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useDemo } from "@/context/demo-context";
+import { useAuth } from "@/context/auth-context";
+import { cn } from "@/lib/utils";
 import {
   User,
   GraduationCap,
@@ -27,11 +29,13 @@ import {
   Check,
   AlertTriangle,
   RefreshCw,
+  Calendar,
 } from "lucide-react";
 import { calculateEcoImpact } from "@/lib/sustainability/eco-calculator";
 import { getStorageDiagnostics } from "@/lib/storage";
 
 export default function ProfilePage() {
+  const { user, connectGoogleCalendar } = useAuth();
   const {
     profile,
     role,
@@ -46,7 +50,15 @@ export default function ProfilePage() {
     habits,
     calendarEvents,
     focusSessions,
+    syncStatus,
+    lastSyncTime,
+    triggerCalendarSync,
   } = useDemo();
+
+  const isGoogleConnected =
+    user?.provider === "google" ||
+    (typeof window !== "undefined" &&
+      Boolean(localStorage.getItem("kronos_google_provider_token")));
 
   const [ecoNotice, setEcoNotice] = useState<string | null>(null);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -378,18 +390,54 @@ export default function ProfilePage() {
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-[#536b54]" />
               <h3 className="font-serif text-sm font-bold text-[#201e1b]">
-                Calendar Sync Mode
+                Google Calendar Integration
               </h3>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#f2eee6] text-[#687050] font-medium border border-[#e8e2d5]">
-              Demo Adapter
+            <span
+              className={cn(
+                "text-[10px] font-mono px-2 py-0.5 rounded-full font-medium border",
+                isGoogleConnected
+                  ? "bg-[#edf2ec] text-[#536b54] border-[#d6e0d5]"
+                  : "bg-[#f2eee6] text-[#8a8479] border-[#e8e2d5]"
+              )}
+            >
+              {isGoogleConnected ? "Live Connected" : "Not Linked"}
             </span>
           </div>
           <p className="text-xs text-[#545049] leading-relaxed">
-            Running on <strong className="text-[#201e1b]">MockCalendarAdapter</strong> for academic prototype evaluation. No external Google OAuth account or cloud API credentials are used. Two-way synchronization, external conflict alerts, and agenda rescheduling are simulated locally.
+            {isGoogleConnected
+              ? "Your Google account is linked via Google OAuth. External lectures, team syncs, and meetings are automatically pulled and protected as fixed commitments."
+              : "Connect your Google account to enable two-way synchronization. Your meetings, classes, and appointments will be imported into Kronos to protect them during AI scheduling."}
           </p>
-          <div className="p-2.5 rounded-xl bg-[#faf7f0] border border-[#e8e2d5] text-[11px] text-[#545049]">
-            ✓ Interactive conflict simulation available via the <span className="font-semibold text-[#201e1b]">Demo GCal</span> button in the header.
+
+          <div className="pt-1">
+            {isGoogleConnected ? (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#faf7f0] border border-[#e8e2d5] text-[11px] text-[#545049]">
+                <span>Last synchronized: <strong>{lastSyncTime || "Never"}</strong></span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await triggerCalendarSync();
+                  }}
+                  disabled={syncStatus === "syncing"}
+                  className="px-3 py-1 rounded-lg bg-[#536b54] text-white hover:bg-[#3f5340] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("w-3 h-3", syncStatus === "syncing" && "animate-spin")} />
+                  <span>{syncStatus === "syncing" ? "Syncing..." : "Sync Now"}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={async () => {
+                  await connectGoogleCalendar();
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <Calendar className="w-4 h-4 text-amber-300" />
+                <span>Connect Google Calendar</span>
+              </button>
+            )}
           </div>
         </div>
 
