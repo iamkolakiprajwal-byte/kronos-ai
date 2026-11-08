@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { supabaseUrl, supabaseAnonKey } from "@/lib/supabase/client";
 import { performBidirectionalSync } from "@/lib/calendar/sync-service";
 
 export async function GET(request: Request) {
@@ -34,8 +36,19 @@ export async function GET(request: Request) {
         const avatarUrl = meta.avatar_url || meta.picture || "";
         const email = user.email || "";
 
+        // Scoped client with authenticated session JWT guaranteeing RLS (auth.uid() = user.id)
+        const jwt = data.session.access_token;
+        const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+          auth: { persistSession: false },
+          global: {
+            headers: {
+              Authorization: `Bearer ${jwt}`,
+            },
+          },
+        });
+
         // Check if user already has a profile in public.profiles
-        const { data: profile } = await supabase
+        const { data: profile } = await userSupabase
           .from("profiles")
           .select("id, onboarding_completed, role")
           .eq("id", user.id)
@@ -43,7 +56,7 @@ export async function GET(request: Request) {
 
         // Create or update profile using correct schema columns (full_name, avatar_url)
         if (!profile) {
-          await supabase.from("profiles").upsert(
+          await userSupabase.from("profiles").upsert(
             {
               id: user.id,
               email: email,
@@ -75,11 +88,17 @@ export async function GET(request: Request) {
             connPayload.refresh_token = data.session.provider_refresh_token;
           }
 
-          await supabase.from("calendar_connections").upsert(connPayload, { onConflict: "user_id" });
+          const { error: connUpsertErr } = await userSupabase
+            .from("calendar_connections")
+            .upsert(connPayload, { onConflict: "user_id" });
+
+          if (connUpsertErr) {
+            console.error("[OAuth Callback] Failed to vault calendar connection:", connUpsertErr);
+          }
 
           // Run immediate initial bidirectional sync so calendar events and tasks are populated
           try {
-            await performBidirectionalSync(user.id, supabase);
+            await performBidirectionalSync(user.id, userSupabase, data.session.provider_token);
           } catch (syncErr) {
             console.warn("[OAuth Callback] Initial bidirectional sync notice:", syncErr);
           }

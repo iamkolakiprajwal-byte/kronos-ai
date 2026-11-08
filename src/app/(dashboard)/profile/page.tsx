@@ -493,6 +493,17 @@ export default function ProfilePage() {
                     </button>
                     <button
                       type="button"
+                      onClick={async () => {
+                        await triggerCalendarSync(true);
+                      }}
+                      disabled={syncStatus === "syncing"}
+                      className="px-2.5 py-1 rounded-lg bg-white border border-[#e8e2d5] hover:bg-stone-50 text-[#201e1b] text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                      title="Clear sync tokens and re-import all Google calendars, birthdays, and task lists"
+                    >
+                      <span>Reset & Re-sync</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={handleDisconnectCalendar}
                       disabled={isDisconnecting}
                       className="px-2.5 py-1 rounded-lg bg-white border border-[#e8e2d5] hover:bg-red-50 hover:text-red-700 text-[#545049] text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"

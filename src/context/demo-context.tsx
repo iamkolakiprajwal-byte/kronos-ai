@@ -156,7 +156,7 @@ interface DemoContextType {
   syncStatus: CalendarSyncStatus;
   lastSyncTime: string | null;
   syncConflicts: SyncConflict[];
-  triggerCalendarSync: () => Promise<any>;
+  triggerCalendarSync: (forceFull?: boolean) => Promise<any>;
   simulateExternalCalendarConflict: () => Promise<void>;
   resolveSyncConflict: (conflictId: string, resolution: "keep_local" | "accept_remote") => Promise<void>;
 
@@ -740,6 +740,10 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         .then((saved) => {
           if (saved?.id && saved.id !== created.id) {
             setTasks((prev) => prev.map((t) => (t.id === created.id ? { ...t, id: saved.id } : t)));
+          }
+          // Immediately push to Google Calendar & Google Tasks if integration is live
+          if (syncStatus === "synced") {
+            triggerCalendarSync().catch((err) => console.warn("[Auto-Sync Task] Notice:", err));
           }
         })
         .catch((err) => console.warn("Failed to persist task to Supabase:", err));
@@ -1740,7 +1744,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const triggerCalendarSync = useCallback(async () => {
+  const triggerCalendarSync = useCallback(async (forceFull: boolean = false) => {
     setSyncStatus("syncing");
     try {
       const storedToken =
@@ -1752,11 +1756,11 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "sync",
+          action: forceFull ? "reset_and_sync" : "sync",
           accessToken: storedToken || undefined,
           useMock: false,
         }),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(25000),
       });
 
       const data = await res.json();
@@ -1782,19 +1786,20 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
         const eventsCount = data.calendarEventsImported ?? data.result?.added?.length ?? 0;
         const tasksCount = data.googleTasksImported ?? 0;
+        const pushedCount = data.localTasksPushed ?? 0;
 
         setNotifications((prev) => [
           {
             id: `notif-sync-${Date.now()}`,
-            title: "Google Calendar & Tasks Synchronized",
-            message: `Synchronized ${eventsCount} calendar events and ${tasksCount} Google tasks.`,
+            title: forceFull ? "Google Integration Reset & Re-synced" : "Google Calendar & Tasks Synchronized",
+            message: `Synchronized ${eventsCount} calendar events (including birthdays & custom calendars), ${tasksCount} Google tasks, and pushed ${pushedCount} Kronos activities to Google.`,
             timestamp: "Just now",
             type: "calendar",
             read: false,
           },
           ...prev,
         ]);
-        return { success: true, count: eventsCount };
+        return { success: true, count: eventsCount, tasksCount, pushedCount };
       } else {
         const isNotConnected =
           data.error?.toLowerCase().includes("no active") ||
@@ -1822,7 +1827,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           id: `notif-sync-err-${Date.now()}`,
           title: "Calendar Sync Notice",
           message: isTimeout
-            ? "Calendar synchronization timed out after 15 seconds. Please try again."
+            ? "Calendar synchronization timed out after 25 seconds. Please try again or click Reset & Re-sync."
             : err.message || "Google Calendar synchronization failed.",
           timestamp: "Just now",
           type: "calendar",

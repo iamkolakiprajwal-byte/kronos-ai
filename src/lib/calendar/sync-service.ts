@@ -62,18 +62,23 @@ export async function refreshGoogleTokens(refreshToken: string): Promise<{
  */
 export async function performBidirectionalSync(
   userId: string,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  overrideAccessToken?: string,
+  forceFullSync: boolean = false
 ): Promise<SyncSummary> {
   const now = new Date().toISOString();
 
   // 1. Fetch user's calendar connection from the database
-  const { data: connection, error: connError } = await supabase
+  const { data: connection } = await supabase
     .from("calendar_connections")
     .select("*")
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (connError || !connection || connection.sync_status === "disconnected") {
+  let accessToken = overrideAccessToken || connection?.access_token || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN;
+
+  // If connection is explicitly disconnected and no override token was passed
+  if (!overrideAccessToken && connection?.sync_status === "disconnected") {
     return {
       success: false,
       connected: false,
@@ -83,16 +88,15 @@ export async function performBidirectionalSync(
       localTasksPushed: 0,
       conflicts: 0,
       lastSyncedAt: now,
-      error: "Google Calendar & Tasks are not connected for this account.",
+      error: "Google Calendar & Tasks are disconnected for this account.",
     };
   }
 
-  let accessToken = connection.access_token;
-  const tokenExpiresAt = connection.token_expires_at ? new Date(connection.token_expires_at).getTime() : 0;
+  // 2. Refresh token if expired or expiring soon
+  const tokenExpiresAt = connection?.token_expires_at ? new Date(connection.token_expires_at).getTime() : 0;
   const isExpiringSoon = Date.now() >= tokenExpiresAt - 5 * 60 * 1000;
 
-  // 2. Refresh token if expired or expiring soon
-  if (isExpiringSoon && connection.refresh_token) {
+  if (isExpiringSoon && connection?.refresh_token && !overrideAccessToken) {
     const refreshed = await refreshGoogleTokens(connection.refresh_token);
     if (refreshed) {
       accessToken = refreshed.accessToken;
@@ -105,7 +109,7 @@ export async function performBidirectionalSync(
           updated_at: now,
         })
         .eq("user_id", userId);
-    } else {
+    } else if (!accessToken) {
       await supabase
         .from("calendar_connections")
         .update({ sync_status: "error", updated_at: now })
@@ -120,7 +124,7 @@ export async function performBidirectionalSync(
         localTasksPushed: 0,
         conflicts: 0,
         lastSyncedAt: now,
-        error: "Google authorization expired and could not be refreshed. Please reconnect Google Calendar.",
+        error: "Google authorization expired and could not be refreshed. Please click 'Authorize Calendar Access' to reconnect.",
       };
     }
   }
@@ -135,11 +139,27 @@ export async function performBidirectionalSync(
       localTasksPushed: 0,
       conflicts: 0,
       lastSyncedAt: now,
-      error: "Valid Google access token missing. Please reconnect Google Calendar.",
+      error: "No active Google Calendar authorization token found. Please click 'Authorize Calendar Access' in the header.",
     };
   }
 
-  const calendarAdapter = new GoogleCalendarAdapter(accessToken, connection.external_calendar_id || "primary");
+  // Ensure connection row exists and is marked active with this token
+  if (accessToken && (!connection || connection.access_token !== accessToken || connection.sync_status !== "active")) {
+    await supabase.from("calendar_connections").upsert(
+      {
+        user_id: userId,
+        provider: "google",
+        access_token: accessToken,
+        sync_status: "active",
+        last_synced_at: now,
+        google_tasks_sync_enabled: true,
+        google_calendar_sync_enabled: true,
+      },
+      { onConflict: "user_id" }
+    );
+  }
+
+  const calendarAdapter = new GoogleCalendarAdapter(accessToken, connection?.external_calendar_id || "primary");
   const tasksAdapter = new GoogleTasksAdapter(accessToken);
 
   let calendarEventsImported = 0;
@@ -150,22 +170,24 @@ export async function performBidirectionalSync(
 
   try {
     // -------------------------------------------------------------------------
-    // STEP A: Sync Google Calendar Events (Inbound)
+    // STEP A: Sync Google Calendar Events (Inbound: Primary + Birthdays + Custom)
     // -------------------------------------------------------------------------
-    if (connection.google_calendar_sync_enabled !== false) {
-      const calResult = await calendarAdapter.fetchRemoteChanges(connection.sync_token || undefined);
+    if (connection?.google_calendar_sync_enabled !== false) {
+      const syncTokenToUse = forceFullSync ? undefined : connection?.sync_token || undefined;
+      const calResult = await calendarAdapter.fetchRemoteChanges(syncTokenToUse);
 
-      // Import / Upsert added and modified events
       for (const ev of calResult.added) {
-        const payload = {
+        const payload: any = {
           user_id: userId,
           title: ev.title,
           event_date: ev.date,
-          start_time: ev.startTime,
-          end_time: ev.endTime,
+          start_time: ev.startTime || "09:00",
+          end_time: ev.endTime || "10:00",
           category: ev.category || "meeting",
           is_fixed: true,
+          is_all_day: (ev as any).isAllDay || (ev.startTime === "00:00" && ev.endTime === "23:59"),
           location: ev.location,
+          color: ev.color,
           external_event_id: ev.id,
           source: "google",
           last_synced_at: now,
@@ -220,9 +242,9 @@ export async function performBidirectionalSync(
     }
 
     // -------------------------------------------------------------------------
-    // STEP B: Sync Google Tasks (Inbound)
+    // STEP B: Sync Google Tasks (Inbound: All Task Lists)
     // -------------------------------------------------------------------------
-    if (connection.google_tasks_sync_enabled !== false) {
+    if (connection?.google_tasks_sync_enabled !== false) {
       const tasksResult = await tasksAdapter.fetchTasks();
 
       if (tasksResult.items && tasksResult.items.length > 0) {
@@ -274,15 +296,53 @@ export async function performBidirectionalSync(
     }
 
     // -------------------------------------------------------------------------
-    // STEP C: Outbound Sync (Kronos Tasks with Schedule -> Google Calendar)
+    // STEP C: Outbound Sync (Kronos Tasks & Events -> Google Tasks & Google Calendar)
     // -------------------------------------------------------------------------
+
+    // Pass C1: Push Local Kronos Tasks to Google Tasks
+    const { data: unsyncedTasks } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("sync_source", "local")
+      .is("external_task_id", null)
+      .limit(10);
+
+    if (unsyncedTasks && unsyncedTasks.length > 0) {
+      for (const t of unsyncedTasks) {
+        try {
+          const createdRemote = await tasksAdapter.createTask({
+            title: t.title,
+            notes: t.description || undefined,
+            due: t.scheduled_date,
+            status: t.status === "completed" ? "completed" : "needsAction",
+          });
+
+          if (createdRemote?.id) {
+            await supabase
+              .from("tasks")
+              .update({
+                external_task_id: createdRemote.id,
+                last_synced_at: now,
+                updated_at: now,
+              })
+              .eq("id", t.id);
+            localTasksPushed++;
+          }
+        } catch (taskPushErr) {
+          console.warn(`[Outbound Sync] Error pushing task "${t.title}" to Google Tasks:`, taskPushErr);
+        }
+      }
+    }
+
+    // Pass C2: Push Local Calendar Events to Google Calendar
     const { data: unsyncedEvents } = await supabase
       .from("calendar_events")
       .select("*")
       .eq("user_id", userId)
       .eq("source", "local")
       .is("external_event_id", null)
-      .limit(5);
+      .limit(10);
 
     if (unsyncedEvents && unsyncedEvents.length > 0) {
       for (const localEv of unsyncedEvents) {
@@ -310,7 +370,62 @@ export async function performBidirectionalSync(
             localTasksPushed++;
           }
         } catch (pushErr) {
-          console.warn("[Outbound Sync] Error pushing local event to Google:", pushErr);
+          console.warn("[Outbound Sync] Error pushing local event to Google Calendar:", pushErr);
+        }
+      }
+    }
+
+    // Pass C3: Push Scheduled Tasks (with startTime and endTime) to Google Calendar as events
+    const { data: timedTasks } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("user_id", userId)
+      .not("start_time", "is", null)
+      .not("end_time", "is", null)
+      .limit(10);
+
+    if (timedTasks && timedTasks.length > 0) {
+      for (const tt of timedTasks) {
+        // Check if event already created for this task
+        const { data: existingCalEv } = await supabase
+          .from("calendar_events")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("task_id", tt.id)
+          .maybeSingle();
+
+        if (!existingCalEv) {
+          try {
+            const pushRes = await calendarAdapter.pushEvent({
+              id: tt.id,
+              title: tt.title,
+              date: tt.scheduled_date,
+              startTime: tt.start_time || "09:00",
+              endTime: tt.end_time || "10:00",
+              category: tt.category === "study" ? "academic" : "meeting",
+              isFixed: tt.is_fixed || false,
+            });
+
+            if (pushRes.success && pushRes.remoteId) {
+              await supabase.from("calendar_events").insert({
+                user_id: userId,
+                task_id: tt.id,
+                title: tt.title,
+                event_date: tt.scheduled_date,
+                start_time: tt.start_time || "09:00",
+                end_time: tt.end_time || "10:00",
+                category: tt.category === "study" ? "academic" : "meeting",
+                is_fixed: tt.is_fixed || false,
+                external_event_id: pushRes.remoteId,
+                source: "google",
+                last_synced_at: now,
+                updated_at: now,
+              });
+              localTasksPushed++;
+            }
+          } catch (calPushErr) {
+            console.warn(`[Outbound Sync] Error pushing scheduled task "${tt.title}" to Google Calendar:`, calPushErr);
+          }
         }
       }
     }
@@ -324,21 +439,6 @@ export async function performBidirectionalSync(
         updated_at: now,
       })
       .eq("user_id", userId);
-
-    // Record in sync audit log
-    await supabase.from("sync_audit_log").insert({
-      user_id: userId,
-      provider: "google_calendar",
-      action: "import",
-      status: "success",
-      details: {
-        calendarEventsImported,
-        calendarEventsDeleted,
-        googleTasksImported,
-        localTasksPushed,
-        conflicts,
-      },
-    });
 
     return {
       success: true,

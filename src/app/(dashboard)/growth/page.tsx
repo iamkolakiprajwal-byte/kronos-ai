@@ -236,7 +236,7 @@ function GrowthContent() {
 
     addHabitTransition({
       title: transTitle,
-      startDate: referenceDate || "2026-11-02",
+      startDate: referenceDate || new Date().toISOString().split("T")[0],
       category: transCategory,
       status: "active",
       disruptedRoutines: disrupted.length > 0 ? disrupted : ["Old routine schedules"],

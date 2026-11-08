@@ -6,16 +6,17 @@ import { performBidirectionalSync } from "@/lib/calendar/sync-service";
 import { mockCalendarAdapter } from "@/lib/calendar/mock-adapter";
 
 const SyncRequestSchema = z.object({
-  action: z.enum(["sync", "disconnect", "simulate_conflict", "resolve"]).default("sync"),
+  action: z.enum(["sync", "disconnect", "simulate_conflict", "resolve", "reset_and_sync"]).default("sync"),
   conflictId: z.string().optional(),
   resolution: z.enum(["keep_local", "accept_remote"]).optional(),
   useMock: z.boolean().default(false),
+  accessToken: z.string().optional(),
 });
 
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { action, conflictId, resolution, useMock } = SyncRequestSchema.parse(body);
+    const { action, conflictId, resolution, useMock, accessToken } = SyncRequestSchema.parse(body);
 
     const isTest = process.env.NODE_ENV === "test" || useMock;
 
@@ -53,14 +54,17 @@ export async function POST(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
 
+      const cookieStore = await cookies();
       let targetUserId = user?.id;
       if (!targetUserId) {
-        const cookieStore = await cookies();
         const cookieUserId = cookieStore.get("kronos_auth_user")?.value;
         if (cookieUserId) {
           targetUserId = cookieUserId;
         }
       }
+
+      const tokenFromCookie = cookieStore.get("kronos_google_token")?.value;
+      const effectiveAccessToken = accessToken || tokenFromCookie;
 
       if (targetUserId) {
         if (action === "disconnect") {
@@ -82,7 +86,24 @@ export async function POST(request: Request) {
           });
         }
 
-        const summary = await performBidirectionalSync(targetUserId, supabase);
+        const forceFullSync = action === "reset_and_sync";
+        if (forceFullSync) {
+          await supabase
+            .from("calendar_connections")
+            .update({
+              sync_token: null,
+              google_tasks_sync_token: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", targetUserId);
+        }
+
+        const summary = await performBidirectionalSync(
+          targetUserId,
+          supabase,
+          effectiveAccessToken,
+          forceFullSync
+        );
         return NextResponse.json(summary);
       }
     }

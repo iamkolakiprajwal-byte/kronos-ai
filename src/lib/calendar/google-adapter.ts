@@ -31,6 +31,94 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
     return Boolean(this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN);
   }
 
+  async fetchUserCalendars(): Promise<{ id: string; summary: string; primary?: boolean; isBirthday?: boolean }[]> {
+    if (!this.hasValidCredentials()) return [{ id: "primary", summary: "Primary Calendar", primary: true }];
+
+    try {
+      const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
+        headers: {
+          Authorization: `Bearer ${this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN}`,
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!res.ok) {
+        return [{ id: "primary", summary: "Primary Calendar", primary: true }];
+      }
+
+      const data = await res.json();
+      return (data.items || []).map((c: any) => ({
+        id: c.id,
+        summary: c.summary || "",
+        primary: Boolean(c.primary),
+        isBirthday:
+          c.id?.includes("contacts@group.v.calendar.google.com") ||
+          c.summary?.toLowerCase().includes("birthday"),
+      }));
+    } catch (err) {
+      console.warn("[GoogleCalendarAdapter] Failed to list user calendars:", err);
+      return [{ id: "primary", summary: "Primary Calendar", primary: true }];
+    }
+  }
+
+  private parseGoogleEvent(item: any, calendarSummary?: string): CalendarEvent | null {
+    if (item.status === "cancelled") return null;
+
+    const isAllDay = Boolean(item.start?.date && !item.start?.dateTime);
+    const isBirthday =
+      item.eventType === "birthday" ||
+      item.summary?.toLowerCase().includes("birthday") ||
+      calendarSummary?.toLowerCase().includes("birthday");
+
+    let dateStr = "";
+    let startTimeStr = "09:00";
+    let endTimeStr = "18:00";
+
+    if (isAllDay && item.start?.date) {
+      // Direct YYYY-MM-DD from Google without UTC date distortion
+      dateStr = item.start.date;
+      startTimeStr = "00:00";
+      endTimeStr = "23:59";
+    } else if (item.start?.dateTime) {
+      const startDt = new Date(item.start.dateTime);
+      const endDt = item.end?.dateTime
+        ? new Date(item.end.dateTime)
+        : new Date(startDt.getTime() + 60 * 60 * 1000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      dateStr = `${startDt.getFullYear()}-${pad(startDt.getMonth() + 1)}-${pad(startDt.getDate())}`;
+      startTimeStr = `${pad(startDt.getHours())}:${pad(startDt.getMinutes())}`;
+      endTimeStr = `${pad(endDt.getHours())}:${pad(endDt.getMinutes())}`;
+    } else {
+      return null;
+    }
+
+    let category: CalendarEvent["category"] = "meeting";
+    if (isBirthday) {
+      category = "personal";
+    } else if (item.eventType === "focusTime") {
+      category = "deep_work";
+    } else if (
+      item.summary?.toLowerCase().includes("lecture") ||
+      item.summary?.toLowerCase().includes("class")
+    ) {
+      category = "academic";
+    }
+
+    return {
+      id: item.id,
+      title: item.summary || (isBirthday ? "Birthday" : "Untitled Calendar Event"),
+      date: dateStr,
+      startTime: startTimeStr,
+      endTime: endTimeStr,
+      category,
+      isFixed: true,
+      location: item.location || item.hangoutLink,
+      notes: item.description,
+      color: isBirthday ? "#ec4899" : undefined,
+    };
+  }
+
   async fetchRemoteChanges(syncToken?: string): Promise<SyncResult> {
     const isTest = process.env.NODE_ENV === "test";
     if (!this.hasValidCredentials()) {
@@ -43,21 +131,30 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
     }
 
     try {
-      const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(this.calendarId)}/events`);
-      url.searchParams.set("singleEvents", "true");
-      url.searchParams.set("maxResults", "250");
+      const added: CalendarEvent[] = [];
+      const updated: CalendarEvent[] = [];
+      const deletedIds: string[] = [];
+      const seenIds = new Set<string>();
+
+      // 1. Fetch Primary Calendar events
+      const primaryUrl = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(this.calendarId)}/events`);
+      primaryUrl.searchParams.set("singleEvents", "true");
+      primaryUrl.searchParams.set("maxResults", "250");
 
       if (syncToken) {
-        url.searchParams.set("syncToken", syncToken);
+        primaryUrl.searchParams.set("syncToken", syncToken);
       } else {
-        // Initial sync: fetch events from 30 days ago to 90 days ahead
         const minDate = new Date();
-        minDate.setDate(minDate.getDate() - 30);
+        minDate.setDate(minDate.getDate() - 60);
         minDate.setHours(0, 0, 0, 0);
-        url.searchParams.set("timeMin", minDate.toISOString());
+        primaryUrl.searchParams.set("timeMin", minDate.toISOString());
+
+        const maxDate = new Date();
+        maxDate.setDate(maxDate.getDate() + 180);
+        primaryUrl.searchParams.set("timeMax", maxDate.toISOString());
       }
 
-      const res = await fetch(url.toString(), {
+      const res = await fetch(primaryUrl.toString(), {
         headers: {
           Authorization: `Bearer ${this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN}`,
           Accept: "application/json",
@@ -66,7 +163,6 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
       });
 
       if (res.status === 410) {
-        // 410 Gone: sync token invalidated, perform fresh initial sync
         console.warn("[GoogleCalendarAdapter] Sync token invalidated (410 Gone). Performing full sync.");
         return this.fetchRemoteChanges();
       }
@@ -76,63 +172,87 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
         const detailedMsg = errJson?.error?.message || res.statusText;
 
         if (res.status === 401) {
-          throw new Error(
-            "Google Calendar authorization has expired or is invalid. Please reconnect your Google Calendar."
-          );
+          throw new Error("Google Calendar authorization has expired. Please reconnect your account.");
         }
-
         if (res.status === 403) {
-          if (
-            detailedMsg.toLowerCase().includes("insufficient") ||
-            detailedMsg.toLowerCase().includes("permission")
-          ) {
-            throw new Error(
-              "Insufficient Google Calendar permissions on your current login session. Please click 'Connect Google Calendar' in the header to authorize calendar access."
-            );
-          }
           throw new Error(
-            `Google Calendar API: ${detailedMsg}. If you just enabled the API in Google Cloud Console, please allow 2 minutes for Google to propagate, then reconnect your account.`
+            detailedMsg.toLowerCase().includes("insufficient")
+              ? "Insufficient Google Calendar permissions. Please authorize calendar access."
+              : `Google Calendar API: ${detailedMsg}`
           );
         }
-
         throw new Error(`Google Calendar API error (${res.status}): ${detailedMsg}`);
       }
 
-      const data = await res.json();
-      const added: CalendarEvent[] = [];
-      const updated: CalendarEvent[] = [];
-      const deletedIds: string[] = [];
-
-      for (const item of data.items || []) {
+      const primaryData = await res.json();
+      for (const item of primaryData.items || []) {
         if (item.status === "cancelled") {
           deletedIds.push(item.id);
           continue;
         }
+        const ev = this.parseGoogleEvent(item);
+        if (ev && !seenIds.has(ev.id)) {
+          seenIds.add(ev.id);
+          added.push(ev);
+        }
+      }
 
-        const isAllDay = Boolean(item.start?.date && !item.start?.dateTime);
-        const startIso = item.start?.dateTime || item.start?.date;
-        const endIso = item.end?.dateTime || item.end?.date;
-        const startDate = startIso ? new Date(startIso) : new Date();
-        const endDate = endIso ? new Date(endIso) : new Date();
+      // 2. Discover secondary calendars (e.g. Birthdays, custom calendars) on full sync
+      if (!syncToken) {
+        try {
+          const userCalendars = await this.fetchUserCalendars();
+          const secondaryCalendars = userCalendars
+            .filter((c) => !c.primary && c.id !== this.calendarId)
+            .sort((a, b) => (b.isBirthday ? 1 : 0) - (a.isBirthday ? 1 : 0));
 
-        const pad = (n: number) => String(n).padStart(2, "0");
-        const dateStr = `${startDate.getFullYear()}-${pad(startDate.getMonth() + 1)}-${pad(startDate.getDate())}`;
-        const startTimeStr = isAllDay ? "09:00" : `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
-        const endTimeStr = isAllDay ? "18:00" : `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+          for (const cal of secondaryCalendars.slice(0, 10)) {
+            try {
+              const secUrl = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`);
+              secUrl.searchParams.set("singleEvents", "true");
 
-        const event: CalendarEvent = {
-          id: item.id,
-          title: item.summary || "Untitled Calendar Event",
-          date: dateStr,
-          startTime: startTimeStr,
-          endTime: endTimeStr,
-          category: "meeting",
-          isFixed: true,
-          location: item.location || item.hangoutLink,
-          notes: item.description,
-        };
+              if (cal.isBirthday) {
+                // Birthdays: query full calendar year so all upcoming and past birthdays for the year are visible
+                const currentYear = new Date().getFullYear();
+                secUrl.searchParams.set("timeMin", new Date(currentYear, 0, 1).toISOString());
+                secUrl.searchParams.set("timeMax", new Date(currentYear + 1, 0, 1).toISOString());
+                secUrl.searchParams.set("maxResults", "250");
+              } else {
+                const minDate = new Date();
+                minDate.setDate(minDate.getDate() - 60);
+                secUrl.searchParams.set("timeMin", minDate.toISOString());
 
-        added.push(event);
+                const maxDate = new Date();
+                maxDate.setDate(maxDate.getDate() + 180);
+                secUrl.searchParams.set("timeMax", maxDate.toISOString());
+                secUrl.searchParams.set("maxResults", "100");
+              }
+
+              const secRes = await fetch(secUrl.toString(), {
+                headers: {
+                  Authorization: `Bearer ${this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN}`,
+                  Accept: "application/json",
+                },
+                signal: AbortSignal.timeout(10000),
+              });
+
+              if (secRes.ok) {
+                const secData = await secRes.json();
+                for (const item of secData.items || []) {
+                  if (item.status === "cancelled") continue;
+                  const ev = this.parseGoogleEvent(item, cal.summary);
+                  if (ev && !seenIds.has(ev.id)) {
+                    seenIds.add(ev.id);
+                    added.push(ev);
+                  }
+                }
+              }
+            } catch (secErr) {
+              console.warn(`[GoogleCalendarAdapter] Notice on calendar ${cal.summary}:`, secErr);
+            }
+          }
+        } catch (calListErr) {
+          console.warn("[GoogleCalendarAdapter] Calendar list lookup notice:", calListErr);
+        }
       }
 
       return {
@@ -140,7 +260,7 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
         updated,
         deletedIds,
         conflicts: [],
-        newSyncToken: data.nextSyncToken || "token_fallback",
+        newSyncToken: primaryData.nextSyncToken || "token_fallback",
         syncedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
     } catch (err) {
@@ -161,15 +281,29 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
     }
 
     try {
-      const startDateTime = new Date(`${event.date}T${event.startTime}:00`).toISOString();
-      const endDateTime = new Date(`${event.date}T${event.endTime}:00`).toISOString();
+      const isAllDay =
+        (event as any).isAllDay ||
+        (event.startTime === "00:00" && event.endTime === "23:59");
+
+      let startPayload: any;
+      let endPayload: any;
+
+      if (isAllDay) {
+        startPayload = { date: event.date };
+        endPayload = { date: event.date };
+      } else {
+        const startTime = event.startTime || "09:00";
+        const endTime = event.endTime || "10:00";
+        startPayload = { dateTime: new Date(`${event.date}T${startTime}:00`).toISOString() };
+        endPayload = { dateTime: new Date(`${event.date}T${endTime}:00`).toISOString() };
+      }
 
       const payload: any = {
         summary: event.title,
         description: event.notes || "",
         location: event.location,
-        start: { dateTime: startDateTime },
-        end: { dateTime: endDateTime },
+        start: startPayload,
+        end: endPayload,
         reminders: {
           useDefault: false,
           overrides: [

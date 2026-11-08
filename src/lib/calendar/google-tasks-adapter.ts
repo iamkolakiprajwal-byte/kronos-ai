@@ -33,20 +33,12 @@ export class GoogleTasksAdapter {
   }
 
   /**
-   * Fetches all tasks from Google Tasks @default list.
+   * Discovers all task lists for the user.
    */
-  async fetchTasks(): Promise<{ items: GoogleTaskItem[]; error?: string }> {
-    if (!this.accessToken) {
-      throw new Error("Google Tasks is not connected: access token missing.");
-    }
-
+  async fetchTaskLists(): Promise<{ id: string; title: string }[]> {
+    if (!this.accessToken) return [{ id: "@default", title: "My Tasks" }];
     try {
-      const url = new URL(`https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(this.tasklistId)}/tasks`);
-      url.searchParams.set("showCompleted", "true");
-      url.searchParams.set("showHidden", "true");
-      url.searchParams.set("maxResults", "100");
-
-      const res = await fetch(url.toString(), {
+      const res = await fetch("https://tasks.googleapis.com/tasks/v1/users/@me/lists", {
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
           Accept: "application/json",
@@ -55,20 +47,77 @@ export class GoogleTasksAdapter {
       });
 
       if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        const detailedMsg = errJson?.error?.message || res.statusText;
-
-        if (res.status === 401) {
-          throw new Error("Google Tasks authorization has expired. Please reconnect your account.");
-        }
-        if (res.status === 403) {
-          throw new Error("Insufficient Google Tasks permissions. Please authorize the https://www.googleapis.com/auth/tasks scope.");
-        }
-        throw new Error(`Google Tasks API error (${res.status}): ${detailedMsg}`);
+        return [{ id: "@default", title: "My Tasks" }];
       }
 
       const data = await res.json();
-      return { items: data.items || [] };
+      const lists = (data.items || []).map((l: any) => ({
+        id: l.id,
+        title: l.title || "Tasks",
+      }));
+      return lists.length > 0 ? lists : [{ id: "@default", title: "My Tasks" }];
+    } catch {
+      return [{ id: "@default", title: "My Tasks" }];
+    }
+  }
+
+  /**
+   * Fetches all tasks across all task lists (My Tasks, Reminders, custom lists).
+   */
+  async fetchTasks(): Promise<{ items: GoogleTaskItem[]; error?: string }> {
+    if (!this.accessToken) {
+      throw new Error("Google Tasks is not connected: access token missing.");
+    }
+
+    try {
+      const taskLists = await this.fetchTaskLists();
+      const allItems: GoogleTaskItem[] = [];
+      const seenIds = new Set<string>();
+
+      for (const list of taskLists) {
+        try {
+          const url = new URL(`https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(list.id)}/tasks`);
+          url.searchParams.set("showCompleted", "true");
+          url.searchParams.set("showHidden", "true");
+          url.searchParams.set("maxResults", "100");
+
+          const res = await fetch(url.toString(), {
+            headers: {
+              Authorization: `Bearer ${this.accessToken}`,
+              Accept: "application/json",
+            },
+            signal: AbortSignal.timeout(10000),
+          });
+
+          if (!res.ok) {
+            const errJson = await res.json().catch(() => null);
+            const detailedMsg = errJson?.error?.message || res.statusText;
+
+            if (res.status === 401) {
+              throw new Error("Google Tasks authorization has expired. Please reconnect your account.");
+            }
+            if (res.status === 403) {
+              throw new Error("Insufficient Google Tasks permissions. Please authorize the https://www.googleapis.com/auth/tasks scope.");
+            }
+            continue;
+          }
+
+          const data = await res.json();
+          for (const item of data.items || []) {
+            if (!seenIds.has(item.id)) {
+              seenIds.add(item.id);
+              allItems.push(item);
+            }
+          }
+        } catch (listErr: any) {
+          if (listErr.message?.includes("authorization") || listErr.message?.includes("permissions")) {
+            throw listErr;
+          }
+          console.warn(`[GoogleTasksAdapter] Notice fetching list ${list.title}:`, listErr);
+        }
+      }
+
+      return { items: allItems };
     } catch (err: any) {
       return { items: [], error: err.message };
     }
@@ -105,6 +154,7 @@ export class GoogleTasksAdapter {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!res.ok) {

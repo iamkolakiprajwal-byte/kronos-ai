@@ -50,7 +50,7 @@ const chatRequestSchema = z.object({
         }).passthrough()
       )
       .default([]),
-    currentDate: z.string().default("2026-11-02"),
+    currentDate: z.string().default(() => new Date().toISOString().split("T")[0]),
   }),
 });
 

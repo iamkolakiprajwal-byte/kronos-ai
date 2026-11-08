@@ -32,7 +32,7 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
     profile,
   } = useDemo();
 
-  const [todayDate, setTodayDate] = React.useState<Date>(() => new Date("2026-11-02T00:00:00"));
+  const [todayDate, setTodayDate] = React.useState<Date>(() => new Date("2026-11-08T00:00:00"));
 
   React.useEffect(() => {
     setTodayDate(new Date());

@@ -551,6 +551,17 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                     <button
                       type="button"
                       onClick={async () => {
+                        await triggerCalendarSync(true);
+                      }}
+                      disabled={syncStatus === "syncing"}
+                      className="px-2.5 py-1.5 rounded-lg bg-white border border-[#d6e0d5] hover:bg-stone-50 text-[#201e1b] text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                      title="Clear sync tokens and re-import all Google calendars, birthdays, and task lists"
+                    >
+                      <span>Reset & Re-sync</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
                         try {
                           await fetch("/api/calendar/sync", {
                             method: "POST",
