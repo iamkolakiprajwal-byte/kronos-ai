@@ -53,7 +53,16 @@ export async function POST(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (user) {
+      let targetUserId = user?.id;
+      if (!targetUserId) {
+        const cookieStore = await cookies();
+        const cookieUserId = cookieStore.get("kronos_auth_user")?.value;
+        if (cookieUserId) {
+          targetUserId = cookieUserId;
+        }
+      }
+
+      if (targetUserId) {
         if (action === "disconnect") {
           await supabase
             .from("calendar_connections")
@@ -64,7 +73,7 @@ export async function POST(request: Request) {
               sync_token: null,
               updated_at: new Date().toISOString(),
             })
-            .eq("user_id", user.id);
+            .eq("user_id", targetUserId);
 
           return NextResponse.json({
             success: true,
@@ -73,7 +82,7 @@ export async function POST(request: Request) {
           });
         }
 
-        const summary = await performBidirectionalSync(user.id, supabase);
+        const summary = await performBidirectionalSync(targetUserId, supabase);
         return NextResponse.json(summary);
       }
     }

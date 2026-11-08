@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import {
   UserProfile,
@@ -78,6 +78,8 @@ interface DemoContextType {
   addHabit: (habit: Omit<Habit, "id" | "currentStreak" | "bestStreak" | "completedToday" | "automaticityScore">) => void;
   setHabitSelfReportedAutomaticity: (habitId: string, score: number) => void;
   markNotificationRead: (id: string) => void;
+  dismissNotification: (id: string) => void;
+  clearNotifications: () => void;
   chatMessages: ChatMessage[];
   sendChatMessage: (content: string) => void;
   isAiThinking: boolean;
@@ -823,6 +825,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+  };
+
+  const dismissNotification = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const clearNotifications = () => {
+    setNotifications([]);
   };
 
   const applySuggestedTasks = (suggested: Partial<Task>[]) => {
@@ -1730,7 +1740,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const triggerCalendarSync = async () => {
+  const triggerCalendarSync = useCallback(async () => {
     setSyncStatus("syncing");
     try {
       const storedToken =
@@ -1746,6 +1756,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           accessToken: storedToken || undefined,
           useMock: false,
         }),
+        signal: AbortSignal.timeout(15000),
       });
 
       const data = await res.json();
@@ -1803,10 +1814,25 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: data.error };
       }
     } catch (err: any) {
+      console.warn("[triggerCalendarSync] Error during sync:", err);
+      const isTimeout = err.name === "TimeoutError" || err.message?.includes("aborted");
       setSyncStatus("error");
+      setNotifications((prev) => [
+        {
+          id: `notif-sync-err-${Date.now()}`,
+          title: "Calendar Sync Notice",
+          message: isTimeout
+            ? "Calendar synchronization timed out after 15 seconds. Please try again."
+            : err.message || "Google Calendar synchronization failed.",
+          timestamp: "Just now",
+          type: "calendar",
+          read: false,
+        },
+        ...prev,
+      ]);
       return { success: false, error: err.message };
     }
-  };
+  }, [authUser?.id]);
 
   const simulateExternalCalendarConflict = async () => {
     try {
@@ -1926,6 +1952,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         addHabit,
         setHabitSelfReportedAutomaticity,
         markNotificationRead,
+        dismissNotification,
+        clearNotifications,
         chatMessages,
         sendChatMessage,
         isAiThinking,

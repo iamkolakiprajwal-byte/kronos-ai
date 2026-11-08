@@ -62,6 +62,7 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
           Authorization: `Bearer ${this.accessToken || process.env.GOOGLE_CALENDAR_ACCESS_TOKEN}`,
           Accept: "application/json",
         },
+        signal: AbortSignal.timeout(10000),
       });
 
       if (res.status === 410) {
@@ -184,6 +185,7 @@ export class GoogleCalendarAdapter implements CalendarAdapter {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!res.ok) {

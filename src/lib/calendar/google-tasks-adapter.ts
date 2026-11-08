@@ -51,6 +51,7 @@ export class GoogleTasksAdapter {
           Authorization: `Bearer ${this.accessToken}`,
           Accept: "application/json",
         },
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!res.ok) {

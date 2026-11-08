@@ -157,26 +157,43 @@ export async function performBidirectionalSync(
 
       // Import / Upsert added and modified events
       for (const ev of calResult.added) {
-        const { error: upsertErr } = await supabase.from("calendar_events").upsert(
-          {
-            user_id: userId,
-            title: ev.title,
-            event_date: ev.date,
-            start_time: ev.startTime,
-            end_time: ev.endTime,
-            category: ev.category || "meeting",
-            is_fixed: true,
-            location: ev.location,
-            external_event_id: ev.id,
-            source: "google",
-            last_synced_at: now,
-            updated_at: now,
-          },
-          { onConflict: "user_id,external_event_id" }
-        );
+        const payload = {
+          user_id: userId,
+          title: ev.title,
+          event_date: ev.date,
+          start_time: ev.startTime,
+          end_time: ev.endTime,
+          category: ev.category || "meeting",
+          is_fixed: true,
+          location: ev.location,
+          external_event_id: ev.id,
+          source: "google",
+          last_synced_at: now,
+          updated_at: now,
+        };
 
-        if (!upsertErr) {
-          calendarEventsImported++;
+        const { data: existing } = await supabase
+          .from("calendar_events")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("external_event_id", ev.id)
+          .maybeSingle();
+
+        if (existing) {
+          const { error: updErr } = await supabase
+            .from("calendar_events")
+            .update(payload)
+            .eq("id", existing.id);
+          if (!updErr) {
+            calendarEventsImported++;
+          }
+        } else {
+          const { error: insErr } = await supabase
+            .from("calendar_events")
+            .insert(payload);
+          if (!insErr) {
+            calendarEventsImported++;
+          }
         }
       }
 
@@ -215,25 +232,42 @@ export async function performBidirectionalSync(
             dueDate = gt.due.split("T")[0];
           }
 
-          const { error: taskUpsertErr } = await supabase.from("tasks").upsert(
-            {
-              user_id: userId,
-              title: gt.title || "Untitled Google Task",
-              description: gt.notes || "",
-              category: "work",
-              priority: "medium",
-              status: gt.status === "completed" ? "completed" : "todo",
-              scheduled_date: dueDate,
-              external_task_id: gt.id,
-              sync_source: "google_tasks",
-              last_synced_at: now,
-              updated_at: now,
-            },
-            { onConflict: "user_id,external_task_id" }
-          );
+          const taskPayload = {
+            user_id: userId,
+            title: gt.title || "Untitled Google Task",
+            description: gt.notes || "",
+            category: "work",
+            priority: "medium",
+            status: gt.status === "completed" ? "completed" : "todo",
+            scheduled_date: dueDate,
+            external_task_id: gt.id,
+            sync_source: "google_tasks",
+            last_synced_at: now,
+            updated_at: now,
+          };
 
-          if (!taskUpsertErr) {
-            googleTasksImported++;
+          const { data: existingTask } = await supabase
+            .from("tasks")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("external_task_id", gt.id)
+            .maybeSingle();
+
+          if (existingTask) {
+            const { error: taskUpdErr } = await supabase
+              .from("tasks")
+              .update(taskPayload)
+              .eq("id", existingTask.id);
+            if (!taskUpdErr) {
+              googleTasksImported++;
+            }
+          } else {
+            const { error: taskInsErr } = await supabase
+              .from("tasks")
+              .insert(taskPayload);
+            if (!taskInsErr) {
+              googleTasksImported++;
+            }
           }
         }
       }
@@ -247,7 +281,8 @@ export async function performBidirectionalSync(
       .select("*")
       .eq("user_id", userId)
       .eq("source", "local")
-      .is("external_event_id", null);
+      .is("external_event_id", null)
+      .limit(5);
 
     if (unsyncedEvents && unsyncedEvents.length > 0) {
       for (const localEv of unsyncedEvents) {

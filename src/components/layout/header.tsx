@@ -35,6 +35,8 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
     setRole,
     notifications,
     markNotificationRead,
+    dismissNotification,
+    clearNotifications,
     syncStatus,
     lastSyncTime,
     syncConflicts,
@@ -311,12 +313,24 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                   <h3 className="text-xs font-semibold text-[#201e1b]">Notifications</h3>
                   <p className="text-[11px] text-[#8a8479]">Smart reminders & scheduling alerts</p>
                 </div>
-                <button
-                  onClick={() => setShowNotifications(false)}
-                  className="p-1 rounded-md text-[#8a8479] hover:text-[#201e1b] hover:bg-[#f2eee6]"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {notifications.length > 0 && (
+                    <button
+                      onClick={clearNotifications}
+                      className="text-[11px] font-medium text-[#8a8479] hover:text-[#b85437] transition-colors px-2 py-0.5 rounded hover:bg-[#f2eee6] cursor-pointer"
+                      title="Clear all notifications"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowNotifications(false)}
+                    className="p-1 rounded-md text-[#8a8479] hover:text-[#201e1b] hover:bg-[#f2eee6] cursor-pointer"
+                    aria-label="Close notifications"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="max-h-80 overflow-y-auto divide-y divide-[#f2eee6]">
@@ -330,7 +344,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                       key={item.id}
                       onClick={() => markNotificationRead(item.id)}
                       className={cn(
-                        "p-3.5 hover:bg-[#fbf9f5] transition-colors cursor-pointer flex items-start gap-2.5",
+                        "group p-3.5 hover:bg-[#fbf9f5] transition-colors cursor-pointer flex items-start gap-2.5 relative",
                         !item.read && "bg-[#faf7f0]/60"
                       )}
                     >
@@ -344,7 +358,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                             : "bg-[#536b54]"
                         )}
                       />
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pr-6">
                         <div className="flex items-center justify-between gap-1">
                           <h4 className="text-xs font-semibold text-[#201e1b] truncate">
                             {item.title}
@@ -357,6 +371,18 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                           {item.message}
                         </p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dismissNotification(item.id);
+                        }}
+                        className="opacity-60 group-hover:opacity-100 p-1 text-[#8a8479] hover:text-[#b85437] hover:bg-[#f2eee6] rounded-md transition-all absolute right-2.5 top-3 cursor-pointer"
+                        title="Dismiss notification"
+                        aria-label="Dismiss notification"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   ))
                 )}

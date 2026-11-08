@@ -38,13 +38,16 @@ export default function HomePage() {
     triggerCalendarSync,
   } = useDemo();
 
+  const hasTriggeredSync = React.useRef(false);
+
   React.useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && !hasTriggeredSync.current) {
       const params = new URLSearchParams(window.location.search);
       if (params.get("calendar_connected") === "true") {
-        triggerCalendarSync();
+        hasTriggeredSync.current = true;
         const newUrl = window.location.pathname;
         window.history.replaceState({}, "", newUrl);
+        triggerCalendarSync();
       }
     }
   }, [triggerCalendarSync]);
