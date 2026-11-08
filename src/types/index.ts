@@ -186,6 +186,7 @@ export interface NotificationItem {
   timestamp: string;
   type: "task" | "calendar" | "habit" | "system" | "eco";
   read: boolean;
+  createdAtMs?: number;
 }
 
 export interface DailySummary {

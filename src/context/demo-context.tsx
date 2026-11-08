@@ -167,6 +167,59 @@ interface DemoContextType {
 
 const DemoContext = createContext<DemoContextType | undefined>(undefined);
 
+const NOTIFS_STORAGE_KEY = "kronos_notifications_v1";
+const NOTIFS_CLEARED_KEY = "kronos_notifications_cleared_at_v1";
+const NOTIFS_DISMISSED_KEY = "kronos_notifications_dismissed_v1";
+
+function getNotifsKey(userId?: string): string {
+  return userId ? `kronos_notifs_${userId}` : NOTIFS_STORAGE_KEY;
+}
+
+function getClearedAtKey(userId?: string): string {
+  return userId ? `kronos_notifs_cleared_${userId}` : NOTIFS_CLEARED_KEY;
+}
+
+function getDismissedKey(userId?: string): string {
+  return userId ? `kronos_notifs_dismissed_${userId}` : NOTIFS_DISMISSED_KEY;
+}
+
+function getStoredClearedAt(userId?: string): number {
+  if (typeof window === "undefined" || !window.localStorage) return 0;
+  try {
+    const val = localStorage.getItem(getClearedAtKey(userId)) || localStorage.getItem(NOTIFS_CLEARED_KEY);
+    return val ? parseInt(val, 10) || 0 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function getStoredDismissedIds(userId?: string): Set<string> {
+  if (typeof window === "undefined" || !window.localStorage) return new Set();
+  try {
+    const userVal = userId ? localStorage.getItem(getDismissedKey(userId)) : null;
+    const guestVal = localStorage.getItem(NOTIFS_DISMISSED_KEY);
+    const userArr = userVal ? JSON.parse(userVal) : [];
+    const guestArr = guestVal ? JSON.parse(guestVal) : [];
+    return new Set([...userArr, ...guestArr]);
+  } catch {
+    return new Set();
+  }
+}
+
+function filterValidNotifications(items: NotificationItem[], userId?: string): NotificationItem[] {
+  if (!Array.isArray(items)) return [];
+  const clearedAt = getStoredClearedAt(userId);
+  const dismissedSet = getStoredDismissedIds(userId);
+
+  return items.filter((n) => {
+    if (!n || !n.id) return false;
+    if (dismissedSet.has(n.id)) return false;
+    const itemTime = n.createdAtMs || (n.id.startsWith("notif-") ? parseInt(n.id.replace(/\D/g, ""), 10) || 0 : 0);
+    if (clearedAt > 0 && itemTime > 0 && itemTime <= clearedAt) return false;
+    return true;
+  });
+}
+
 export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [role, setRoleState] = useState<UserRole>("student");
   const [profile, setProfile] = useState<UserProfile>({
@@ -202,7 +255,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setSelectedDate(new Date());
     setReferenceDate(new Date().toISOString().split("T")[0]);
   }, []);
-  const { user: authUser } = useAuth();
+  const { user: authUser, isLoading: isAuthLoading } = useAuth();
 
   // Synchronize authenticated user profile (Google / GitHub / Email) from AuthContext
   useEffect(() => {
@@ -253,6 +306,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   // Strict User Data Isolation: Hydrate application state for authenticated user or clean baseline
   useEffect(() => {
+    // Wait until Supabase authentication resolves before determining workspace isolation
+    if (isAuthLoading) return;
+
     let isCurrent = true;
 
     async function hydrateUserWorkspace() {
@@ -269,11 +325,15 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           setHabitTransitions(stored.habitTransitions || []);
           setFocusSessions(stored.focusSessions || []);
           if (Array.isArray(stored.chatMessages) && stored.chatMessages.length) setChatMessages(stored.chatMessages);
-          if (Array.isArray(stored.notifications)) {
-            setNotifications(stored.notifications);
-          } else {
-            setNotifications([]);
-          }
+          
+          let candidateNotifs: NotificationItem[] = [];
+          try {
+            const raw = localStorage.getItem(NOTIFS_STORAGE_KEY);
+            if (raw) candidateNotifs = JSON.parse(raw);
+            else if (Array.isArray(stored.notifications)) candidateNotifs = stored.notifications;
+          } catch {}
+          setNotifications(filterValidNotifications(candidateNotifs));
+
           if (stored.ecoEntries?.length) setEcoEntries(stored.ecoEntries);
         } else if (isCurrent) {
           setTasks([]);
@@ -341,20 +401,21 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
         // Hydrate client-side UI state (notifications, chat messages, eco entries) from user-partitioned local state
         const stored = loadStoredState(authUser.id);
+        let candidateNotifs: NotificationItem[] = [];
+        try {
+          const raw = localStorage.getItem(getNotifsKey(authUser.id)) || localStorage.getItem(NOTIFS_STORAGE_KEY);
+          if (raw) candidateNotifs = JSON.parse(raw);
+          else if (stored && Array.isArray(stored.notifications)) candidateNotifs = stored.notifications;
+        } catch {}
+        setNotifications(filterValidNotifications(candidateNotifs, authUser.id));
+
         if (stored && isCurrent) {
-          if (Array.isArray(stored.notifications)) {
-            setNotifications(stored.notifications);
-          } else {
-            setNotifications([]);
-          }
           if (Array.isArray(stored.chatMessages) && stored.chatMessages.length > 0) {
             setChatMessages(stored.chatMessages);
           }
           if (Array.isArray(stored.ecoEntries)) {
             setEcoEntries(stored.ecoEntries);
           }
-        } else if (isCurrent) {
-          setNotifications([]);
         }
 
         if (conn && (conn.sync_status === "active" || conn.sync_status === "synced")) {
@@ -383,11 +444,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           setHabits(stored.habits);
           setHabitTransitions(stored.habitTransitions || []);
           setFocusSessions(stored.focusSessions || []);
-          if (Array.isArray(stored.notifications)) {
-            setNotifications(stored.notifications);
-          } else {
-            setNotifications([]);
-          }
+          let candidateNotifs: NotificationItem[] = [];
+          try {
+            const raw = localStorage.getItem(getNotifsKey(authUser.id)) || localStorage.getItem(NOTIFS_STORAGE_KEY);
+            if (raw) candidateNotifs = JSON.parse(raw);
+            else if (Array.isArray(stored.notifications)) candidateNotifs = stored.notifications;
+          } catch {}
+          setNotifications(filterValidNotifications(candidateNotifs, authUser.id));
+
           if (Array.isArray(stored.chatMessages) && stored.chatMessages.length > 0) {
             setChatMessages(stored.chatMessages);
           }
@@ -413,7 +477,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isCurrent = false;
     };
-  }, [authUser?.id]);
+  }, [authUser?.id, isAuthLoading]);
 
   // Persist state changes to user-partitioned localStorage whenever core data changes
   useEffect(() => {
@@ -705,17 +769,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     ]);
 
     // Notification
-    setNotifications((prev) => [
-      {
-        id: `notif-onb-${Date.now()}`,
-        title: "Personalized Schedule Activated",
-        message: `Welcome, ${data.name}! Your routines, timetable, and focus preferences have been successfully loaded.`,
-        timestamp: "Just now",
-        type: "system",
-        read: false,
-      },
-      ...prev,
-    ]);
+    addNotificationSafe({
+      id: `notif-onb-${Date.now()}`,
+      title: "Personalized Schedule Activated",
+      message: `Welcome, ${data.name}! Your routines, timetable, and focus preferences have been successfully loaded.`,
+      timestamp: "Just now",
+      type: "system",
+      read: false,
+    });
 
     // Persist onboarding setup directly to authenticated user's database tables
     if (authUser?.id) {
@@ -849,39 +910,95 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const persistNotificationsDirectly = (items: NotificationItem[]) => {
-    try {
-      const stored = loadStoredState(authUser?.id);
-      if (stored) {
-        saveStoredState({ ...stored, notifications: items }, authUser?.id);
-      } else {
-        const clean = getCleanInitialState(role);
-        saveStoredState({ ...clean, notifications: items }, authUser?.id);
+  const addNotificationSafe = useCallback(
+    (item: Omit<NotificationItem, "createdAtMs"> & { createdAtMs?: number }) => {
+      const now = Date.now();
+      const withTimestamp: NotificationItem = {
+        ...item,
+        createdAtMs: item.createdAtMs || now,
+      };
+
+      const clearedAt = Math.max(getStoredClearedAt(authUser?.id), getStoredClearedAt());
+      if (clearedAt > 0 && (withTimestamp.createdAtMs || 0) <= clearedAt) {
+        return;
       }
-    } catch (e) {
-      console.warn("Failed to persist notification update:", e);
-    }
-  };
+
+      const dismissedSet = getStoredDismissedIds(authUser?.id);
+      if (dismissedSet.has(withTimestamp.id)) {
+        return;
+      }
+
+      setNotifications((prev) => {
+        const next = [withTimestamp, ...prev.filter((n) => n.id !== withTimestamp.id)];
+        try {
+          localStorage.setItem(getNotifsKey(authUser?.id), JSON.stringify(next));
+          const stored = loadStoredState(authUser?.id);
+          if (stored) {
+            saveStoredState({ ...stored, notifications: next }, authUser?.id);
+          }
+        } catch {}
+        return next;
+      });
+    },
+    [authUser?.id]
+  );
 
   const markNotificationRead = (id: string) => {
     setNotifications((prev) => {
       const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
-      persistNotificationsDirectly(updated);
+      try {
+        localStorage.setItem(getNotifsKey(authUser?.id), JSON.stringify(updated));
+        const stored = loadStoredState(authUser?.id);
+        if (stored) {
+          saveStoredState({ ...stored, notifications: updated }, authUser?.id);
+        }
+      } catch {}
       return updated;
     });
   };
 
   const dismissNotification = (id: string) => {
-    setNotifications((prev) => {
-      const updated = prev.filter((n) => n.id !== id);
-      persistNotificationsDirectly(updated);
-      return updated;
-    });
+    try {
+      const currentDismissed = getStoredDismissedIds(authUser?.id);
+      currentDismissed.add(id);
+      const arr = Array.from(currentDismissed);
+      if (authUser?.id) {
+        localStorage.setItem(getDismissedKey(authUser.id), JSON.stringify(arr));
+      }
+      localStorage.setItem(NOTIFS_DISMISSED_KEY, JSON.stringify(arr));
+
+      setNotifications((prev) => {
+        const next = prev.filter((n) => n.id !== id);
+        try {
+          localStorage.setItem(getNotifsKey(authUser?.id), JSON.stringify(next));
+          const stored = loadStoredState(authUser?.id);
+          if (stored) {
+            saveStoredState({ ...stored, notifications: next }, authUser?.id);
+          }
+        } catch {}
+        return next;
+      });
+    } catch (e) {
+      console.warn("Failed to persist notification dismiss:", e);
+    }
   };
 
   const clearNotifications = () => {
+    const now = Date.now();
+    try {
+      localStorage.setItem(getNotifsKey(authUser?.id), "[]");
+      localStorage.setItem(NOTIFS_STORAGE_KEY, "[]");
+      localStorage.setItem(getClearedAtKey(authUser?.id), String(now));
+      localStorage.setItem(NOTIFS_CLEARED_KEY, String(now));
+
+      const stored = loadStoredState(authUser?.id);
+      if (stored) {
+        saveStoredState({ ...stored, notifications: [] }, authUser?.id);
+      }
+    } catch (e) {
+      console.warn("Failed to clear notifications in storage:", e);
+    }
     setNotifications([]);
-    persistNotificationsDirectly([]);
   };
 
   const applySuggestedTasks = (suggested: Partial<Task>[]) => {
@@ -981,17 +1098,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
     setHabits((prev) => [newHabit, ...prev]);
 
-    setNotifications((prev) => [
-      {
-        id: `notif-habit-${Date.now()}`,
-        title: "New Habit Anchored",
-        message: `Habit "${newHabit.title}" anchored to cue: "${newHabit.cue}".`,
-        timestamp: "Just now",
-        type: "habit",
-        read: false,
-      },
-      ...prev,
-    ]);
+    addNotificationSafe({
+      id: `notif-habit-${Date.now()}`,
+      title: "New Habit Anchored",
+      message: `Habit "${newHabit.title}" anchored to cue: "${newHabit.cue}".`,
+      timestamp: "Just now",
+      type: "habit",
+      read: false,
+    });
 
     setChatMessages((prev) => [
       ...prev,
@@ -1024,17 +1138,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
     setGoals((prev) => [newGoal, ...prev]);
 
-    setNotifications((prev) => [
-      {
-        id: `notif-goal-${Date.now()}`,
-        title: "Roadmap Goal Integrated",
-        message: `Goal "${newGoal.title}" created with ${newGoal.milestones.length} milestones.`,
-        timestamp: "Just now",
-        type: "system",
-        read: false,
-      },
-      ...prev,
-    ]);
+    addNotificationSafe({
+      id: `notif-goal-${Date.now()}`,
+      title: "Roadmap Goal Integrated",
+      message: `Goal "${newGoal.title}" created with ${newGoal.milestones.length} milestones.`,
+      timestamp: "Just now",
+      type: "system",
+      read: false,
+    });
 
     setChatMessages((prev) => [
       ...prev,
@@ -1422,17 +1533,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         .catch((err) => console.warn("Failed to persist goal to Supabase:", err));
     }
 
-    setNotifications((prev) => [
-      {
-        id: `notif-goal-${Date.now()}`,
-        title: "New Strategic Goal Added",
-        message: `Goal "${goal.title}" created with target ${goal.targetDate}.`,
-        timestamp: "Just now",
-        type: "system",
-        read: false,
-      },
-      ...prev,
-    ]);
+    addNotificationSafe({
+      id: `notif-goal-${Date.now()}`,
+      title: "New Strategic Goal Added",
+      message: `Goal "${goal.title}" created with target ${goal.targetDate}.`,
+      timestamp: "Just now",
+      type: "system",
+      read: false,
+    });
   };
 
   const updateGoalRoadmap = (goalId: string, milestones: Milestone[]) => {
@@ -1468,17 +1576,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         .catch((err) => console.warn("Failed to persist milestone task to Supabase:", err));
     }
 
-    setNotifications((prev) => [
-      {
-        id: `notif-task-${Date.now()}`,
-        title: "Milestone Task Scheduled",
-        message: `"${task.title}" has been placed into today's agenda.`,
-        timestamp: "Just now",
-        type: "task",
-        read: false,
-      },
-      ...prev,
-    ]);
+    addNotificationSafe({
+      id: `notif-task-${Date.now()}`,
+      title: "Milestone Task Scheduled",
+      message: `"${task.title}" has been placed into today's agenda.`,
+      timestamp: "Just now",
+      type: "task",
+      read: false,
+    });
   };
 
   const logFocusSession = (
@@ -1527,17 +1632,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       );
     }
 
-    setNotifications((prev) => [
-      {
-        id: `notif-focus-${Date.now()}`,
-        title: "Flow Session Logged",
-        message: `Completed ${session.durationMinutes}m focus block (${session.flowState.toUpperCase()} state).`,
-        timestamp: "Just now",
-        type: "habit",
-        read: false,
-      },
-      ...prev,
-    ]);
+    addNotificationSafe({
+      id: `notif-focus-${Date.now()}`,
+      title: "Flow Session Logged",
+      message: `Completed ${session.durationMinutes}m focus block (${session.flowState.toUpperCase()} state).`,
+      timestamp: "Just now",
+      type: "habit",
+      read: false,
+    });
   };
 
   const addHabit = (newHabit: Omit<Habit, "id" | "currentStreak" | "bestStreak" | "completedToday" | "automaticityScore">) => {
@@ -1833,42 +1935,42 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         const tasksCount = data.googleTasksImported ?? 0;
         const pushedCount = data.localTasksPushed ?? 0;
 
-        setNotifications((prev) => [
-          {
+        if (eventsCount > 0 || tasksCount > 0 || pushedCount > 0 || forceFull) {
+          addNotificationSafe({
             id: `notif-sync-${Date.now()}`,
             title: forceFull ? "Google Integration Reset & Re-synced" : "Google Calendar & Tasks Synchronized",
             message: `Synchronized ${eventsCount} calendar events (including birthdays & custom calendars), ${tasksCount} Google tasks, and pushed ${pushedCount} Kronos activities to Google.`,
             timestamp: "Just now",
             type: "calendar",
             read: false,
-          },
-          ...prev,
-        ]);
+          });
+        }
         return { success: true, count: eventsCount, tasksCount, pushedCount };
       } else {
         const isNotConnected =
           data.error?.toLowerCase().includes("no active") ||
           data.error?.toLowerCase().includes("not connected");
         setSyncStatus(isNotConnected ? "offline" : "error");
-        setNotifications((prev) => [
-          {
+
+        // Only add notification to the drawer if the user explicitly requested a sync
+        if (forceFull) {
+          addNotificationSafe({
             id: `notif-sync-err-${Date.now()}`,
             title: "Calendar Sync Notice",
             message: data.error || "Google Calendar synchronization failed.",
             timestamp: "Just now",
             type: "calendar",
             read: false,
-          },
-          ...prev,
-        ]);
+          });
+        }
         return { success: false, error: data.error };
       }
     } catch (err: any) {
       console.warn("[triggerCalendarSync] Error during sync:", err);
       const isTimeout = err.name === "TimeoutError" || err.message?.includes("aborted");
       setSyncStatus("error");
-      setNotifications((prev) => [
-        {
+      if (forceFull) {
+        addNotificationSafe({
           id: `notif-sync-err-${Date.now()}`,
           title: "Calendar Sync Notice",
           message: isTimeout
@@ -1877,12 +1979,11 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           timestamp: "Just now",
           type: "calendar",
           read: false,
-        },
-        ...prev,
-      ]);
+        });
+      }
       return { success: false, error: err.message };
     }
-  }, [authUser?.id]);
+  }, [authUser?.id, addNotificationSafe]);
 
   const simulateExternalCalendarConflict = async () => {
     try {
@@ -1896,17 +1997,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         if (data.conflict) {
           setSyncConflicts((prev) => [data.conflict, ...prev.filter((c) => c.id !== data.conflict.id)]);
           setSyncStatus("conflict");
-          setNotifications((prev) => [
-            {
-              id: `notif-conflict-${Date.now()}`,
-              title: "External Calendar Conflict Detected",
-              message: data.conflict.description,
-              timestamp: "Just now",
-              type: "calendar",
-              read: false,
-            },
-            ...prev,
-          ]);
+          addNotificationSafe({
+            id: `notif-conflict-${Date.now()}`,
+            title: "External Calendar Conflict Detected",
+            message: data.conflict.description,
+            timestamp: "Just now",
+            type: "calendar",
+            read: false,
+          });
         }
       }
     } catch (err) {
@@ -1936,20 +2034,17 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
       setSyncConflicts((prev) => prev.filter((c) => c.id !== conflictId));
       setSyncStatus("synced");
-      setNotifications((prev) => [
-        {
-          id: `notif-resolved-${Date.now()}`,
-          title: "Calendar Conflict Resolved",
-          message:
-            resolution === "keep_local"
-              ? "Preserved local focus block; remote invitation flagged as tentative."
-              : "Applied remote meeting and shifted study block to 15:30.",
-          timestamp: "Just now",
-          type: "calendar",
-          read: false,
-        },
-        ...prev,
-      ]);
+      addNotificationSafe({
+        id: `notif-resolved-${Date.now()}`,
+        title: "Calendar Conflict Resolved",
+        message:
+          resolution === "keep_local"
+            ? "Preserved local focus block; remote invitation flagged as tentative."
+            : "Applied remote meeting and shifted study block to 15:30.",
+        timestamp: "Just now",
+        type: "calendar",
+        read: false,
+      });
     } catch (err) {
       console.warn("Failed to resolve conflict:", err);
     }
@@ -1967,17 +2062,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     };
 
     setEcoEntries((prev) => [newEntry, ...prev]);
-    setNotifications((prev) => [
-      {
-        id: `notif-eco-${Date.now()}`,
-        title: "Eco Impact Recorded 🌱",
-        message: `Logged ${minutes}m of ${factor?.name || activity}. Saved ~${co2SavedGrams}g CO2!`,
-        timestamp: "Just now",
-        type: "eco",
-        read: false,
-      },
-      ...prev,
-    ]);
+    addNotificationSafe({
+      id: `notif-eco-${Date.now()}`,
+      title: "Eco Impact Recorded 🌱",
+      message: `Logged ${minutes}m of ${factor?.name || activity}. Saved ~${co2SavedGrams}g CO2!`,
+      timestamp: "Just now",
+      type: "eco",
+      read: false,
+    });
   };
 
   return (

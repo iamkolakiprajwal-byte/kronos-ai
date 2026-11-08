@@ -43,11 +43,18 @@ export default function HomePage() {
   React.useEffect(() => {
     if (typeof window !== "undefined" && !hasTriggeredSync.current) {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("calendar_connected") === "true") {
+      const isConnectedParam = params.get("calendar_connected") === "true";
+      const alreadySyncedThisSession = sessionStorage.getItem("kronos_cal_connected_handled") === "true";
+
+      if (isConnectedParam) {
         hasTriggeredSync.current = true;
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, "", newUrl);
-        triggerCalendarSync();
+        // Strip param immediately from browser address bar
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        if (!alreadySyncedThisSession) {
+          sessionStorage.setItem("kronos_cal_connected_handled", "true");
+          triggerCalendarSync().catch((e) => console.warn("Initial calendar sync notice:", e));
+        }
       }
     }
   }, [triggerCalendarSync]);
