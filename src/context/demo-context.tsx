@@ -51,6 +51,7 @@ import {
   resetStoredStateToDemo,
   resetStoredStateToClean,
   clearStoredState,
+  getCleanInitialState,
   exportStateAsJSON,
   importStateFromJSON,
   restorePreMigrationBackup,
@@ -188,16 +189,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: "notif-welcome",
-      title: "Welcome to Kronos AI",
-      message: "Your adaptive planner is ready. Tap the + button in the bottom right or ask AI to schedule your first task.",
-      timestamp: "Just now",
-      read: false,
-      type: "system",
-    },
-  ]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date("2026-11-08T00:00:00"));
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -276,8 +268,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           setHabits(stored.habits);
           setHabitTransitions(stored.habitTransitions || []);
           setFocusSessions(stored.focusSessions || []);
-          if (stored.chatMessages?.length) setChatMessages(stored.chatMessages);
-          if (stored.notifications?.length) setNotifications(stored.notifications);
+          if (Array.isArray(stored.chatMessages) && stored.chatMessages.length) setChatMessages(stored.chatMessages);
+          if (Array.isArray(stored.notifications)) {
+            setNotifications(stored.notifications);
+          } else {
+            setNotifications([]);
+          }
           if (stored.ecoEntries?.length) setEcoEntries(stored.ecoEntries);
         } else if (isCurrent) {
           setTasks([]);
@@ -286,6 +282,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           setHabits([]);
           setFocusSessions([]);
           setHabitTransitions([]);
+          setNotifications([]);
         }
         if (isCurrent) {
           setSelectedDate(new Date());
@@ -342,6 +339,24 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         setHabits(remoteHabits);
         setFocusSessions(remoteFocus);
 
+        // Hydrate client-side UI state (notifications, chat messages, eco entries) from user-partitioned local state
+        const stored = loadStoredState(authUser.id);
+        if (stored && isCurrent) {
+          if (Array.isArray(stored.notifications)) {
+            setNotifications(stored.notifications);
+          } else {
+            setNotifications([]);
+          }
+          if (Array.isArray(stored.chatMessages) && stored.chatMessages.length > 0) {
+            setChatMessages(stored.chatMessages);
+          }
+          if (Array.isArray(stored.ecoEntries)) {
+            setEcoEntries(stored.ecoEntries);
+          }
+        } else if (isCurrent) {
+          setNotifications([]);
+        }
+
         if (conn && (conn.sync_status === "active" || conn.sync_status === "synced")) {
           setSyncStatus("synced");
           if (conn.last_synced_at) {
@@ -368,6 +383,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           setHabits(stored.habits);
           setHabitTransitions(stored.habitTransitions || []);
           setFocusSessions(stored.focusSessions || []);
+          if (Array.isArray(stored.notifications)) {
+            setNotifications(stored.notifications);
+          } else {
+            setNotifications([]);
+          }
+          if (Array.isArray(stored.chatMessages) && stored.chatMessages.length > 0) {
+            setChatMessages(stored.chatMessages);
+          }
         } else if (isCurrent) {
           setTasks([]);
           setCalendarEvents([]);
@@ -375,6 +398,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           setHabits([]);
           setFocusSessions([]);
           setHabitTransitions([]);
+          setNotifications([]);
         }
       } finally {
         if (isCurrent) {
@@ -825,18 +849,39 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const persistNotificationsDirectly = (items: NotificationItem[]) => {
+    try {
+      const stored = loadStoredState(authUser?.id);
+      if (stored) {
+        saveStoredState({ ...stored, notifications: items }, authUser?.id);
+      } else {
+        const clean = getCleanInitialState(role);
+        saveStoredState({ ...clean, notifications: items }, authUser?.id);
+      }
+    } catch (e) {
+      console.warn("Failed to persist notification update:", e);
+    }
+  };
+
   const markNotificationRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    setNotifications((prev) => {
+      const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
+      persistNotificationsDirectly(updated);
+      return updated;
+    });
   };
 
   const dismissNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setNotifications((prev) => {
+      const updated = prev.filter((n) => n.id !== id);
+      persistNotificationsDirectly(updated);
+      return updated;
+    });
   };
 
   const clearNotifications = () => {
     setNotifications([]);
+    persistNotificationsDirectly([]);
   };
 
   const applySuggestedTasks = (suggested: Partial<Task>[]) => {

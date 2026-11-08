@@ -169,10 +169,52 @@ function testFreshUserExperienceBaseline() {
   console.log("✓ PASS: Fresh user experience baseline produces zero mock/demo records");
 }
 
+function testNotificationClearingPersistence() {
+  const userId = "user-notify-test";
+
+  // State with 2 notifications
+  const state = {
+    ...getCleanInitialState("student"),
+    notifications: [
+      { id: "notif-1", title: "Task Scheduled", message: "Math at 10 AM", timestamp: "Just now", read: false, type: "system" as const },
+      { id: "notif-2", title: "Sync Success", message: "Google Calendar synced", timestamp: "Just now", read: false, type: "calendar" as const },
+    ],
+  };
+  saveStoredState(state, userId);
+
+  const loadedInitial = loadStoredState(userId);
+  assert.strictEqual(loadedInitial?.notifications.length, 2, "Initially saves 2 notifications");
+
+  // User dismisses notif-1
+  const afterDismiss = {
+    ...loadedInitial!,
+    notifications: loadedInitial!.notifications.filter((n) => n.id !== "notif-1"),
+  };
+  saveStoredState(afterDismiss, userId);
+
+  const loadedAfterDismiss = loadStoredState(userId);
+  assert.strictEqual(loadedAfterDismiss?.notifications.length, 1, "Only 1 notification left after dismiss");
+  assert.strictEqual(loadedAfterDismiss?.notifications[0].id, "notif-2");
+
+  // User clears all notifications
+  const afterClear = {
+    ...loadedAfterDismiss!,
+    notifications: [],
+  };
+  saveStoredState(afterClear, userId);
+
+  // Simulate page refresh (re-load from localStorage)
+  const loadedAfterRefresh = loadStoredState(userId);
+  assert.strictEqual(loadedAfterRefresh?.notifications.length, 0, "Cleared notifications remain 0 after refresh");
+
+  console.log("✓ PASS: Cleared and dismissed notifications strictly persist across page refresh");
+}
+
 testStorageKeyIsolation();
 testUserDataSegregation();
 testCleanResetIsolation();
 testFreshUserExperienceBaseline();
+testNotificationClearingPersistence();
 
 console.log("=================================================");
 console.log("USER DATA ISOLATION: ALL TESTS PASSED");

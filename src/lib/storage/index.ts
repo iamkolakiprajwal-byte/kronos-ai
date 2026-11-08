@@ -103,16 +103,7 @@ export function getCleanInitialState(role: UserRole = "student"): PersistedKrono
     habitTransitions: [],
     focusSessions: [],
     chatMessages: [welcomeMessage],
-    notifications: [
-      {
-        id: "notif-welcome",
-        title: "Welcome to Kronos AI",
-        message: "Your adaptive planner is ready. Tap the + button in the bottom right or ask AI to schedule your first task.",
-        timestamp: "Just now",
-        read: false,
-        type: "system",
-      },
-    ],
+    notifications: [],
     ecoEntries: [],
     selectedDateStr: new Date().toISOString().split("T")[0],
     lastSavedTimestamp: Date.now(),

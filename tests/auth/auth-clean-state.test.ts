@@ -36,6 +36,7 @@ assert(studentClean.tasks.length === 0, "Clean student state has zero tasks");
 assert(studentClean.calendarEvents.length === 0, "Clean student state has zero calendar events");
 assert(studentClean.goals.length === 0, "Clean student state has zero goals");
 assert(studentClean.habits.length === 0, "Clean student state has zero habits");
+assert(studentClean.notifications.length === 0, "Clean student state has zero notifications");
 assert(studentClean.focusSessions.length === 0, "Clean student state has zero focus sessions");
 assert(studentClean.profile.name === "", "Clean student profile has empty name");
 
@@ -44,10 +45,12 @@ assert(proClean.tasks.length === 0, "Clean professional state has zero tasks");
 assert(proClean.calendarEvents.length === 0, "Clean professional state has zero calendar events");
 assert(proClean.goals.length === 0, "Clean professional state has zero goals");
 assert(proClean.habits.length === 0, "Clean professional state has zero habits");
+assert(proClean.notifications.length === 0, "Clean professional state has zero notifications");
 
 const dualClean = getCleanInitialState("both");
 assert(dualClean.tasks.length === 0, "Clean dual state has zero tasks");
 assert(dualClean.calendarEvents.length === 0, "Clean dual state has zero calendar events");
+assert(dualClean.notifications.length === 0, "Clean dual state has zero notifications");
 
 // Test 3: Zero Demo Personas in Welcome Message
 assert(!studentClean.chatMessages[0].text.includes("Aria"), "Clean welcome message does not mention Aria");
