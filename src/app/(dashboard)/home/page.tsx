@@ -35,7 +35,19 @@ export default function HomePage() {
     profile,
     referenceDate,
     openQuickTask,
+    triggerCalendarSync,
   } = useDemo();
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("calendar_connected") === "true") {
+        triggerCalendarSync();
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+      }
+    }
+  }, [triggerCalendarSync]);
 
   const todayStr = referenceDate;
   const selectedDateStr = format(selectedDate, "yyyy-MM-dd");

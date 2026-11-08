@@ -42,10 +42,9 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
     resolveSyncConflict,
   } = useDemo();
 
-  const isGoogleConnected =
-    user?.provider === "google" ||
-    (typeof window !== "undefined" &&
-      Boolean(localStorage.getItem("kronos_google_provider_token")));
+  const isGoogleSynced = syncStatus === "synced" || syncStatus === "syncing";
+  const isGoogleError = syncStatus === "error";
+  const isGoogleSyncing = syncStatus === "syncing";
 
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -248,16 +247,33 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
             onClick={() => setShowSyncModal(true)}
             className={cn(
               "h-9 px-2 sm:px-3 rounded-full text-xs font-medium border transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5",
-              isGoogleConnected
+              isGoogleSynced
                 ? "bg-[#edf2ec] text-[#536b54] border-[#d6e0d5]"
+                : isGoogleError
+                ? "bg-[#faece7] text-[#b85437] border-[#f3cec3]"
                 : "bg-white text-[#545049] border-[#e8e2d5] hover:bg-[#f2eee6] hover:text-[#201e1b]"
             )}
             title="Google Calendar Integration Status"
             aria-label="Google Calendar Integration Status"
           >
-            <Calendar className={cn("w-3.5 h-3.5 shrink-0", isGoogleConnected ? "text-[#536b54]" : "text-[#8a8479]")} />
+            <Calendar
+              className={cn(
+                "w-3.5 h-3.5 shrink-0",
+                isGoogleSynced
+                  ? "text-[#536b54]"
+                  : isGoogleError
+                  ? "text-[#b85437]"
+                  : "text-[#8a8479]"
+              )}
+            />
             <span className="hidden md:inline text-[11px]">
-              {isGoogleConnected ? "Google Calendar: Connected" : "Google Calendar"}
+              {isGoogleSyncing
+                ? "Google Calendar: Syncing..."
+                : isGoogleSynced
+                ? "Google Calendar: Synced"
+                : isGoogleError
+                ? "Google Calendar: Permission Needed"
+                : "Connect Google Calendar"}
             </span>
           </button>
 
@@ -373,8 +389,23 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
             <div className="p-3.5 rounded-xl bg-[#fbf9f5] border border-[#e8e2d5] text-xs space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-[#545049] font-medium">Integration Status:</span>
-                <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider", isGoogleConnected ? "bg-[#edf2ec] text-[#536b54]" : "bg-[#f2eee6] text-[#8a8479]")}>
-                  {isGoogleConnected ? "Connected" : "Configuration Required"}
+                <span
+                  className={cn(
+                    "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider",
+                    isGoogleSynced
+                      ? "bg-[#edf2ec] text-[#536b54]"
+                      : isGoogleError
+                      ? "bg-[#faece7] text-[#b85437]"
+                      : "bg-[#f2eee6] text-[#8a8479]"
+                  )}
+                >
+                  {isGoogleSyncing
+                    ? "Syncing..."
+                    : isGoogleSynced
+                    ? "Synced & Active"
+                    : isGoogleError
+                    ? "Permission Required"
+                    : "Not Linked"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -391,20 +422,73 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
               </div>
             </div>
 
-            {/* Explanation / Connection Prompt */}
-            {!isGoogleConnected ? (
+            {/* When Permissions Error / Reconnect Needed */}
+            {isGoogleError ? (
+              <div className="p-4 rounded-xl border border-[#f3cec3] bg-[#faece7]/50 space-y-3 text-xs">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-[#b85437] shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-[#b85437] text-xs">
+                      Calendar Permissions Required
+                    </h4>
+                    <p className="text-[#545049] text-[11px] mt-1 leading-relaxed">
+                      Your current Google session does not have permission to access your Google Calendar and Google Tasks. Please click the button below to grant permission on Google&apos;s consent screen.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await connectGoogleCalendar();
+                    }}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-[#b85437] hover:bg-[#9e452c] text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
+                  >
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#ffffff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#ffffff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                      <path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    </svg>
+                    <span>Authorize Calendar Access</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await fetch("/api/calendar/sync", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ action: "disconnect" }),
+                        });
+                        if (typeof window !== "undefined") {
+                          localStorage.removeItem("kronos_google_provider_token");
+                        }
+                        setShowSyncModal(false);
+                      } catch (e) {
+                        console.warn("Failed to disconnect calendar:", e);
+                      }
+                    }}
+                    className="px-3 py-2 rounded-xl bg-white border border-[#f3cec3] hover:bg-stone-50 text-[#545049] text-xs font-medium transition-colors cursor-pointer"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </div>
+            ) : !isGoogleSynced ? (
               <div className="p-4 rounded-xl border border-[#e8e2d5] bg-stone-50 space-y-3 text-xs">
                 <p className="text-[#545049] leading-relaxed">
-                  Kronos AI synchronizes two-way with your Google Calendar using Google OAuth 2.0. External meetings, lectures, and invites are automatically mapped into your schedule as fixed, immovable commitments.
+                  Kronos AI synchronizes two-way with your Google Calendar and Google Tasks. External meetings, lectures, and invites are automatically mapped into your schedule as fixed, immovable commitments.
                 </p>
                 <button
                   type="button"
                   onClick={async () => {
                     await connectGoogleCalendar();
                   }}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#201e1b] hover:bg-[#38342f] text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
@@ -417,14 +501,14 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
               <div className="p-3.5 rounded-xl bg-[#edf2ec] border border-[#d6e0d5] text-xs text-[#536b54] space-y-2">
                 <div className="font-semibold flex items-center gap-1.5">
                   <Check className="w-4 h-4 text-[#536b54]" />
-                  <span>Google Calendar Connected</span>
+                  <span>Google Calendar Connected & Synchronized</span>
                 </div>
                 <p className="text-[11px] text-[#536b54]/90">
                   Your agenda and external calendar events are in two-way synchronization.
                 </p>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-[#d6e0d5]/60">
                   <span className="text-[11px] text-[#536b54]">
-                    Last synced: {lastSyncTime || "Not yet synced"}
+                    Last synced: {lastSyncTime || "Just now"}
                   </span>
                   <div className="flex items-center gap-2">
                     <button

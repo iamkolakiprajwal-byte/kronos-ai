@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { performBidirectionalSync } from "@/lib/calendar/sync-service";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -75,6 +76,13 @@ export async function GET(request: Request) {
           }
 
           await supabase.from("calendar_connections").upsert(connPayload, { onConflict: "user_id" });
+
+          // Run immediate initial bidirectional sync so calendar events and tasks are populated
+          try {
+            await performBidirectionalSync(user.id, supabase);
+          } catch (syncErr) {
+            console.warn("[OAuth Callback] Initial bidirectional sync notice:", syncErr);
+          }
         }
 
         const isCalendarConnect = searchParams.get("source") === "calendar_connect";

@@ -235,8 +235,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   // Sprint 2: Productivity & Integrations State
   const [focusSessions, setFocusSessions] = useState<FocusSessionLog[]>([]);
 
-  const [syncStatus, setSyncStatus] = useState<CalendarSyncStatus>("synced");
-  const [lastSyncTime, setLastSyncTime] = useState<string | null>("Just now");
+  const [syncStatus, setSyncStatus] = useState<CalendarSyncStatus>("offline");
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [syncConflicts, setSyncConflicts] = useState<SyncConflict[]>([]);
   const [ecoEntries, setEcoEntries] = useState<EcoLogEntry[]>([]);
   const [habitTransitions, setHabitTransitions] = useState<HabitResetTransition[]>([]);
@@ -340,11 +340,19 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         setHabits(remoteHabits);
         setFocusSessions(remoteFocus);
 
-        if (conn) {
-          setSyncStatus(conn.sync_status === "synced" ? "synced" : conn.sync_status === "error" ? "error" : "offline");
+        if (conn && (conn.sync_status === "active" || conn.sync_status === "synced")) {
+          setSyncStatus("synced");
           if (conn.last_synced_at) {
             setLastSyncTime(new Date(conn.last_synced_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
           }
+        } else if (conn && conn.sync_status === "error") {
+          setSyncStatus("error");
+          if (conn.last_synced_at) {
+            setLastSyncTime(new Date(conn.last_synced_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+          }
+        } else {
+          setSyncStatus("offline");
+          setLastSyncTime(null);
         }
       } catch (err) {
         console.warn("[Kronos] Supabase fetch fallback to user-partitioned local storage:", err);
@@ -1777,12 +1785,15 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         ]);
         return { success: true, count: eventsCount };
       } else {
-        setSyncStatus(data.connected === false ? "offline" : "error");
+        const isNotConnected =
+          data.error?.toLowerCase().includes("no active") ||
+          data.error?.toLowerCase().includes("not connected");
+        setSyncStatus(isNotConnected ? "offline" : "error");
         setNotifications((prev) => [
           {
             id: `notif-sync-err-${Date.now()}`,
             title: "Calendar Sync Notice",
-            message: data.error || "Google Calendar is not connected.",
+            message: data.error || "Google Calendar synchronization failed.",
             timestamp: "Just now",
             type: "calendar",
             read: false,

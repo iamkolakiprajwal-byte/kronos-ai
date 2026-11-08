@@ -324,7 +324,7 @@ export async function performBidirectionalSync(
 
     return {
       success: false,
-      connected: true,
+      connected: false,
       calendarEventsImported,
       calendarEventsDeleted,
       googleTasksImported,

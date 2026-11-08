@@ -200,7 +200,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks",
           queryParams: {
             access_type: "offline",
-            prompt: "consent",
+            prompt: "consent select_account",
+            include_granted_scopes: "true",
           },
         },
       });
@@ -247,7 +248,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks",
           queryParams: {
             access_type: "offline",
-            prompt: "consent",
+            prompt: "consent select_account",
+            include_granted_scopes: "true",
           },
         },
       });
