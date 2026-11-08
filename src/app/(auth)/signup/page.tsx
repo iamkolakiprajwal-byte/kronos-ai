@@ -95,7 +95,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f5f0] text-[#201e1b] flex flex-col justify-between selection:bg-[#e8decb] font-sans">
+    <div className="min-h-screen bg-[#f7f5f0] text-[#201e1b] flex flex-col justify-between selection:bg-[#e8decb] font-sans w-full max-w-full overflow-x-hidden">
       {/* Top Header */}
       <header className="px-5 sm:px-8 py-3.5 border-b border-[#e8e2d5] bg-[#fbf9f5]/90 backdrop-blur-md flex items-center justify-between">
         <Link href="/login" className="flex items-center gap-2.5">
@@ -110,8 +110,8 @@ export default function SignupPage() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
-        <div className="max-w-md w-full bg-[#fdfcf9] rounded-3xl border border-[#e8e2d5] p-6 sm:p-8 shadow-sm space-y-6 animate-in fade-in-50 duration-200">
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 w-full max-w-full">
+        <div className="max-w-md w-full mx-auto bg-[#fdfcf9] rounded-3xl border border-[#e8e2d5] p-5 sm:p-8 shadow-sm space-y-6 animate-in fade-in-50 duration-200">
           {/* Title & Briefing */}
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#687050] bg-[#edf2ec] border border-[#d6e0d5] px-2.5 py-0.5 rounded-full">
@@ -233,8 +233,10 @@ export default function SignupPage() {
       </main>
 
       {/* Footer */}
-      <footer className="p-4 text-center text-xs text-[#8a8479] border-t border-[#e8e2d5]">
-        Kronos AI Personal Time Manager • Adaptive Multi-Provider Authentication
+      <footer className="p-4 text-center text-xs text-[#8a8479] border-t border-[#e8e2d5] px-4">
+        <p className="max-w-xs sm:max-w-none mx-auto leading-relaxed">
+          Kronos AI Personal Time Manager • Adaptive Multi-Provider Authentication
+        </p>
       </footer>
     </div>
   );

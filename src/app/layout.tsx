@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Lora, Manrope } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/auth-context";
@@ -15,6 +15,13 @@ const manrope = Manrope({
   variable: "--font-manrope",
   display: "swap",
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#fbf9f5",
+};
 
 export const metadata: Metadata = {
   title: "Kronos AI — Intelligent Personal Planning & Time Management",

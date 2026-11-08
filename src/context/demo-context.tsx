@@ -18,6 +18,7 @@ import {
   FocusSessionLog,
   EcoLogEntry,
   ActiveTimerState,
+  AutoSyncInterval,
 } from "@/types";
 import { CalendarSyncStatus } from "@/lib/calendar/types";
 import { sampleEcoEntries, ECO_ACTIVITY_FACTORS } from "@/lib/sustainability/eco-calculator";
@@ -156,8 +157,11 @@ interface DemoContextType {
 
   syncStatus: CalendarSyncStatus;
   lastSyncTime: string | null;
+  lastSyncTimestampMs: number | null;
+  autoSyncInterval: AutoSyncInterval;
+  setAutoSyncInterval: (interval: AutoSyncInterval) => void;
   syncConflicts: SyncConflict[];
-  triggerCalendarSync: (forceFull?: boolean) => Promise<any>;
+  triggerCalendarSync: (forceFull?: boolean, isBackground?: boolean) => Promise<any>;
   simulateExternalCalendarConflict: () => Promise<void>;
   resolveSyncConflict: (conflictId: string, resolution: "keep_local" | "accept_remote") => Promise<void>;
 
@@ -219,6 +223,28 @@ function filterValidNotifications(items: NotificationItem[], userId?: string): N
     return true;
   });
 }
+
+const AUTO_SYNC_STORAGE_KEY = "kronos_auto_sync_interval_v1";
+const LAST_SYNC_TS_KEY = "kronos_last_sync_timestamp_v1";
+
+function getAutoSyncKey(userId?: string): string {
+  return userId ? `kronos_auto_sync_${userId}` : AUTO_SYNC_STORAGE_KEY;
+}
+
+function getLastSyncTsKey(userId?: string): string {
+  return userId ? `kronos_last_sync_ts_${userId}` : LAST_SYNC_TS_KEY;
+}
+
+export const AUTO_SYNC_MS_MAP: Record<AutoSyncInterval, number> = {
+  "15m": 15 * 60 * 1000,
+  "30m": 30 * 60 * 1000,
+  "1h": 60 * 60 * 1000,
+  "6h": 6 * 60 * 60 * 1000,
+  "12h": 12 * 60 * 60 * 1000,
+  "1d": 24 * 60 * 60 * 1000,
+  "1w": 7 * 24 * 60 * 60 * 1000,
+  "manual": Infinity,
+};
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [role, setRoleState] = useState<UserRole>("student");
@@ -284,6 +310,15 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   const [syncStatus, setSyncStatus] = useState<CalendarSyncStatus>("offline");
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [lastSyncTimestampMs, setLastSyncTimestampMs] = useState<number | null>(() => {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    const stored = localStorage.getItem(LAST_SYNC_TS_KEY);
+    return stored ? Number(stored) : null;
+  });
+  const [autoSyncInterval, setAutoSyncIntervalState] = useState<AutoSyncInterval>(() => {
+    if (typeof window === "undefined" || !window.localStorage) return "30m";
+    return (localStorage.getItem(AUTO_SYNC_STORAGE_KEY) as AutoSyncInterval) || "30m";
+  });
   const [syncConflicts, setSyncConflicts] = useState<SyncConflict[]>([]);
   const [ecoEntries, setEcoEntries] = useState<EcoLogEntry[]>([]);
   const [habitTransitions, setHabitTransitions] = useState<HabitResetTransition[]>([]);
@@ -418,10 +453,25 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
+        if (typeof window !== "undefined") {
+          const userAutoSync = (localStorage.getItem(getAutoSyncKey(authUser.id)) ||
+            localStorage.getItem(AUTO_SYNC_STORAGE_KEY) ||
+            "30m") as AutoSyncInterval;
+          setAutoSyncIntervalState(userAutoSync);
+
+          const savedTs = localStorage.getItem(getLastSyncTsKey(authUser.id));
+          if (savedTs) {
+            setLastSyncTimestampMs(Number(savedTs));
+          } else if (conn?.last_synced_at) {
+            setLastSyncTimestampMs(new Date(conn.last_synced_at).getTime());
+          }
+        }
+
         if (conn && (conn.sync_status === "active" || conn.sync_status === "synced")) {
           setSyncStatus("synced");
           if (conn.last_synced_at) {
             setLastSyncTime(new Date(conn.last_synced_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+            setLastSyncTimestampMs(new Date(conn.last_synced_at).getTime());
           }
         } else if (conn && conn.sync_status === "error") {
           setSyncStatus("error");
@@ -1891,7 +1941,15 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const triggerCalendarSync = useCallback(async (forceFull: boolean = false) => {
+  const setAutoSyncInterval = useCallback((newInterval: AutoSyncInterval) => {
+    setAutoSyncIntervalState(newInterval);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(getAutoSyncKey(authUser?.id), newInterval);
+      localStorage.setItem(AUTO_SYNC_STORAGE_KEY, newInterval);
+    }
+  }, [authUser?.id]);
+
+  const triggerCalendarSync = useCallback(async (forceFull: boolean = false, isBackground: boolean = false) => {
     setSyncStatus("syncing");
     try {
       const storedToken =
@@ -1913,7 +1971,13 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (res.ok && data.success) {
         setSyncStatus("synced");
-        setLastSyncTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+        const nowMs = Date.now();
+        setLastSyncTimestampMs(nowMs);
+        setLastSyncTime(new Date(nowMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+        if (typeof window !== "undefined") {
+          localStorage.setItem(getLastSyncTsKey(authUser?.id), String(nowMs));
+          localStorage.setItem(LAST_SYNC_TS_KEY, String(nowMs));
+        }
 
         // Incorporate real events & tasks fetched from Google into active state
         if (authUser?.id) {
@@ -1935,7 +1999,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         const tasksCount = data.googleTasksImported ?? 0;
         const pushedCount = data.localTasksPushed ?? 0;
 
-        if (eventsCount > 0 || tasksCount > 0 || pushedCount > 0 || forceFull) {
+        // Background automatic sync runs silently to protect user focus; manual or reset sync surfaces drawer card
+        if (!isBackground && (eventsCount > 0 || tasksCount > 0 || pushedCount > 0 || forceFull)) {
           addNotificationSafe({
             id: `notif-sync-${Date.now()}`,
             title: forceFull ? "Google Integration Reset & Re-synced" : "Google Calendar & Tasks Synchronized",
@@ -1984,6 +2049,86 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: err.message };
     }
   }, [authUser?.id, addNotificationSafe]);
+
+  // Continuous Background Auto-Sync Engine
+  // Periodically evaluates elapsed time against configured interval (15m to 1w)
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (autoSyncInterval === "manual") return;
+
+    const intervalMs = AUTO_SYNC_MS_MAP[autoSyncInterval];
+    if (!intervalMs || intervalMs === Infinity) return;
+
+    const checkAndTriggerAutoSync = async () => {
+      // Skip if currently syncing
+      if (syncStatus === "syncing") return;
+
+      // Skip if in persistent error/reauth state
+      if (syncStatus === "error") return;
+
+      // Verify connection exists
+      const hasAuth = !!authUser?.id;
+      const hasToken =
+        typeof window !== "undefined" &&
+        !!localStorage.getItem("kronos_google_provider_token");
+      if (!hasAuth && !hasToken) return;
+
+      const now = Date.now();
+      const lastMs = lastSyncTimestampMs || 0;
+      const elapsed = now - lastMs;
+
+      if (elapsed >= intervalMs) {
+        console.log(`[Auto-Sync] Cadence '${autoSyncInterval}' elapsed (${Math.round(elapsed / 1000)}s >= ${intervalMs / 1000}s). Running silent sync...`);
+        try {
+          await triggerCalendarSync(false, true);
+        } catch (err) {
+          console.warn("[Auto-Sync] Background sync notice:", err);
+        }
+      }
+    };
+
+    // Initial delayed tick (3 seconds after mount)
+    const initialTimer = setTimeout(() => {
+      checkAndTriggerAutoSync();
+    }, 3000);
+
+    // Periodic evaluation timer (checks every 30 seconds)
+    const periodicTimer = setInterval(() => {
+      checkAndTriggerAutoSync();
+    }, 30000);
+
+    // Tab visibility & network reconnection triggers
+    const handleVisibilityOrOnline = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible" && navigator.onLine) {
+        checkAndTriggerAutoSync();
+      }
+    };
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityOrOnline);
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", handleVisibilityOrOnline);
+    }
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(periodicTimer);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", handleVisibilityOrOnline);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handleVisibilityOrOnline);
+      }
+    };
+  }, [
+    isAuthLoading,
+    autoSyncInterval,
+    syncStatus,
+    authUser?.id,
+    lastSyncTimestampMs,
+    triggerCalendarSync,
+  ]);
 
   const simulateExternalCalendarConflict = async () => {
     try {
@@ -2135,6 +2280,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         updateTimerChallengeSkill,
         syncStatus,
         lastSyncTime,
+        lastSyncTimestampMs,
+        autoSyncInterval,
+        setAutoSyncInterval,
         syncConflicts,
         triggerCalendarSync,
         simulateExternalCalendarConflict,

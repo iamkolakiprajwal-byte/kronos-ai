@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { calculateEcoImpact } from "@/lib/sustainability/eco-calculator";
 import { getStorageDiagnostics } from "@/lib/storage";
+import { AUTO_SYNC_INTERVAL_OPTIONS, AutoSyncInterval } from "@/types";
 
 export default function ProfilePage() {
   const { user, connectGoogleCalendar } = useAuth();
@@ -52,6 +53,9 @@ export default function ProfilePage() {
     focusSessions,
     syncStatus,
     lastSyncTime,
+    lastSyncTimestampMs,
+    autoSyncInterval,
+    setAutoSyncInterval,
     triggerCalendarSync,
   } = useDemo();
 
@@ -476,7 +480,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             ) : isGoogleSynced ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-[#faf7f0] border border-[#e8e2d5] text-[11px] text-[#545049]">
                   <span>Last synchronized: <strong>{lastSyncTime || "Just now"}</strong></span>
                   <div className="flex items-center gap-2">
@@ -511,6 +515,45 @@ export default function ProfilePage() {
                     >
                       <span>{isDisconnecting ? "Disconnecting..." : "Disconnect"}</span>
                     </button>
+                  </div>
+                </div>
+
+                {/* Background Auto-Sync Cadence Selector */}
+                <div className="p-3 sm:p-3.5 rounded-xl bg-[#fbf9f5] border border-[#e8e2d5] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <RefreshCw className="w-3.5 h-3.5 text-[#536b54]" />
+                      <span className="font-semibold text-xs text-[#201e1b]">
+                        Automatic Background Sync Cadence
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-[#edf2ec] text-[#536b54] border border-[#d6e0d5]">
+                      {autoSyncInterval === "manual" ? "Manual Only" : `Every ${autoSyncInterval}`}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#545049] leading-relaxed">
+                    Background synchronization runs silently on this schedule without user intervention.
+                  </p>
+                  <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                    {AUTO_SYNC_INTERVAL_OPTIONS.map((opt) => {
+                      const isSelected = autoSyncInterval === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setAutoSyncInterval(opt.value)}
+                          className={cn(
+                            "py-1.5 px-1 text-[11px] rounded-lg border text-center transition-all cursor-pointer flex flex-col items-center justify-center min-h-[34px]",
+                            isSelected
+                              ? "bg-[#201e1b] text-white border-[#201e1b] shadow-xs font-semibold"
+                              : "bg-white text-[#545049] border-[#e8e2d5] hover:border-[#b5ad9e] hover:bg-[#f2eee6]"
+                          )}
+                          title={opt.label}
+                        >
+                          <span className="font-medium">{opt.shortLabel}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

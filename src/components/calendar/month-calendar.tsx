@@ -173,7 +173,7 @@ export function MonthCalendar() {
         {/* View Switcher and Desktop Navigator Controls */}
         <div className="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-[#f0eae0]">
           {/* Week / Month Toggle */}
-          <div className="flex items-center p-0.5 bg-[#f2eee6] rounded-xl border border-[#e4ded2] w-full sm:w-auto h-8">
+          <div className="flex items-center p-0.5 bg-[#f2eee6] rounded-xl border border-[#e4ded2] w-full sm:w-auto h-9 sm:h-8">
             <button
               onClick={() => setMobileView("week")}
               className={cn(
@@ -262,7 +262,7 @@ export function MonthCalendar() {
                   key={dayIndex}
                   onClick={() => setSelectedDate(dayItem)}
                   className={cn(
-                    "min-h-[54px] sm:min-h-[74px] lg:min-h-[84px] p-1.5 sm:p-2.5 flex flex-col justify-between text-left transition-all relative group focus:outline-hidden cursor-pointer",
+                    "min-h-[58px] sm:min-h-[74px] lg:min-h-[84px] p-1.5 sm:p-2.5 flex flex-col justify-between text-left transition-all relative group focus:outline-hidden cursor-pointer",
                     !isCurrentMonthDay && "bg-[#fbf9f5]/50 text-[#b5ad9e]",
                     isCurrentMonthDay && !isSelected && !isToday && "hover:bg-[#f7f4ee]",
                     // Pure Today (unselected)
@@ -289,7 +289,7 @@ export function MonthCalendar() {
                         {format(dayItem, "d")}
                       </span>
                       {isToday && (
-                        <span className="inline-flex items-center text-[8px] sm:text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-[#536b54] text-white shadow-2xs leading-none">
+                        <span className="hidden sm:inline-flex items-center text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-[#536b54] text-white shadow-2xs leading-none">
                           Today
                         </span>
                       )}

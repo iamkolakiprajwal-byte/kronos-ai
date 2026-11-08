@@ -133,6 +133,35 @@ export interface SyncConflict {
   description: string;
 }
 
+export type AutoSyncInterval =
+  | "15m"
+  | "30m"
+  | "1h"
+  | "6h"
+  | "12h"
+  | "1d"
+  | "1w"
+  | "manual";
+
+export interface AutoSyncOption {
+  value: AutoSyncInterval;
+  label: string;
+  shortLabel: string;
+  description: string;
+  minutes: number;
+}
+
+export const AUTO_SYNC_INTERVAL_OPTIONS: AutoSyncOption[] = [
+  { value: "15m", label: "Every 15 minutes", shortLabel: "15m", description: "High frequency", minutes: 15 },
+  { value: "30m", label: "Every 30 minutes (Default)", shortLabel: "30m", description: "Recommended standard", minutes: 30 },
+  { value: "1h", label: "Every 1 hour", shortLabel: "1h", description: "Hourly check", minutes: 60 },
+  { value: "6h", label: "Every 6 hours", shortLabel: "6h", description: "Four times daily", minutes: 360 },
+  { value: "12h", label: "Every 12 hours", shortLabel: "12h", description: "Twice daily", minutes: 720 },
+  { value: "1d", label: "Daily (24h)", shortLabel: "Daily", description: "Once a day", minutes: 1440 },
+  { value: "1w", label: "Weekly (7d)", shortLabel: "Weekly", description: "Once a week", minutes: 10080 },
+  { value: "manual", label: "Manual only", shortLabel: "Manual", description: "No background sync", minutes: -1 },
+];
+
 export interface EcoLogEntry {
   id: string;
   date: string;

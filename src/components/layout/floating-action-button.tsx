@@ -18,7 +18,7 @@ export function FloatingActionButton() {
   return (
     <aside
       aria-label="Floating Actions"
-      className="fixed bottom-[78px] sm:bottom-8 right-4 sm:right-8 z-40 animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
+      className="fixed bottom-[calc(76px+env(safe-area-inset-bottom,0px))] sm:bottom-8 right-4 sm:right-8 z-40 animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
     >
       <button
         onClick={openQuickTask}

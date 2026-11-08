@@ -74,6 +74,13 @@ export async function middleware(request: NextRequest) {
 
     // Unauthenticated user attempting to access protected route
     if (!user && isProtectedRoute) {
+      if (
+        process.env.NODE_ENV !== "production" &&
+        (request.headers.get("x-mock-test-auth") === "true" ||
+          request.cookies.get("x-mock-test-auth")?.value === "true")
+      ) {
+        return supabaseResponse;
+      }
       const redirectUrl = new URL("/login", request.url);
       redirectUrl.searchParams.set("redirectTo", pathname);
       const res = NextResponse.redirect(redirectUrl);

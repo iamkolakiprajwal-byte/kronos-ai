@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useDemo } from "@/context/demo-context";
 import { useAuth } from "@/context/auth-context";
+import { AUTO_SYNC_INTERVAL_OPTIONS, AutoSyncInterval } from "@/types";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -39,6 +40,9 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
     clearNotifications,
     syncStatus,
     lastSyncTime,
+    lastSyncTimestampMs,
+    autoSyncInterval,
+    setAutoSyncInterval,
     syncConflicts,
     triggerCalendarSync,
     resolveSyncConflict,
@@ -151,7 +155,12 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
             </button>
 
             {showRoleDropdown && (
-              <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto right-auto sm:right-0 top-16 sm:top-full mt-1 sm:mt-2 w-auto sm:w-80 bg-[#fdfcf9] border border-[#e8e2d5] rounded-2xl shadow-xl z-50 p-2 space-y-1 animate-in fade-in-50 slide-in-from-top-2">
+              <>
+                <div
+                  className="fixed inset-0 bg-[#201e1b]/20 backdrop-blur-2xs sm:hidden z-40"
+                  onClick={() => setShowRoleDropdown(false)}
+                />
+                <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto right-auto sm:right-0 top-16 sm:top-full mt-1 sm:mt-2 w-auto sm:w-80 bg-[#fdfcf9] border border-[#e8e2d5] rounded-2xl shadow-xl z-50 p-2 space-y-1 animate-in fade-in-50 slide-in-from-top-2">
                 <div className="px-3 py-2 border-b border-[#e8e2d5]/60 mb-1">
                   <span className="text-[10px] uppercase font-bold tracking-wider text-[#8a8479] block">
                     Select Persona Track
@@ -242,6 +251,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                   </div>
                 </button>
               </div>
+              </>
             )}
           </div>
           {/* Calendar Sync Button (Sleek circle on mobile, pill on desktop) */}
@@ -307,7 +317,12 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
 
           {/* Notifications Dropdown Drawer */}
           {showNotifications && (
-            <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto right-auto sm:right-0 top-16 sm:top-full mt-1 sm:mt-2 w-auto sm:w-96 bg-white border border-[#e8e2d5] rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in-50 slide-in-from-top-2 duration-150">
+            <>
+              <div
+                className="fixed inset-0 bg-[#201e1b]/20 backdrop-blur-2xs sm:hidden z-40"
+                onClick={() => setShowNotifications(false)}
+              />
+              <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto right-auto sm:right-0 top-16 sm:top-full mt-1 sm:mt-2 w-auto sm:w-96 bg-white border border-[#e8e2d5] rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in-50 slide-in-from-top-2 duration-150">
               <div className="p-3.5 border-b border-[#e8e2d5] bg-[#fbf9f5] flex items-center justify-between">
                 <div>
                   <h3 className="text-xs font-semibold text-[#201e1b]">Notifications</h3>
@@ -388,14 +403,18 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                 )}
               </div>
             </div>
+            </>
           )}
         </div>
       </div>
+    </header>
 
-      {/* Google Calendar Sync Modal */}
-      {showSyncModal && (
+    {/* Google Calendar Sync Modal (Outside header to avoid backdrop-filter fixed positioning entrapment) */}
+    {showSyncModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#201e1b]/40 backdrop-blur-xs animate-in fade-in-50">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl border-t sm:border border-[#e8e2d5] w-full sm:max-w-lg p-5 sm:p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl border-t sm:border border-[#e8e2d5] w-full sm:max-w-lg p-5 sm:p-6 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto">
+            {/* Mobile bottom sheet grab handle */}
+            <div className="w-10 h-1 bg-[#d5cdbd] rounded-full mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-center justify-between pb-3 border-b border-[#e8e2d5]">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-[#687050]" />
@@ -405,7 +424,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
               </div>
               <button
                 onClick={() => setShowSyncModal(false)}
-                className="p-1 rounded-md text-[#8a8479] hover:text-[#201e1b] hover:bg-[#f2eee6]"
+                className="p-1 rounded-md text-[#8a8479] hover:text-[#201e1b] hover:bg-[#f2eee6] cursor-pointer"
               >
                 <X className="w-5 h-5 sm:w-4 sm:h-4" />
               </button>
@@ -445,6 +464,45 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                 <span className={cn("font-bold", syncConflicts.length > 0 ? "text-[#b85437]" : "text-[#536b54]")}>
                   {syncConflicts.length > 0 ? `${syncConflicts.length} Conflict Requiring Action` : "0 (Synchronized)"}
                 </span>
+              </div>
+            </div>
+
+            {/* Automatic Background Sync Cadence Configuration */}
+            <div className="p-3.5 sm:p-4 rounded-xl bg-[#faf8f4] border border-[#e8e2d5] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <RefreshCw className="w-3.5 h-3.5 text-[#536b54]" />
+                  <span className="font-semibold text-xs text-[#201e1b]">
+                    Automatic Background Sync
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-[#edf2ec] text-[#536b54] border border-[#d6e0d5]">
+                  {autoSyncInterval === "manual" ? "Manual Only" : `Every ${autoSyncInterval}`}
+                </span>
+              </div>
+              <p className="text-[11px] text-[#545049] leading-relaxed">
+                Kronos automatically syncs your Google events, reminders, birthdays, and Google Tasks in the background at this interval without interrupting your workflow.
+              </p>
+              <div className="grid grid-cols-4 gap-1.5 pt-1">
+                {AUTO_SYNC_INTERVAL_OPTIONS.map((opt) => {
+                  const isSelected = autoSyncInterval === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setAutoSyncInterval(opt.value)}
+                      className={cn(
+                        "py-1.5 sm:py-2 px-1 text-[11px] rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center min-h-[38px]",
+                        isSelected
+                          ? "bg-[#201e1b] text-white border-[#201e1b] shadow-xs font-semibold"
+                          : "bg-white text-[#545049] border-[#e8e2d5] hover:border-[#b5ad9e] hover:bg-[#f2eee6]"
+                      )}
+                      title={opt.label}
+                    >
+                      <span className="font-medium">{opt.shortLabel}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -621,11 +679,11 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
               </div>
             )}
 
-            <div className="flex items-center justify-end pt-3 border-t border-[#e8e2d5]">
+            <div className="flex items-center justify-end pt-3 pb-3 sm:pb-0 border-t border-[#e8e2d5]">
               <button
                 type="button"
                 onClick={() => setShowSyncModal(false)}
-                className="px-4 py-2 rounded-xl bg-[#201e1b] text-white font-medium text-xs hover:bg-[#38342f] cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#201e1b] text-white font-semibold text-xs hover:bg-[#38342f] cursor-pointer text-center"
               >
                 Close
               </button>
@@ -633,7 +691,6 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
           </div>
         </div>
       )}
-    </header>
-  </>
+    </>
   );
 }

@@ -59,13 +59,13 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
   const getPriorityBadge = (priority: Task["priority"]) => {
     switch (priority) {
       case "urgent":
-        return "bg-rose-50 text-rose-700 border-rose-200";
+        return "bg-[#faece7] text-[#b85437] border-[#f3cec3]";
       case "high":
-        return "bg-amber-50 text-amber-800 border-amber-200";
+        return "bg-[#faf0e1] text-[#9c631e] border-[#eedac0]";
       case "medium":
-        return "bg-blue-50 text-blue-700 border-blue-200";
+        return "bg-[#edf2ec] text-[#536b54] border-[#d6e0d5]";
       case "low":
-        return "bg-slate-100 text-slate-600 border-slate-200";
+        return "bg-[#f2eee6] text-[#545049] border-[#e4ded2]";
     }
   };
 
@@ -81,7 +81,7 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
           </div>
           <div className="w-full bg-[#f0ede6] h-2 rounded-full overflow-hidden">
             <div
-              className="bg-emerald-600 h-full rounded-full transition-all duration-300"
+              className="bg-[#536b54] h-full rounded-full transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -253,7 +253,7 @@ export function DailyAgenda({ onOpenQuickTask }: DailyAgendaProps) {
                   <div className="flex items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                     <button
                       onClick={() => deleteTask(task.id)}
-                      className="p-1.5 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-[#b85437] hover:bg-[#faece7] transition-colors cursor-pointer"
                       title="Delete task"
                       aria-label="Delete task"
                     >
