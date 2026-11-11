@@ -27,6 +27,9 @@ export const metadata: Metadata = {
   title: "Kronos AI — Intelligent Personal Planning & Time Management",
   description:
     "A calm, notebook-inspired AI personal planning assistant that understands your responsibilities, habits, routines, and goals.",
+  verification: {
+    google: "k7qM1dW53CFygEolnwyJP8ZpwVijwTHO8rMQXQz1IRE",
+  },
 };
 
 export default function RootLayout({
@@ -37,6 +40,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${lora.variable} ${manrope.variable}`}>
       <head>
+        <meta name="google-site-verification" content="k7qM1dW53CFygEolnwyJP8ZpwVijwTHO8rMQXQz1IRE" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
