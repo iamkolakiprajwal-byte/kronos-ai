@@ -233,10 +233,15 @@ export default function SignupPage() {
       </main>
 
       {/* Footer */}
-      <footer className="p-4 text-center text-xs text-[#8a8479] border-t border-[#e8e2d5] px-4">
+      <footer className="p-4 text-center text-xs text-[#8a8479] border-t border-[#e8e2d5] px-4 space-y-1.5">
         <p className="max-w-xs sm:max-w-none mx-auto leading-relaxed">
           Kronos AI Personal Time Manager • Adaptive Multi-Provider Authentication
         </p>
+        <div className="flex items-center justify-center gap-3 text-[11px] text-[#8a8479]">
+          <Link href="/privacy" className="underline hover:text-[#201e1b]">Privacy Policy</Link>
+          <span>•</span>
+          <Link href="/terms" className="underline hover:text-[#201e1b]">Terms of Service</Link>
+        </div>
       </footer>
     </div>
   );

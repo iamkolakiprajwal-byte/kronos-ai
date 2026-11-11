@@ -13,6 +13,77 @@ const SyncRequestSchema = z.object({
   accessToken: z.string().optional(),
 });
 
+/**
+ * GET /api/calendar/sync
+ * Retrieves current Google Calendar connection status, sync state, and auto-sync metadata.
+ */
+export async function GET() {
+  try {
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({
+        connected: false,
+        syncStatus: "disconnected",
+        message: "Database client unconfigured",
+      });
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const cookieStore = await cookies();
+    let targetUserId = user?.id;
+    if (!targetUserId) {
+      const cookieUserId = cookieStore.get("kronos_auth_user")?.value;
+      if (cookieUserId) {
+        targetUserId = cookieUserId;
+      }
+    }
+
+    if (!targetUserId) {
+      return NextResponse.json({
+        connected: false,
+        syncStatus: "disconnected",
+        message: "No authenticated session",
+      });
+    }
+
+    const { data: conn } = await supabase
+      .from("calendar_connections")
+      .select("id, provider, sync_status, last_synced_at, google_email, token_expires_at, scopes, refresh_token")
+      .eq("user_id", targetUserId)
+      .maybeSingle();
+
+    if (!conn) {
+      return NextResponse.json({
+        connected: false,
+        syncStatus: "disconnected",
+        lastSyncedAt: null,
+      });
+    }
+
+    const isConnected = conn.sync_status === "active" || conn.sync_status === "synced";
+
+    return NextResponse.json({
+      connected: isConnected,
+      syncStatus: conn.sync_status,
+      lastSyncedAt: conn.last_synced_at,
+      googleEmail: conn.google_email,
+      hasRefreshToken: !!conn.refresh_token,
+      tokenExpiresAt: conn.token_expires_at,
+      scopes: conn.scopes || [],
+      requiresReauth: conn.sync_status === "error",
+    });
+  } catch (error: any) {
+    console.error("GET /api/calendar/sync error:", error);
+    return NextResponse.json(
+      { connected: false, error: error.message || "Failed to check calendar connection" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -63,8 +134,9 @@ export async function POST(request: Request) {
         }
       }
 
-      const tokenFromCookie = cookieStore.get("kronos_google_token")?.value;
-      const effectiveAccessToken = accessToken || tokenFromCookie;
+      // Do NOT fall back to short-lived cookie token. Let sync-service use persistent DB token
+      // and perform auto-refresh via refresh_token when expired.
+      const effectiveAccessToken = accessToken || undefined;
 
       if (targetUserId) {
         if (action === "disconnect") {
@@ -75,15 +147,19 @@ export async function POST(request: Request) {
               access_token: null,
               refresh_token: null,
               sync_token: null,
+              google_tasks_sync_token: null,
               updated_at: new Date().toISOString(),
             })
             .eq("user_id", targetUserId);
 
-          return NextResponse.json({
+          const response = NextResponse.json({
             success: true,
             connected: false,
             message: "Google Calendar & Tasks disconnected successfully.",
           });
+          response.cookies.delete("kronos_google_token");
+          response.cookies.delete("kronos_google_refresh_token");
+          return response;
         }
 
         const forceFullSync = action === "reset_and_sync";

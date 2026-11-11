@@ -162,6 +162,7 @@ interface DemoContextType {
   setAutoSyncInterval: (interval: AutoSyncInterval) => void;
   syncConflicts: SyncConflict[];
   triggerCalendarSync: (forceFull?: boolean, isBackground?: boolean) => Promise<any>;
+  disconnectCalendar: () => Promise<void>;
   simulateExternalCalendarConflict: () => Promise<void>;
   resolveSyncConflict: (conflictId: string, resolution: "keep_local" | "accept_remote") => Promise<void>;
 
@@ -308,7 +309,15 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   // Sprint 2: Productivity & Integrations State
   const [focusSessions, setFocusSessions] = useState<FocusSessionLog[]>([]);
 
-  const [syncStatus, setSyncStatus] = useState<CalendarSyncStatus>("offline");
+  const [syncStatus, setSyncStatus] = useState<CalendarSyncStatus>(() => {
+    if (typeof window !== "undefined" && window.localStorage) {
+      try {
+        const cached = localStorage.getItem("kronos_cached_sync_status");
+        if (cached === "synced" || cached === "error") return cached as CalendarSyncStatus;
+      } catch {}
+    }
+    return "offline";
+  });
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [lastSyncTimestampMs, setLastSyncTimestampMs] = useState<number | null>(() => {
     if (typeof window === "undefined" || !window.localStorage) return null;
@@ -469,17 +478,34 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
         if (conn && (conn.sync_status === "active" || conn.sync_status === "synced")) {
           setSyncStatus("synced");
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem("kronos_cached_sync_status", "synced");
+              if (authUser?.id) localStorage.setItem(`kronos_cached_sync_status_${authUser.id}`, "synced");
+            } catch {}
+          }
           if (conn.last_synced_at) {
             setLastSyncTime(new Date(conn.last_synced_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
             setLastSyncTimestampMs(new Date(conn.last_synced_at).getTime());
           }
         } else if (conn && conn.sync_status === "error") {
           setSyncStatus("error");
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem("kronos_cached_sync_status", "error");
+            } catch {}
+          }
           if (conn.last_synced_at) {
             setLastSyncTime(new Date(conn.last_synced_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
           }
         } else {
           setSyncStatus("offline");
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.removeItem("kronos_cached_sync_status");
+              if (authUser?.id) localStorage.removeItem(`kronos_cached_sync_status_${authUser.id}`);
+            } catch {}
+          }
           setLastSyncTime(null);
         }
       } catch (err) {
@@ -1949,20 +1975,44 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authUser?.id]);
 
+  const disconnectCalendar = useCallback(async () => {
+    try {
+      await fetch("/api/calendar/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disconnect" }),
+      });
+      setSyncStatus("offline");
+      setLastSyncTime(null);
+      setLastSyncTimestampMs(null);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("kronos_google_provider_token");
+          localStorage.removeItem("kronos_cached_sync_status");
+          if (authUser?.id) localStorage.removeItem(`kronos_cached_sync_status_${authUser.id}`);
+        } catch {}
+      }
+      addNotificationSafe({
+        id: `notif-disconnect-${Date.now()}`,
+        title: "Google Calendar Disconnected",
+        message: "Google Calendar & Tasks have been disconnected from your account.",
+        timestamp: "Just now",
+        type: "calendar",
+        read: false,
+      });
+    } catch (err) {
+      console.warn("Failed to disconnect calendar:", err);
+    }
+  }, [authUser?.id, addNotificationSafe]);
+
   const triggerCalendarSync = useCallback(async (forceFull: boolean = false, isBackground: boolean = false) => {
     setSyncStatus("syncing");
     try {
-      const storedToken =
-        typeof window !== "undefined"
-          ? localStorage.getItem("kronos_google_provider_token")
-          : null;
-
       const res = await fetch("/api/calendar/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: forceFull ? "reset_and_sync" : "sync",
-          accessToken: storedToken || undefined,
           useMock: false,
         }),
         signal: AbortSignal.timeout(25000),
@@ -1971,6 +2021,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (res.ok && data.success) {
         setSyncStatus("synced");
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("kronos_cached_sync_status", "synced");
+            if (authUser?.id) localStorage.setItem(`kronos_cached_sync_status_${authUser.id}`, "synced");
+          } catch {}
+        }
         const nowMs = Date.now();
         setLastSyncTimestampMs(nowMs);
         setLastSyncTime(new Date(nowMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
@@ -2014,8 +2070,19 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       } else {
         const isNotConnected =
           data.error?.toLowerCase().includes("no active") ||
-          data.error?.toLowerCase().includes("not connected");
+          data.error?.toLowerCase().includes("not connected") ||
+          data.error?.toLowerCase().includes("disconnected");
         setSyncStatus(isNotConnected ? "offline" : "error");
+        if (typeof window !== "undefined") {
+          try {
+            if (isNotConnected) {
+              localStorage.removeItem("kronos_cached_sync_status");
+              if (authUser?.id) localStorage.removeItem(`kronos_cached_sync_status_${authUser.id}`);
+            } else {
+              localStorage.setItem("kronos_cached_sync_status", "error");
+            }
+          } catch {}
+        }
 
         // Only add notification to the drawer if the user explicitly requested a sync
         if (forceFull) {
@@ -2034,6 +2101,11 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       console.warn("[triggerCalendarSync] Error during sync:", err);
       const isTimeout = err.name === "TimeoutError" || err.message?.includes("aborted");
       setSyncStatus("error");
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("kronos_cached_sync_status", "error");
+        } catch {}
+      }
       if (forceFull) {
         addNotificationSafe({
           id: `notif-sync-err-${Date.now()}`,
@@ -2063,15 +2135,11 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       // Skip if currently syncing
       if (syncStatus === "syncing") return;
 
-      // Skip if in persistent error/reauth state
-      if (syncStatus === "error") return;
+      // Skip if in persistent error/reauth state or offline
+      if (syncStatus === "error" || syncStatus === "offline") return;
 
-      // Verify connection exists
-      const hasAuth = !!authUser?.id;
-      const hasToken =
-        typeof window !== "undefined" &&
-        !!localStorage.getItem("kronos_google_provider_token");
-      if (!hasAuth && !hasToken) return;
+      // Verify authenticated user exists
+      if (!authUser?.id) return;
 
       const now = Date.now();
       const lastMs = lastSyncTimestampMs || 0;
@@ -2285,6 +2353,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         setAutoSyncInterval,
         syncConflicts,
         triggerCalendarSync,
+        disconnectCalendar,
         simulateExternalCalendarConflict,
         resolveSyncConflict,
         ecoEntries,

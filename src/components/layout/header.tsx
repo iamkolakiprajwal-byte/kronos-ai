@@ -45,6 +45,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
     setAutoSyncInterval,
     syncConflicts,
     triggerCalendarSync,
+    disconnectCalendar,
     resolveSyncConflict,
   } = useDemo();
 
@@ -411,7 +412,12 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
 
     {/* Google Calendar Sync Modal (Outside header to avoid backdrop-filter fixed positioning entrapment) */}
     {showSyncModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#201e1b]/40 backdrop-blur-xs animate-in fade-in-50">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Google Calendar Two-Way Integration"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#201e1b]/40 backdrop-blur-xs animate-in fade-in-50"
+        >
           <div className="bg-white rounded-t-3xl sm:rounded-2xl border-t sm:border border-[#e8e2d5] w-full sm:max-w-lg p-5 sm:p-6 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto">
             {/* Mobile bottom sheet grab handle */}
             <div className="w-10 h-1 bg-[#d5cdbd] rounded-full mx-auto -mt-1 mb-1 sm:hidden" />
@@ -525,7 +531,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                   <button
                     type="button"
                     onClick={async () => {
-                      await connectGoogleCalendar();
+                      await connectGoogleCalendar(true);
                     }}
                     className="flex-1 py-2.5 px-4 rounded-xl bg-[#b85437] hover:bg-[#9e452c] text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
                   >
@@ -540,19 +546,8 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                   <button
                     type="button"
                     onClick={async () => {
-                      try {
-                        await fetch("/api/calendar/sync", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ action: "disconnect" }),
-                        });
-                        if (typeof window !== "undefined") {
-                          localStorage.removeItem("kronos_google_provider_token");
-                        }
-                        setShowSyncModal(false);
-                      } catch (e) {
-                        console.warn("Failed to disconnect calendar:", e);
-                      }
+                      await disconnectCalendar();
+                      setShowSyncModal(false);
                     }}
                     className="px-3 py-2 rounded-xl bg-white border border-[#f3cec3] hover:bg-stone-50 text-[#545049] text-xs font-medium transition-colors cursor-pointer"
                   >

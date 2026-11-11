@@ -72,6 +72,16 @@ export async function GET(request: Request) {
         // 3. Vault Google OAuth tokens securely in calendar_connections table
         if (data.session.provider_token) {
           const expiresAt = new Date(Date.now() + (data.session.expires_in || 3600) * 1000).toISOString();
+
+          // CRITICAL: Inspect existing connection so an existing refresh_token is NEVER overwritten with null
+          const { data: existingConn } = await userSupabase
+            .from("calendar_connections")
+            .select("refresh_token, sync_token, google_tasks_sync_token")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          const finalRefreshToken = data.session.provider_refresh_token || existingConn?.refresh_token;
+
           const connPayload: any = {
             user_id: user.id,
             provider: "google",
@@ -82,10 +92,22 @@ export async function GET(request: Request) {
             google_email: email,
             google_tasks_sync_enabled: true,
             google_calendar_sync_enabled: true,
+            scopes: [
+              "https://www.googleapis.com/auth/calendar.events",
+              "https://www.googleapis.com/auth/calendar.readonly",
+              "https://www.googleapis.com/auth/tasks",
+            ],
+            updated_at: new Date().toISOString(),
           };
 
-          if (data.session.provider_refresh_token) {
-            connPayload.refresh_token = data.session.provider_refresh_token;
+          if (finalRefreshToken) {
+            connPayload.refresh_token = finalRefreshToken;
+          }
+          if (existingConn?.sync_token) {
+            connPayload.sync_token = existingConn.sync_token;
+          }
+          if (existingConn?.google_tasks_sync_token) {
+            connPayload.google_tasks_sync_token = existingConn.google_tasks_sync_token;
           }
 
           const { error: connUpsertErr } = await userSupabase

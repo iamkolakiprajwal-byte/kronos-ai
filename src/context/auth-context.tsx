@@ -38,7 +38,7 @@ interface AuthContextType {
   isLoading: boolean;
   isSupabaseLive: boolean;
   signInWithGoogle: (customAccount?: { name: string; email: string; avatar?: string }) => Promise<{ success: boolean; error?: string }>;
-  connectGoogleCalendar: () => Promise<{ success: boolean; error?: string }>;
+  connectGoogleCalendar: (forceConsent?: boolean) => Promise<{ success: boolean; error?: string }>;
   signInWithGithub: () => Promise<{ success: boolean; error?: string }>;
   signInWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUpWithEmail: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -197,10 +197,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks",
+          scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks",
           queryParams: {
             access_type: "offline",
-            prompt: "consent select_account",
+            prompt: "select_account",
             include_granted_scopes: "true",
           },
         },
@@ -218,7 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const connectGoogleCalendar = async () => {
+  const connectGoogleCalendar = async (forceConsent: boolean = false) => {
     setIsLoading(true);
     try {
       if (!isSupabaseConfigured) {
@@ -241,16 +241,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: "Failed to initialize Supabase client." };
       }
 
+      const queryParams: Record<string, string> = {
+        access_type: "offline",
+        include_granted_scopes: "true",
+      };
+
+      // Only force the full consent screen if forceConsent is explicitly requested
+      // (e.g. after token revocation). Otherwise, use "select_account" so Google
+      // silently completes authorization if consent was already granted.
+      if (forceConsent) {
+        queryParams.prompt = "consent select_account";
+      } else {
+        queryParams.prompt = "select_account";
+      }
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?source=calendar_connect`,
-          scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks",
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent select_account",
-            include_granted_scopes: "true",
-          },
+          scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks",
+          queryParams,
         },
       });
 

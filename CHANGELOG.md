@@ -3,6 +3,56 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.3.0] - 2026-11-08
+
+### Permanent Google Calendar Authorization Fix & Gemini Connection UI Removal
+- **Permanent Google Calendar Authorization Architecture**:
+  - **Preserved Refresh Tokens across Silent Re-authorizations**: Modified `/auth/callback` to query existing `calendar_connections` and retain the stored `refresh_token` whenever Google omits `provider_refresh_token` on subsequent authorization passes.
+  - **Single-Flight Concurrency Mutex**: Implemented in-flight lock maps (`inFlightRefreshes` and `inFlightSyncs`) preventing concurrent duplicate refresh calls and eliminating race conditions.
+  - **Proactive & Reactive Expiration Handling**: Implemented `isTokenExpired` with a 5-minute renewal buffer in `sync-service.ts` alongside `attemptWithTokenRetry` which catches 401/expired errors, automatically renews access tokens, persists them to Supabase, and transparently retries Google API requests.
+  - **Clear Error Classification**: Differentiated `invalid_grant` (revoked access, requiring explicit reauthorization) from transient 5xx outages and missing `.env.local` credentials, preventing false error transitions.
+  - **Scoped Authorization Scopes**: Switched OAuth flow from forcing consent prompts on every login to silent account selection (`prompt: "select_account"`), only invoking `prompt: "consent"` when recovering from genuine revocation.
+  - **Zero-Flicker Client Hydration**: Cached active connection status in `localStorage` (`kronos_cached_sync_status`), eliminating the initial "offline" / "Connect Google Calendar" badge flicker during page reload.
+  - **Complete Disconnect Lifecycle**: Centralized `disconnectCalendar` in `DemoContext`, clearing database credentials, removing authentication cookies, invalidating client caches, and updating UI states simultaneously.
+- **Gemini Live Connection UI Removal & Interface Cleanup**:
+  - Removed the `"Gemini Live Connected"` and `"Prototype AI Mode • Gemini Integration Pending"` header badge from the Planning Assistant workspace (`src/app/(dashboard)/ai/page.tsx`).
+  - Removed the technical upcoming briefing disclaimers and status polling banners.
+  - Streamlined the workspace with an elegant, focused "Adaptive Constraint-Based Planning" guidance card.
+  - Preserved all interactive AI capabilities: natural language text composer, speech-to-text dictation modal, proposal cards, "Apply to My Day" confirmation handshake, and responsive mobile/desktop layouts.
+- **Testing & Verification Suite**:
+  - Added dedicated persistent auth test suite (`tests/calendar/persistent-auth.test.ts`): **156/156 automated tests passed**.
+  - Added Puppeteer persistence verification (`scripts/verify-calendar-persistence.mjs`): cold reload, navigation, modal interaction, and GET `/api/calendar/sync` passed.
+  - 64/64 responsive browser QA checks passed across 7 device viewports with 0 console errors.
+  - Clean Next.js 16 production build compiled across all 22 static and dynamic routes.
+
+## [2.2.0] - 2026-11-08
+
+### Final Pre-Integration Stabilization, System Audit & Prototype Submission Readiness
+- **Automatic Background Google Calendar Synchronization**:
+  - Implemented configurable background synchronization cadence with intervals for `15m`, `30m` (default), `1h`, `6h`, `12h`, `1d`, `1w`, and `manual`.
+  - Added auto-sync cadence selector to User Profile & Planning Preferences (`src/app/(dashboard)/profile/page.tsx`).
+  - Added real-time auto-sync indicator with countdown timer and manual trigger inside the Calendar Sync Modal (`src/components/dashboard/sync-modal.tsx`).
+  - Enhanced background timer inside `DemoContext` to trigger delta sync passes without blocking UI interactions.
+- **Mobile Ergonomics & Responsive Layout Polish**:
+  - Fixed CSS stacking context trap where `backdrop-blur-md` on `<header>` trapped fixed bottom modals inside 56px header bounds.
+  - Redesigned Quick Task Modal and Calendar Sync Modal as native bottom sheets on mobile devices (`rounded-t-3xl sm:rounded-2xl`) with mobile drag handles and touch-friendly padding.
+  - Aligned month calendar day cells and hid redundant "Today" text badge on screens $<640\text{px}$ to eliminate cell collision on Day 8.
+  - Enforced `overflow-x: hidden` and maximum 100vw constraint across authentication pages (`globals.css`, `login/page.tsx`, `signup/page.tsx`).
+- **Academic AI Prototype Transparency**:
+  - Configured explicit status indicators in Planning Assistant (`/ai`):
+    - Badge: `"Prototype AI Mode • Gemini Integration Pending"`.
+    - Status Briefing Banner: Explains that current scheduling proposals operate via Kronos's deterministic constraint satisfaction engine pending Gemini API activation in the next phase.
+  - Prepared `GeminiProvider` and structured JSON `responseSchema` for zero-code-change transition in the upcoming phase.
+- **Persistent Notification Reload Fix**:
+  - Wrapped notification state mutators (`dismissNotification`, `clearAllNotifications`) with direct storage sync calls.
+  - Verified that cleared notifications strictly persist across hard page refresh.
+- **Quality Assurance & Verification**:
+  - Executed automated test suite across 10 domains: **148/148 Passed**.
+  - Executed automated multi-viewport browser matrix across 7 screen sizes: **64/64 Passed (0 defects)**.
+  - Validated clean Next.js 16 production build (`22/22` static and dynamic routes compiled).
+- **Authoritative Documentation Overhaul**:
+  - Authored and updated the complete 12-document engineering suite: `README.md`, `PROJECT_CONTEXT.md`, `PROJECT_SPEC.md`, `ARCHITECTURE.md`, `DATABASE_SCHEMA.md`, `FEATURES_AND_STATUS.md`, `TESTING_AND_QA.md`, `CHANGELOG.md`, `DEVELOPMENT_LOG.md`, `KNOWN_ISSUES.md`, `DEPLOYMENT_GUIDE.md`, and `NEXT_PHASE_GEMINI_INTEGRATION.md`.
+
 ## [2.1.0] - 2026-11-07
 
 ### Fixed & Cleaned — Real Google OAuth Integration, Complete Demo Purge & Clean Onboarding

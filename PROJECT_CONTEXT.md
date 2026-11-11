@@ -535,51 +535,31 @@ All 37 unit tests pass across 4 separate domain test suites:
 
 ## 9. Current Project Status & Development Summary
 
-- **Current Status**: **PRODUCTION AUTH & CLEAN ONBOARDING COMPLETE (v2.1.0)**
-  - **Real Google OAuth & Elimination of Simulated Modal**:
-    - Completely removed fake Google name/email prompt dialogs and mock user generation.
-    - Implemented real `signInWithOAuth({ provider: 'google' })` via Supabase with honest error reporting when unconfigured.
-    - Updated `/auth/callback` to handle authorization code exchange, profile creation, and dynamic routing to `/home` (returning users) or `/onboarding` (new users).
-  - **Complete Removal of Onboarding Presets & Pre-Filled Data**:
-    - Removed `studentOnboardingPreset`, `professionalOnboardingPreset`, and `bothOnboardingPreset`.
-    - Removed "Auto-fill preset: Student / Pro / Both" buttons from `StepIndicator`.
-    - Every onboarding field starts clean and empty unless pre-populated from authentic Google OAuth metadata or detected timezone.
-    - Authored `getCleanInitialState()` in `src/lib/storage/index.ts` guaranteeing that user accounts, resets, and migrations default to 0 tasks, 0 calendar events, 0 goals, and 0 habits.
-  - **Automated Verification**:
-    - **153 / 153 total automated tests passing** (`npm test`), including new `tests/auth/auth-clean-state.test.ts`.
+- **Current Status**: **PERMANENT GOOGLE CALENDAR AUTHORIZATION & GEMINI UI CLEANUP COMPLETE (v2.3.0)**
+  - **Permanent Google Calendar Authorization Architecture**:
+    - Querying existing `calendar_connections` on subsequent OAuth handshakes to preserve `refresh_token` whenever Google omits it.
+    - Implemented in-flight single-flight mutex maps (`inFlightRefreshes` and `inFlightSyncs`) preventing concurrent race conditions.
+    - Implemented proactive renewal (`isTokenExpired` with 5-minute buffer) and reactive renewal (`attemptWithTokenRetry` catching 401s, renewing tokens, updating Supabase, and transparently retrying).
+    - Differentiated permanent `invalid_grant` revocation from transient 5xx Google outages.
+    - Switched OAuth flow from forcing consent prompts on every login to silent account selection (`prompt: "select_account"`), only invoking `prompt: "consent"` when recovering from genuine revocation.
+    - Cached active connection state in `localStorage` (`kronos_cached_sync_status`) eliminating initial badge flicker during page reload.
+    - Centralized `disconnectCalendar` in `DemoContext` with complete token nullification, cookie deletion, and cache clearing.
+  - **Gemini Live Connection UI Removal & Clean Constraint Planning**:
+    - Removed `"Gemini Live Connected"` and `"Prototype AI Mode • Gemini Integration Pending"` header badges.
+    - Removed technical upcoming briefing disclaimers and status polling banners from `/ai`.
+    - Integrated clean, elegant "Adaptive Constraint-Based Planning" card outlining how Kronos fits tasks around user commitments and rhythms.
+    - Maintained 100% functionality of interactive AI planning workspace (text input, voice dictation, proposal cards, "Apply to My Day", and navigation).
+  - **Comprehensive Quality Assurance**:
+    - **156 / 156 automated tests passing** across 11 test suites (`npm test`).
+    - **64 / 64 automated browser QA tests passing** across 7 display viewports (`scripts/manual-qa-suite.mjs`).
     - **Zero TypeScript errors** (`npx tsc --noEmit`).
     - **22 / 22 routes compiled cleanly** in Next.js 16 Turbopack production build (`npm run build`).
-  - **Elimination of Prototype & Demo Infrastructure**:
-    - Purged hardcoded demo personas (Aria Chen, Marcus Reed, Elena Rostova) from application runtime, navigation headers, modals, and presets.
-    - Removed "Instant Evaluator Demo Login" bypass buttons and "Skip to Planner" controls from `/login` and `/signup`.
-    - Removed "Reset Demo State" buttons across the application.
-    - Replaced simulated Google Calendar synchronization with native Google OAuth integration and honest configuration reporting.
-    - Isolated mock AI fallback strictly to automated testing (`NODE_ENV === "test"`). Production runtime returns an honest HTTP 503 `CONFIGURATION_REQUIRED` when `GEMINI_API_KEY` is absent.
-  - **Multi-User Authentication & SSR Route Protection**:
-    - Created Next.js server-side route protection in `src/middleware.ts` using `@supabase/ssr` cookies and `kronos_auth_user` session token.
-    - Unauthenticated requests to `/`, `/home`, `/ai`, `/my-day`, `/growth`, `/profile`, `/onboarding` are strictly redirected to `/login`.
-    - Authenticated users attempting to visit `/login` or `/signup` are redirected to `/home`.
-    - Implemented `/forgot-password` and `/reset-password` flows with Supabase Auth dispatch and token verification.
-  - **Supabase Database Evolution & Multi-Tenant RLS**:
-    - Authored evolution migration `supabase/migrations/20261105000000_production_evolution.sql`.
-    - Added `onboarding_completed`, `timezone`, and `preferred_name` columns to `public.profiles`.
-    - Created `public.focus_sessions`, `public.onboarding_records`, `public.academic_details`, and `public.professional_details` tables with strict Row Level Security (`auth.uid() = user_id`).
-    - Implemented `dataService` (`src/lib/supabase/data-service.ts`) providing typed multi-user CRUD operations.
-  - **Production Onboarding Experience**:
-    - Connected `/onboarding` wizard to Supabase profile and onboarding records.
-    - Completing onboarding marks `onboarding_completed: true` in user profile.
-    - Interactive 4-step welcome tutorial modal (`src/components/dashboard/welcome-tutorial-modal.tsx`) guides first-time users.
-  - **Genuine Empty States & Visual Polish**:
-    - Designed authentic zero-task and zero-habit empty states with 1-click creation actions.
-    - Verified responsive viewports across 320px, 375px, 768px, and 1440px via Puppeteer screenshots.
-  - **Automated Verification**:
-    - **130 / 130 total automated tests passing** across all 8 test suites (`npm test`).
-    - **Zero TypeScript errors** (`npx tsc --noEmit`).
-    - **22 / 22 routes compiled cleanly** in Next.js 16 Turbopack production build (`npm run build`).
+  - **Authoritative 12-Document Engineering Suite**:
+    - Authored and refreshed: `README.md`, `PROJECT_CONTEXT.md`, `PROJECT_SPEC.md`, `ARCHITECTURE.md`, `DATABASE_SCHEMA.md`, `FEATURES_AND_STATUS.md`, `TESTING_AND_QA.md`, `CHANGELOG.md`, `DEVELOPMENT_LOG.md`, `KNOWN_ISSUES.md`, `DEPLOYMENT_GUIDE.md`, and `NEXT_PHASE_GEMINI_INTEGRATION.md`.
 - **Active Dev Server**:
   - Running on `http://localhost:3001`.
 - **Verification Commands**:
-  - `npm test`: Runs all 130 tests across 8 test suites.
-  - `npx tsc --noEmit`: Strict TypeScript compiler check (zero errors).
+  - `npm test`: Runs all 156 tests across 11 test suites.
+  - `node scripts/verify-calendar-persistence.mjs`: Tests persistent calendar authorization, cold reload, and route transitions.
+  - `node scripts/manual-qa-suite.mjs`: Runs 64 browser checks across 7 viewports.
   - `npm run build`: Next.js 16 production compilation (22 routes).
-  - `npm run dev`: Dev server on port 3001.

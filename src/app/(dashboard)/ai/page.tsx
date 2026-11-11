@@ -126,20 +126,8 @@ export default function AIPage() {
   const [appliedGoalIds, setAppliedGoalIds] = useState<Record<string, boolean>>({});
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [voiceDraft, setVoiceDraft] = useState("");
-  const [aiStatus, setAiStatus] = useState<"checking" | "connected" | "configuration_required">("checking");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    fetch("/api/ai/chat")
-      .then((res) => res.json())
-      .then((data) => {
-        setAiStatus(data.configured ? "connected" : "configuration_required");
-      })
-      .catch(() => {
-        setAiStatus("configuration_required");
-      });
-  }, []);
 
   const suggestedPrompts =
     role === "student"
@@ -225,14 +213,6 @@ export default function AIPage() {
           <div className="min-w-0">
             <h1 className="font-serif text-base sm:text-xl font-normal text-[#201e1b] flex items-center gap-2">
               <span>Planning Assistant</span>
-              <span className={cn(
-                "hidden sm:inline-flex text-[10px] font-sans font-medium px-2 py-0.5 rounded-full border",
-                aiStatus === "connected"
-                  ? "bg-[#edf2ec] text-[#536b54] border-[#d6e0d5]"
-                  : "bg-[#faece7] text-[#b85437] border-[#f3cec3]"
-              )}>
-                {aiStatus === "checking" ? "Checking AI..." : aiStatus === "connected" ? "Gemini AI Connected" : "Gemini AI: Setup Required"}
-              </span>
             </h1>
             <p className="text-[11px] sm:text-xs text-[#8a8479] truncate flex items-center gap-2">
               <span>Track: <strong className="text-[#545049] capitalize font-medium">{role === "student" ? "Academic" : role === "professional" ? "Professional" : "Dual"}</strong></span>
@@ -266,28 +246,16 @@ export default function AIPage() {
 
       {/* Chat Messages Stream */}
       <div className="flex-1 overflow-y-auto py-3.5 sm:py-4 space-y-3.5 sm:space-y-4 pr-1">
-        {/* Status / Briefing Banner */}
-        {aiStatus === "configuration_required" ? (
-          <div className="bg-[#faece7]/50 border border-[#f3cec3] rounded-2xl p-4 text-xs space-y-2 shadow-2xs">
-            <div className="flex items-center gap-2 text-[#b85437] font-semibold">
-              <Zap className="w-4 h-4 text-[#b85437] shrink-0" />
-              <span className="font-serif text-sm">Gemini AI Setup Required</span>
-            </div>
-            <p className="text-[#545049] leading-relaxed text-[11px] sm:text-xs">
-              To activate real-time Gemini AI scheduling, add your <code className="font-mono bg-white px-1 py-0.5 rounded border border-[#e8e2d5]">GEMINI_API_KEY</code> to your environment variables or <code className="font-mono bg-white px-1 py-0.5 rounded border border-[#e8e2d5]">.env.local</code>. You can also manually add tasks with the floating <strong>+</strong> button below.
-            </p>
+        {/* Adaptive Constraint-Based Planning Overview */}
+        <div className="bg-[#fdfcf9] border border-[#e8e2d5] rounded-2xl p-3.5 sm:p-4 text-xs space-y-1.5 shadow-2xs">
+          <div className="flex items-center gap-2 text-[#201e1b] font-semibold">
+            <ShieldCheck className="w-4 h-4 text-[#536b54] shrink-0" />
+            <span className="font-serif text-sm">Adaptive Constraint-Based Planning</span>
           </div>
-        ) : (
-          <div className="bg-[#fdfcf9] border border-[#e8e2d5] rounded-2xl p-4 text-xs space-y-2 shadow-2xs">
-            <div className="flex items-center gap-2 text-[#201e1b] font-semibold">
-              <ShieldCheck className="w-4 h-4 text-[#536b54] shrink-0" />
-              <span className="font-serif text-sm">Adaptive Constraint-Based Planning</span>
-            </div>
-            <p className="text-[#545049] leading-relaxed text-[11px] sm:text-xs">
-              Tell Kronos your intentions to automatically fit study blocks and tasks around commitments, productive rhythms, and minimum buffer windows.
-            </p>
-          </div>
-        )}
+          <p className="text-[#545049] leading-relaxed text-[11px] sm:text-xs">
+            Tell Kronos your intentions to automatically fit study blocks and tasks around commitments, productive rhythms, and minimum buffer windows.
+          </p>
+        </div>
 
         {chatMessages.map((msg) => {
           const isUser = msg.sender === "user";

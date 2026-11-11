@@ -1,65 +1,107 @@
-# PROJECT_SPEC.md — AI Time Manager Specifications & Requirements
+# Kronos AI — Functional Specifications & System Requirements (PROJECT_SPEC.md)
 
-## 1. Product Overview
-The **AI Time Manager** ("Kronos AI") is an intelligent personal planning assistant engineered for students, working professionals, and individuals managing combined academic and professional obligations. It unifies daily scheduling, goal roadmapping, habit building, flow sessions, and calendar synchronization into a calm, notebook-inspired interface.
+## 1. Product Overview & Purpose
+**Kronos AI** is an intelligent personal planning platform engineered for students, working professionals, and individuals managing combined academic and professional responsibilities (Dual-Track). It unifies natural language planning, deterministic constraint-satisfaction scheduling, behavioral habit anchoring, flow focus sessions, and Google Calendar synchronization into a calm, notebook-inspired interface.
 
 ---
 
-## 2. Target User Types & Workflows
+## 2. Target User Personas & Workflows
 
-### 2.1 The Student
-- **Academic Context**: University courses, lab sessions, weekly problem sets, midterms, final exam dates.
-- **Needs**: Balancing lecture timetables with study sessions, assignment deadlines, library blocks, campus commuting, and healthy sleep balance.
-- **Pain Point**: Overestimating available hours between classes and procrastinating on heavy multi-week projects.
-- **Onboarding Specialization**: Collects course/degree, institution, semester, weekly class schedule, exams, assignment deadlines, and study commitments.
+### 2.1 The Academic Student
+- **Operational Reality**: University lectures, laboratory sections, problem sets, midterm/final exams, campus commutes.
+- **Cognitive Challenges**: Overestimating free time between classes; procrastination on multi-week assignments; sleep deprivation during exam crunches.
+- **Specialized Workflow**:
+  - Collects course enrollments, class timetables, and assignment deadlines during onboarding.
+  - Generates study blocks fitted between recurring lectures without overlaps.
+  - Enforces a 23:00 sleep curfew to prevent burnout.
 
 ### 2.2 The Working Professional
-- **Work Context**: Core working hours, stakeholder standups, code reviews, client workshops, cross-team deadlines.
-- **Needs**: Protecting deep work blocks from meeting proliferation, handling urgent firefighting without losing daily goals.
-- **Pain Point**: Context switching, fatigue, and inability to maintain personal habits (gym, reading) around unpredictable meetings.
-- **Onboarding Specialization**: Collects profession/role, organization, core working hours, recurring meetings, key responsibilities, and sprint deadlines.
+- **Operational Reality**: Core working hours, stakeholder syncs, sprint planning, client presentations, asynchronous tasks.
+- **Cognitive Challenges**: Fragmented calendar blocks, meeting creep, high context-switching fatigue, erosion of personal health habits.
+- **Specialized Workflow**:
+  - Ingests core working hours and recurring stakeholder meetings.
+  - Carves out and defends 90-minute uninterrupted deep focus blocks during peak focus periods.
+  - Dynamically reschedules afternoon tasks when emergency meetings preempt scheduled slots.
 
-### 2.3 The Dual-Track Individual (Both)
-- **Context**: Working professional concurrently enrolled in university courses, evening degrees, or professional certifications.
-- **Needs**: Tight synchronization between office shifts, evening lectures, and weekend assignment crunch times without cognitive burnout.
-- **Onboarding Specialization**: Collects both full academic timetables and professional workplace commitments.
+### 2.3 The Dual-Track Individual (Working Student)
+- **Operational Reality**: Daytime professional responsibilities combined with evening coursework, weekend assignments, and professional certifications.
+- **Cognitive Challenges**: Acute cognitive overload, conflicting priorities between employer deadlines and academic submissions.
+- **Specialized Workflow**:
+  - Interlocks workplace commitments and university timetables into a unified calendar surface.
+  - Identifies transition windows and weekend recovery study sessions.
 
 ---
 
-## 3. Functional Requirements
+## 3. Detailed Functional Requirements
 
-### 3.1 Primary Workspaces & Navigation Architecture
-- **Server-Side Route Protection**: Next.js 16 Middleware (`src/middleware.ts`) enforcing session authentication via `@supabase/ssr`. Unauthenticated access to protected workspaces (`/home`, `/ai`, `/my-day`, `/growth`, `/profile`, `/onboarding`) is redirected to `/login`.
-- **Persistent Bottom Dock Navigation**: Fixed bottom navigation dock (`BottomNav`) providing instant access to the four primary destinations (`Home`, `AI`, `My Day`, `Growth`) with minimum 48px touch targets and device safe-area padding. Zero requirement to open menus for primary navigation.
-- **Clean Mobile Top Header**: Clean 44px user avatar button (opens profile/settings), discreet sync status, notification bell, and quick action.
-- **Home (`/home`)**: Personal planner feel. Editorial date briefing, central architectural calendar with daily rhythm, horizontally browsable suggested schedule blocks with snap scrolling and pagination dots (`•••`), and docked bottom pill CTA: `Plan my day with AI`.
-- **AI (`/ai`)**: Dedicated conversational planning assistant. Translates natural language into deterministic schedule blocks. Horizontally browsable prompt chips, clean proposal cards with 1-tap `Apply Proposed Schedule to My Day`, speech dictation modal, and 100dvh mobile height adaptation with keyboard resilience. Honest connection reporting (requires `GEMINI_API_KEY`).
-- **My Day (`/my-day`)**: Daily execution workspace. Features dominant **Focus Spotlight Ring** dial with live task details, duration countdown, and play button; daily progress summary pill; horizontally browsable upcoming queue; open vertical timeline; dynamic mid-day reschedule action; and docked bottom pill CTA: `Start focus session`.
-- **Growth (`/growth`)**: Behavior, Flow & Development workspace with non-competing top segmented pill control:
-  - **Habits Tab**: Clear/Fogg cue anchoring, 2-minute minimum activation versions, empirical 7-day completion rate, cue consistency tracking, and optional self-reported automaticity on the validated 1–5 Self-Report Habit Index (SRHI) scale. Avoids presenting unvalidated percentages as cognitive measurements. Contextual CTA: `Add new habit`.
-  - **Flow Theory Tab**: Mihaly Csíkszentmihályi Challenge–Skill Check-In with 2D quadrant evaluation (*Flow Channel, Anxiety, Boredom, Apathy*), adaptive recommendations, circular persistent background focus timer across workspaces, distraction logger, and post-session reflection modal. Contextual CTA: `Start focus interval` / `Pause focus interval`.
-  - **Habit Reset Tab**: Bas Verplanken & Wendy Wood Habit Discontinuity Hypothesis. Captures life transitions, catalogs obsolete cues and disrupted routines, and materializes new anchor habits directly into active habits collection. Contextual CTA: `Log life discontinuity`.
-  - **Insights Tab**: Empirical analytics computed directly from focus sessions log (zero vs interrupted absorption ratings) and highest adherence & cue consistency habit metrics.
+### 3.1 Authentication & Multi-Tenant Isolation
+- **Live Supabase Auth**: Mandatory email/password authentication with bcrypt hashing and OAuth 2.0 PKCE flow for Google Identity.
+- **SSR Route Middleware**: Next.js server-side interceptor (`src/middleware.ts`) inspecting `@supabase/ssr` cookies. Unauthenticated requests to private routes (`/home`, `/ai`, `/my-day`, `/growth`, `/profile`, `/onboarding`) are redirected to `/login?redirectTo=...`.
+- **Zero Mock Fallbacks in Production**: When `NEXT_PUBLIC_DEMO_MODE=false`, all mock credentials and bypasses are strictly disabled. Invalid credentials produce explicit error alerts.
+- **Tenant Data Segregation**: Every user's local storage key is strictly partitioned by their authenticated `userId` (`kronos_ai_user_state_v1_{userId}`). Supabase PostgreSQL tables enforce Row Level Security (`auth.uid() = user_id`).
 
-### 3.2 AI Assistant Capabilities
-- Conversational schedule generation from natural language prompts.
-- Dynamic rescheduling when priorities shift or morning sessions run late.
-- Preference memory extraction (preferred study length, break interval, high-energy hours).
-- Zod-enforced structured outputs preventing malformed actions.
-- Server-side runtime validation with honest HTTP 503 fallback when `GEMINI_API_KEY` is unconfigured.
+### 3.2 Dynamic Guided Onboarding
+- **Role Selection Branching**: Immediate branch selection between Student, Professional, or Dual.
+- **Circadian Rhythms & Focus Parameters**:
+  - Waking target (default `07:00`).
+  - Sleep curfew (default `23:00`).
+  - Peak focus window (Morning, Afternoon, Evening, Night).
+  - Focus session duration ($20$, $25$, $45$, $50$, or $90$ minutes).
+  - Transition break duration ($5$ to $15$ minutes).
+- **Draft Persistence**: Unfinished onboarding drafts persist in browser storage and can be resumed seamlessly.
+- **Clean State Handshake**: Completing onboarding creates a verified user profile and initializes a clean, unpopulated schedule.
 
-### 3.3 Scheduling Engine Requirements
-- Deterministic conflict checking: Fixed events (classes, client calls) cannot be moved or overlapped.
-- Physiological realism: Mandatory sleep windows, meal breaks, and travel/transition buffers.
-- Energy matching: Assign heavy analytical tasks to the user's reported peak focus hours.
-- Clear explanatory feedback when requested workloads exceed available time.
+### 3.3 Home Workspace & Command Center (`/home`)
+- **Interactive Calendar Surface**: 7-column monthly calendar grid with:
+  - Current day highlight with dark circle and green "TODAY" pill.
+  - Category dots (Class/Lecture, Deep Work, Habit/Eco).
+  - Navigation controls (`Today`, `< >` arrows, `Week View / Full Month` toggle).
+- **Daily Agenda Stream**: Chronological view of today's time-blocked items with start/end timestamps, priority tags, and category indicators.
+- **Quick Action Bar**: Floating `+` action button and header actions (`+ New Task`, `Connect Google Calendar`, `AI Assistant`, `Open My Day`).
 
-### 3.4 Calendar Synchronisation
-- Unified `CalendarAdapter` interface with Google Calendar API v3 native support.
-- Safe two-way sync with incremental change detection, conflict prevention, and deletion handling.
-- Honest connection reporting: Displays configuration guidance when OAuth credentials are absent.
+### 3.4 Conversational AI Planning Assistant (`/ai`)
+- **Dual-Engine Architecture**: Separates LLM natural language understanding from deterministic constraint solving.
+- **Input Methods**: Text input field with role-based prompt chips and browser Web Speech API voice dictation.
+- **Deterministic Scheduling Engine**:
+  - Ingests proposed tasks, bedtime curfew, and fixed commitments.
+  - Solves for non-overlapping feasible placements.
+  - Flags capacity overload or curfew breaches with explicit error alerts.
+- **Transparent Prototype Mode**: UI badge clearly indicates `"Prototype AI Mode • Gemini Integration Pending"` when operating without live Gemini keys, ensuring absolute academic research integrity.
+- **User Consent Handshake**: "Apply Proposed Schedule to My Day" commits candidate placements only upon explicit user confirmation.
 
-### 3.5 Multi-User Security & Row Level Security (RLS)
-- Every user-owned table enforces strict Row Level Security (`auth.uid() = user_id`).
-- Isolated user tables: `profiles`, `tasks`, `calendar_events`, `goals`, `habits`, `focus_sessions`, `onboarding_records`, `academic_details`, `professional_details`.
-- Client requests only receive and manipulate authenticated user records.
+### 3.5 My Day Daily Execution Workspace (`/my-day`)
+- **Focus Spotlight Ring**: Prominent circular progress indicator displaying percentage of daily focus completed.
+- **Dynamic Mid-Day Rescheduler**: "Reorganise Remaining Day" recalculates schedule from current timestamp forward, pushing remaining flexible tasks around emergency interruptions while protecting bedtime.
+- **Task Management**: One-tap checkoff, subtask progression, and filtering by `All`, `Active`, `Fixed`, or `Completed`.
+
+### 3.6 Google Calendar Bi-Directional Delta Synchronization
+- **Incremental Sync Tokens**: Uses Google Calendar API v3 `nextSyncToken` to download only modified/deleted events.
+- **Configurable Auto-Sync Cadence**: Background timer triggers sync at user-selected interval:
+  - `15m`, `30m` (default), `1h`, `6h`, `12h`, `1d`, `1w`, or `manual`.
+- **Conflict Management**: Identifies local vs. remote collisions and renders a side-by-side comparison modal allowing the user to select the source of truth.
+
+### 3.7 Behavioral Growth & Flow Immersion Hub (`/growth`)
+- **Csíkszentmihályi Flow Timer**: Focus timers ($20\text{m}$ to $90\text{m}$) tracking focus immersion, interruptions, and post-session reflection.
+- **Quadratic Challenge-Skill Mapping**: Plots subjective ratings ($1$ to $5$) onto a 2D matrix identifying Flow, Anxiety, Boredom, or Steady.
+- **BJ Fogg Tiny Habits & 2-Minute Activations**: Decomposes habits into starter actions anchored to daily contextual cues.
+- **Self-Reported Habit Index (SRHI)**: Automaticity tracking on validated scales without punitive streak resets.
+
+### 3.8 Environmental Sustainability & Eco Tracker
+- **Active Commute Tracking**: Logs walking and cycling commutes, calculating $CO_2$ avoided ($0.21\text{ kg/km}$).
+- **Digital Notes Savings**: Tracks paperless study hours ($0.05\text{ kg CO}_2\text{/hr}$).
+- **Composite Green Score**: Aggregates sustainable choices into an index ($0$ to $100$) with seedling equivalence.
+
+---
+
+## 4. Non-Functional & Technical Requirements
+
+### 4.1 Performance & Responsiveness
+- **Initial Load Time**: $<1.5\text{s}$ First Contentful Paint (FCP) on broadband.
+- **Scheduling Calculation**: $<50\text{ms}$ deterministic solve time for a 24-hour window.
+- **Zero Horizontal Overflow**: Validated across $320\text{px}$, $375\text{px}$, $390\text{px}$, $430\text{px}$, $768\text{px}$, $1024\text{px}$, and $1440\text{px}$.
+- **Touch Target Accessibility**: Minimum $44 \times 44\text{px}$ touch targets across all mobile buttons and navigation items.
+
+### 4.2 Data Integrity & Fault Tolerance
+- **Corrupted JSON Recovery**: Automatic isolation of malformed storage payloads to backup keys without UI crashes.
+- **Lossless Schema Migration**: Backward-compatible state migrations preserving custom user tasks.
+- **Notification Persistence**: Dismissals and clearances persist across browser reloads.

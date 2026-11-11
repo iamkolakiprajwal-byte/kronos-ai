@@ -57,6 +57,7 @@ export default function ProfilePage() {
     autoSyncInterval,
     setAutoSyncInterval,
     triggerCalendarSync,
+    disconnectCalendar,
   } = useDemo();
 
   const isGoogleSynced = syncStatus === "synced" || syncStatus === "syncing";
@@ -66,14 +67,7 @@ export default function ProfilePage() {
   const handleDisconnectCalendar = async () => {
     setIsDisconnecting(true);
     try {
-      await fetch("/api/calendar/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "disconnect" }),
-      });
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("kronos_google_provider_token");
-      }
+      await disconnectCalendar();
       setResetNotice("Google Calendar and Google Tasks disconnected.");
       setTimeout(() => setResetNotice(null), 3500);
     } catch (e) {
@@ -456,7 +450,7 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       onClick={async () => {
-                        await connectGoogleCalendar();
+                        await connectGoogleCalendar(true);
                       }}
                       className="flex-1 py-2 px-3 rounded-lg bg-[#b85437] hover:bg-[#9e452c] text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                     >
