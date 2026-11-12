@@ -29,7 +29,6 @@ export async function middleware(request: NextRequest) {
     pathname === "/reset-password";
 
   const isProtectedRoute =
-    pathname === "/" ||
     pathname.startsWith("/home") ||
     pathname.startsWith("/ai") ||
     pathname.startsWith("/my-day") ||
@@ -63,13 +62,12 @@ export async function middleware(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // Root route: redirect to home if authenticated, else login
+    // Root route: redirect to home if authenticated, else render public homepage
     if (pathname === "/") {
       if (user) {
         return NextResponse.redirect(new URL("/home", request.url));
-      } else {
-        return NextResponse.redirect(new URL("/login", request.url));
       }
+      return supabaseResponse;
     }
 
     // Unauthenticated user attempting to access protected route
@@ -103,7 +101,9 @@ export async function middleware(request: NextRequest) {
     const isAuthenticated = Boolean(authCookie?.value);
 
     if (pathname === "/") {
-      return NextResponse.redirect(new URL(isAuthenticated ? "/home" : "/login", request.url));
+      return isAuthenticated
+        ? NextResponse.redirect(new URL("/home", request.url))
+        : supabaseResponse;
     }
     if (!isAuthenticated && isProtectedRoute) {
       const redirectUrl = new URL("/login", request.url);
