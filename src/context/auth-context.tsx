@@ -42,6 +42,7 @@ interface AuthContextType {
   signInWithGithub: () => Promise<{ success: boolean; error?: string }>;
   signInWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUpWithEmail: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signInAsGuest: () => Promise<{ success: boolean; error?: string }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   resetPassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
@@ -122,6 +123,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     const parsed = JSON.parse(storedUser);
                     setUser(parsed);
                     setAuthCookie(parsed.id);
+                    if (parsed.provider === "demo" || parsed.id?.startsWith("guest_")) {
+                      if (typeof document !== "undefined") {
+                        document.cookie = "kronos_guest_user=true; path=/; max-age=2592000; SameSite=Lax";
+                      }
+                    }
                   } catch {
                     setUser(null);
                     clearAuthCookie();
@@ -146,6 +152,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const parsed = JSON.parse(storedUser);
             setUser(parsed);
             setAuthCookie(parsed.id);
+            if (parsed.provider === "demo" || parsed.id?.startsWith("guest_")) {
+              if (typeof document !== "undefined") {
+                document.cookie = "kronos_guest_user=true; path=/; max-age=2592000; SameSite=Lax";
+              }
+            }
           } catch {
             setUser(null);
             clearAuthCookie();
@@ -514,6 +525,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInAsGuest = async () => {
+    setIsLoading(true);
+    try {
+      // Disconnect any active Supabase session so guest operates in pure local mode
+      if (isSupabaseConfigured) {
+        try {
+          const supabase = createClient();
+          if (supabase) await supabase.auth.signOut().catch(() => {});
+        } catch {}
+      }
+
+      const guestId = `guest_${Date.now()}`;
+      const guestUser: AuthUser = {
+        id: guestId,
+        name: "Guest Planner",
+        email: "guest@kronos.local",
+        avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=Guest&backgroundColor=e8decb`,
+        provider: "demo",
+        createdAt: new Date().toISOString(),
+      };
+
+      setUser(guestUser);
+      localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(guestUser));
+      setAuthCookie(guestUser.id);
+
+      if (typeof document !== "undefined") {
+        document.cookie = "kronos_guest_user=true; path=/; max-age=2592000; SameSite=Lax";
+        // Ensure calendar permission modal & background sync are permanently muted for guest
+        localStorage.setItem("kronos_cal_permission_dismissed_v1", "true");
+        localStorage.setItem(`kronos_cal_permission_dismissed_${guestId}`, "true");
+        localStorage.setItem("kronos_cached_sync_status", "offline");
+        localStorage.setItem(`kronos_cached_sync_status_${guestId}`, "offline");
+        localStorage.removeItem("kronos_google_provider_token");
+      }
+
+      setIsLoading(false);
+      return { success: true };
+    } catch (err: any) {
+      setIsLoading(false);
+      return { success: false, error: err.message || "Failed to start guest session" };
+    }
+  };
+
   const signOut = async () => {
     setIsLoading(true);
     try {
@@ -528,6 +582,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       localStorage.removeItem(AUTH_USER_STORAGE_KEY);
       clearAuthCookie();
+      if (typeof document !== "undefined") {
+        document.cookie = "kronos_guest_user=; path=/; max-age=0; SameSite=Lax";
+      }
       setUser(null);
       setIsLoading(false);
     }
@@ -545,6 +602,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGithub,
         signInWithEmail,
         signUpWithEmail,
+        signInAsGuest,
         forgotPassword,
         resetPassword,
         signOut,

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npx tsx tests/scheduler/scheduler.test.ts && npx tsx tests/scheduler/reschedule.test.ts && npx tsx tests/calendar/calendar-sync.test.ts && npx tsx tests/calendar/persistent-auth.test.ts && npx tsx tests/sustainability/eco-calculator.test.ts && npx tsx tests/ai/roadmap.test.ts && npx tsx tests/ai/gemini-integration.test.ts && npx tsx tests/habits/habit-reset.test.ts && npx tsx tests/growth/flow-timer.test.ts && npx tsx tests/e2e/e2e-scenarios.test.ts && npx tsx tests/auth/auth-clean-state.test.ts && npx tsx tests/auth/user-data-isolation.test.ts"
+    "test": "npx tsx tests/scheduler/scheduler.test.ts && npx tsx tests/scheduler/reschedule.test.ts && npx tsx tests/calendar/calendar-sync.test.ts && npx tsx tests/calendar/persistent-auth.test.ts && npx tsx tests/sustainability/eco-calculator.test.ts && npx tsx tests/ai/roadmap.test.ts && npx tsx tests/ai/gemini-integration.test.ts && npx tsx tests/habits/habit-reset.test.ts && npx tsx tests/growth/flow-timer.test.ts && npx tsx tests/e2e/e2e-scenarios.test.ts && npx tsx tests/auth/auth-clean-state.test.ts && npx tsx tests/auth/user-data-isolation.test.ts && npx tsx tests/auth/guest-auth.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

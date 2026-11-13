@@ -62,16 +62,21 @@ export async function middleware(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // Root route: redirect to home if authenticated, else render public homepage
+    // Check for guest user session cookie (local guest mode)
+    const isGuest =
+      request.cookies.get("kronos_guest_user")?.value === "true" ||
+      request.cookies.get("kronos_auth_user")?.value?.startsWith("guest_");
+
+    // Root route: redirect to home if authenticated or in guest session, else render public homepage
     if (pathname === "/") {
-      if (user) {
+      if (user || isGuest) {
         return NextResponse.redirect(new URL("/home", request.url));
       }
       return supabaseResponse;
     }
 
-    // Unauthenticated user attempting to access protected route
-    if (!user && isProtectedRoute) {
+    // Unauthenticated user attempting to access protected route (allow guest access)
+    if (!user && !isGuest && isProtectedRoute) {
       if (
         process.env.NODE_ENV !== "production" &&
         (request.headers.get("x-mock-test-auth") === "true" ||
@@ -84,6 +89,7 @@ export async function middleware(request: NextRequest) {
       const res = NextResponse.redirect(redirectUrl);
       res.cookies.delete("kronos_auth_user");
       res.cookies.delete("kronos_google_token");
+      res.cookies.delete("kronos_guest_user");
       return res;
     }
 

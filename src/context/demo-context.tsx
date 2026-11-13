@@ -342,12 +342,15 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setReferenceDate(new Date().toISOString().split("T")[0]);
   }, []);
   const { user: authUser, isLoading: isAuthLoading } = useAuth();
+  const isGuestUser = !authUser?.id || authUser.provider === "demo" || authUser.id.startsWith("guest_");
+  const isRemoteSyncUser = Boolean(authUser?.id && !isGuestUser);
 
-  // Synchronize authenticated user profile (Google / GitHub / Email) from AuthContext
+  // Synchronize authenticated user profile (Google / GitHub / Email / Guest) from AuthContext
   useEffect(() => {
     if (authUser) {
       setProfile((prev) => ({
         ...prev,
+        id: authUser.id,
         name: authUser.name || prev.name,
         email: authUser.email || prev.email,
         avatar: authUser.avatar || prev.avatar,
@@ -423,13 +426,13 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     let isCurrent = true;
 
     async function hydrateUserWorkspace() {
-      if (!authUser?.id) {
+      if (!authUser?.id || isGuestUser) {
         // Guest or logged out: initialize clean baseline
-        const stored = loadStoredState();
-        const tombstones = getStoredTombstones();
+        const stored = loadStoredState(authUser?.id);
+        const tombstones = getStoredTombstones(authUser?.id);
         if (stored && isCurrent) {
           setRoleState(stored.role);
-          setProfile(stored.profile);
+          setProfile(authUser ? { ...stored.profile, id: authUser.id, name: authUser.name || stored.profile.name, email: authUser.email || stored.profile.email, avatar: authUser.avatar || stored.profile.avatar } : stored.profile);
           setTasks(
             (stored.tasks || []).filter(
               (t) =>
@@ -444,24 +447,34 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
                 !tombstones.has(e.id.toLowerCase())
             )
           );
-          setGoals(stored.goals);
-          setHabits(stored.habits);
+          setGoals(stored.goals || []);
+          setHabits(stored.habits || []);
           setHabitTransitions(stored.habitTransitions || []);
           setFocusSessions(stored.focusSessions || []);
           if (Array.isArray(stored.chatMessages) && stored.chatMessages.length) setChatMessages(stored.chatMessages);
           
           let candidateNotifs: NotificationItem[] = [];
           try {
-            const raw = localStorage.getItem(NOTIFS_STORAGE_KEY);
+            const raw = localStorage.getItem(getNotifsKey(authUser?.id)) || localStorage.getItem(NOTIFS_STORAGE_KEY);
             if (raw) candidateNotifs = JSON.parse(raw);
             else if (Array.isArray(stored.notifications)) candidateNotifs = stored.notifications;
           } catch {}
-          const guestDismissed = localStorage.getItem(CAL_PERMISSION_DISMISSED_KEY) === "true";
+          const guestDismissed = isGuestUser || localStorage.getItem(CAL_PERMISSION_DISMISSED_KEY) === "true";
           setIsCalPermissionDismissed(guestDismissed);
+          setSyncStatus("offline");
           setNotifications(filterValidNotifications(candidateNotifs, undefined, guestDismissed));
 
           if (stored.ecoEntries?.length) setEcoEntries(stored.ecoEntries);
         } else if (isCurrent) {
+          if (authUser) {
+            setProfile((prev) => ({
+              ...prev,
+              id: authUser.id,
+              name: authUser.name || prev.name,
+              email: authUser.email || prev.email,
+              avatar: authUser.avatar || prev.avatar,
+            }));
+          }
           setTasks([]);
           setCalendarEvents([]);
           setGoals([]);
@@ -469,6 +482,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           setFocusSessions([]);
           setHabitTransitions([]);
           setNotifications([]);
+          setSyncStatus("offline");
+          setIsCalPermissionDismissed(true);
         }
         if (isCurrent) {
           setSelectedDate(new Date());
@@ -979,7 +994,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Persist onboarding setup directly to authenticated user's database tables
-    if (authUser?.id) {
+    if (isRemoteSyncUser && authUser?.id) {
       dataService.saveOnboarding(authUser.id, 10, data, true).catch((e) =>
         console.warn("Onboarding record persist warning:", e)
       );
@@ -1005,7 +1020,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    if (authUser?.id) {
+    if (isRemoteSyncUser && authUser?.id) {
       dataService
         .updateTask(authUser.id, id, { status: nextStatus })
         .catch((err) => console.warn("Failed to persist task status to Supabase:", err));
@@ -1019,7 +1034,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     };
     setTasks((prev) => [created, ...prev]);
 
-    if (authUser?.id) {
+    if (isRemoteSyncUser && authUser?.id) {
       dataService
         .createTask(authUser.id, created)
         .then((saved) => {
@@ -1080,7 +1095,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       );
 
       // 4. Delete from Supabase tasks and calendar_events
-      if (authUser?.id) {
+      if (isRemoteSyncUser && authUser?.id) {
         dataService
           .deleteTask(authUser.id, target)
           .catch((err) => console.warn("Supabase deleteTask notice:", err));
@@ -1427,11 +1442,26 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   const resetDemoData = (targetRole?: UserRole) => {
     const roleToReset = targetRole || role;
-    if (authUser?.id) {
+    if (isRemoteSyncUser && authUser?.id) {
       // Authenticated user reset: wipe user's workspace to clean empty baseline
       dataService.resetUserWorkspace(authUser.id).catch((err) =>
         console.warn("Failed to reset remote workspace:", err)
       );
+      const clean = resetStoredStateToClean(roleToReset, authUser.id);
+      setRoleState(clean.role);
+      setProfile(clean.profile);
+      setTasks([]);
+      setCalendarEvents([]);
+      setGoals([]);
+      setHabits([]);
+      setHabitTransitions([]);
+      setFocusSessions([]);
+      setNotifications([]);
+      setEcoEntries([]);
+      setSelectedDate(new Date());
+      return;
+    }
+    if (isGuestUser && authUser?.id) {
       const clean = resetStoredStateToClean(roleToReset, authUser.id);
       setRoleState(clean.role);
       setProfile(clean.profile);
@@ -1747,7 +1777,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
                   title.includes(t.title.toLowerCase().trim())
               );
               if (matchesId || matchesTitle) {
-                if (authUser?.id) {
+                if (isRemoteSyncUser && authUser?.id) {
                   dataService.updateTask(authUser.id, t.id, { status: "completed" }).catch((e) => console.warn(e));
                 }
                 return { ...t, status: "completed" };
@@ -1775,7 +1805,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
                   ...(u.newDuration ? { estimatedDuration: u.newDuration } : {}),
                   ...(u.newPriority ? { priority: u.newPriority } : {}),
                 };
-                if (authUser?.id) {
+                if (isRemoteSyncUser && authUser?.id) {
                   dataService.updateTask(authUser.id, t.id, updatedObj).catch((e) => console.warn(e));
                 }
                 return updatedObj;
@@ -2559,6 +2589,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   }, [authUser?.id, dismissCalendarPermissionNotice]);
 
   const triggerCalendarSync = useCallback(async (forceFull: boolean = false, isBackground: boolean = false) => {
+    // If in guest mode, keep completely offline and skip any remote sync
+    if (isGuestUser) {
+      setSyncStatus("offline");
+      return { success: true, count: 0, offline: true };
+    }
+
     // If permission has been dismissed or user is offline/disconnected, skip background sync silently
     if (isBackground && (isCalPermissionDismissed || syncStatus === "offline")) {
       return { success: false, error: "Calendar sync dismissed or offline" };
@@ -2594,7 +2630,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Incorporate real events & tasks fetched from Google into active state
-        if (authUser?.id) {
+        if (isRemoteSyncUser && authUser?.id) {
           const [remoteEvents, remoteTasks] = await Promise.all([
             dataService.getCalendarEvents(authUser.id),
             dataService.getTasks(authUser.id),
@@ -2684,6 +2720,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   // Periodically evaluates elapsed time against configured interval (15m to 1w)
   useEffect(() => {
     if (isAuthLoading) return;
+    if (isGuestUser) return;
     if (autoSyncInterval === "manual") return;
 
     const intervalMs = AUTO_SYNC_MS_MAP[autoSyncInterval];
@@ -2749,6 +2786,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     };
   }, [
     isAuthLoading,
+    isGuestUser,
     autoSyncInterval,
     syncStatus,
     isCalPermissionDismissed,

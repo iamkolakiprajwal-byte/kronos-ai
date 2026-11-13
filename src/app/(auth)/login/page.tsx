@@ -7,6 +7,7 @@ import {
   Clock,
   Lock,
   Mail,
+  User,
   ArrowRight,
   Eye,
   EyeOff,
@@ -42,7 +43,7 @@ function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { signInWithGoogle, signInWithEmail } = useAuth();
+  const { signInWithGoogle, signInWithEmail, signInAsGuest } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -80,6 +81,18 @@ function LoginForm() {
     if (!res.success && res.error) {
       setErrorMessage(res.error);
       setLoading(false);
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    setErrorMessage("");
+    const res = await signInAsGuest();
+    setLoading(false);
+    if (res.success) {
+      router.push("/home");
+    } else {
+      setErrorMessage(res.error || "Failed to start guest session.");
     }
   };
 
@@ -155,8 +168,8 @@ function LoginForm() {
         </div>
       )}
 
-      {/* Google OAuth Provider */}
-      <div>
+      {/* OAuth & Guest Access */}
+      <div className="space-y-2.5">
         <button
           type="button"
           onClick={handleGoogleClick}
@@ -165,6 +178,16 @@ function LoginForm() {
         >
           <GoogleIcon className="w-4 h-4 shrink-0" />
           <span>Continue with Google</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleGuestLogin}
+          disabled={loading}
+          className="w-full h-11 px-4 rounded-xl border border-[#d5cdbd] bg-[#fbf9f5] hover:bg-[#f2eee6] text-[#433f38] hover:text-[#201e1b] text-xs font-semibold flex items-center justify-center gap-2.5 transition-all shadow-2xs active:scale-98 cursor-pointer disabled:opacity-50"
+        >
+          <User className="w-4 h-4 shrink-0 text-[#8a8479]" />
+          <span>Continue as Guest (Local Offline Mode)</span>
         </button>
       </div>
 

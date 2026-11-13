@@ -51,9 +51,10 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
     dismissCalendarPermissionNotice,
   } = useDemo();
 
-  const isGoogleSynced = syncStatus === "synced" || syncStatus === "syncing";
-  const isGoogleError = syncStatus === "error" && !isCalPermissionDismissed;
-  const isGoogleSyncing = syncStatus === "syncing";
+  const isGuest = user?.provider === "demo" || user?.id?.startsWith("guest_");
+  const isGoogleSynced = !isGuest && (syncStatus === "synced" || syncStatus === "syncing");
+  const isGoogleError = !isGuest && syncStatus === "error" && !isCalPermissionDismissed;
+  const isGoogleSyncing = !isGuest && syncStatus === "syncing";
 
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -282,7 +283,9 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
               )}
             />
             <span className="hidden md:inline text-[11px]">
-              {isGoogleSyncing
+              {isGuest
+                ? "Guest: Local Mode"
+                : isGoogleSyncing
                 ? "Google Calendar: Syncing..."
                 : isGoogleSynced
                 ? "Google Calendar: Synced"
@@ -517,7 +520,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
             </div>
 
             {/* When Permissions Error / Reconnect Needed */}
-            {syncStatus === "error" ? (
+            {syncStatus === "error" && !isGuest ? (
               <div className="p-4 rounded-xl border border-[#f3cec3] bg-[#faece7]/50 space-y-3 text-xs">
                 <div className="flex items-start gap-2.5">
                   <AlertTriangle className="w-4 h-4 text-[#b85437] shrink-0 mt-0.5" />

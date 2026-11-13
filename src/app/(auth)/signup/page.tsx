@@ -42,7 +42,7 @@ function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signUpWithEmail, signInWithGoogle } = useAuth();
+  const { signUpWithEmail, signInWithGoogle, signInAsGuest } = useAuth();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -66,6 +66,18 @@ export default function SignupPage() {
     if (!res.success && res.error) {
       setErrorMessage(res.error);
       setLoading(false);
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    setErrorMessage("");
+    const res = await signInAsGuest();
+    setLoading(false);
+    if (res.success) {
+      router.push("/home");
+    } else {
+      setErrorMessage(res.error || "Failed to start guest session.");
     }
   };
 
@@ -134,8 +146,8 @@ export default function SignupPage() {
             </div>
           )}
 
-          {/* Google Sign-In Button */}
-          <div>
+          {/* OAuth & Guest Access */}
+          <div className="space-y-2.5">
             <button
               type="button"
               onClick={handleGoogleClick}
@@ -144,6 +156,16 @@ export default function SignupPage() {
             >
               <GoogleIcon className="w-4 h-4 shrink-0" />
               <span>Continue with Google</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleGuestLogin}
+              disabled={loading}
+              className="w-full h-11 px-4 rounded-xl border border-[#d5cdbd] bg-[#fbf9f5] hover:bg-[#f2eee6] text-[#433f38] hover:text-[#201e1b] text-xs font-semibold flex items-center justify-center gap-2.5 transition-all shadow-2xs active:scale-98 cursor-pointer disabled:opacity-50"
+            >
+              <User className="w-4 h-4 shrink-0 text-[#8a8479]" />
+              <span>Continue as Guest (Local Offline Mode)</span>
             </button>
           </div>
 
