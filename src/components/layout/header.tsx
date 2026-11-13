@@ -47,10 +47,12 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
     triggerCalendarSync,
     disconnectCalendar,
     resolveSyncConflict,
+    isCalPermissionDismissed,
+    dismissCalendarPermissionNotice,
   } = useDemo();
 
   const isGoogleSynced = syncStatus === "synced" || syncStatus === "syncing";
-  const isGoogleError = syncStatus === "error";
+  const isGoogleError = syncStatus === "error" && !isCalPermissionDismissed;
   const isGoogleSyncing = syncStatus === "syncing";
 
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
@@ -286,6 +288,8 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                 ? "Google Calendar: Synced"
                 : isGoogleError
                 ? "Google Calendar: Permission Needed"
+                : syncStatus === "error" && isCalPermissionDismissed
+                ? "Calendar: Local Mode"
                 : "Connect Google Calendar"}
             </span>
           </button>
@@ -513,7 +517,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
             </div>
 
             {/* When Permissions Error / Reconnect Needed */}
-            {isGoogleError ? (
+            {syncStatus === "error" ? (
               <div className="p-4 rounded-xl border border-[#f3cec3] bg-[#faece7]/50 space-y-3 text-xs">
                 <div className="flex items-start gap-2.5">
                   <AlertTriangle className="w-4 h-4 text-[#b85437] shrink-0 mt-0.5" />
@@ -522,7 +526,7 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                       Calendar Permissions Required
                     </h4>
                     <p className="text-[#545049] text-[11px] mt-1 leading-relaxed">
-                      Your current Google session does not have permission to access your Google Calendar and Google Tasks. Please click the button below to grant permission on Google&apos;s consent screen.
+                      Your current Google session does not have permission to access your Google Calendar and Google Tasks. Please click the button below to grant permission on Google&apos;s consent screen, or select &quot;Don&apos;t Remind Me&quot; to keep using Kronos in local mode.
                     </p>
                   </div>
                 </div>
@@ -531,9 +535,10 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                   <button
                     type="button"
                     onClick={async () => {
+                      dismissCalendarPermissionNotice(false);
                       await connectGoogleCalendar(true);
                     }}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-[#b85437] hover:bg-[#9e452c] text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-[#b85437] hover:bg-[#9e452c] text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
                   >
                     <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                       <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -545,11 +550,21 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
                   </button>
                   <button
                     type="button"
+                    onClick={() => {
+                      dismissCalendarPermissionNotice(true);
+                      setShowSyncModal(false);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-white border border-[#e8e2d5] hover:bg-stone-50 text-[#545049] text-xs font-medium transition-colors cursor-pointer"
+                  >
+                    Don&apos;t Remind Me
+                  </button>
+                  <button
+                    type="button"
                     onClick={async () => {
                       await disconnectCalendar();
                       setShowSyncModal(false);
                     }}
-                    className="px-3 py-2 rounded-xl bg-white border border-[#f3cec3] hover:bg-stone-50 text-[#545049] text-xs font-medium transition-colors cursor-pointer"
+                    className="px-3 py-2 rounded-xl bg-white border border-[#f3cec3] hover:bg-stone-50 text-[#b85437] text-xs font-medium transition-colors cursor-pointer"
                   >
                     Disconnect
                   </button>
@@ -674,10 +689,27 @@ export function Header({ onOpenQuickTask, onToggleMobileNav }: HeaderProps) {
               </div>
             )}
 
-            <div className="flex items-center justify-end pt-3 pb-3 sm:pb-0 border-t border-[#e8e2d5]">
+            <div className="flex items-center justify-between pt-3 pb-3 sm:pb-0 border-t border-[#e8e2d5]">
+              {syncStatus === "error" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissCalendarPermissionNotice(true);
+                    setShowSyncModal(false);
+                  }}
+                  className="text-[11px] text-[#8a8479] hover:text-[#201e1b] underline cursor-pointer"
+                >
+                  Mute permission alerts
+                </button>
+              ) : <div />}
               <button
                 type="button"
-                onClick={() => setShowSyncModal(false)}
+                onClick={() => {
+                  if (syncStatus === "error") {
+                    dismissCalendarPermissionNotice(true);
+                  }
+                  setShowSyncModal(false);
+                }}
                 className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#201e1b] text-white font-semibold text-xs hover:bg-[#38342f] cursor-pointer text-center"
               >
                 Close

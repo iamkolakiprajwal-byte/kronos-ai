@@ -165,6 +165,8 @@ interface DemoContextType {
   disconnectCalendar: () => Promise<void>;
   simulateExternalCalendarConflict: () => Promise<void>;
   resolveSyncConflict: (conflictId: string, resolution: "keep_local" | "accept_remote") => Promise<void>;
+  isCalPermissionDismissed: boolean;
+  dismissCalendarPermissionNotice: (dismiss?: boolean) => void;
 
   ecoEntries: EcoLogEntry[];
   logEcoActivity: (activity: EcoLogEntry["activity"], minutes: number) => void;
@@ -175,6 +177,7 @@ const DemoContext = createContext<DemoContextType | undefined>(undefined);
 const NOTIFS_STORAGE_KEY = "kronos_notifications_v1";
 const NOTIFS_CLEARED_KEY = "kronos_notifications_cleared_at_v1";
 const NOTIFS_DISMISSED_KEY = "kronos_notifications_dismissed_v1";
+const CAL_PERMISSION_DISMISSED_KEY = "kronos_dismiss_cal_permission";
 
 function getNotifsKey(userId?: string): string {
   return userId ? `kronos_notifs_${userId}` : NOTIFS_STORAGE_KEY;
@@ -186,6 +189,10 @@ function getClearedAtKey(userId?: string): string {
 
 function getDismissedKey(userId?: string): string {
   return userId ? `kronos_notifs_dismissed_${userId}` : NOTIFS_DISMISSED_KEY;
+}
+
+function getCalPermissionDismissedKey(userId?: string): string {
+  return userId ? `kronos_dismiss_cal_permission_${userId}` : CAL_PERMISSION_DISMISSED_KEY;
 }
 
 function getStoredClearedAt(userId?: string): number {
@@ -211,16 +218,32 @@ function getStoredDismissedIds(userId?: string): Set<string> {
   }
 }
 
-function filterValidNotifications(items: NotificationItem[], userId?: string): NotificationItem[] {
+function filterValidNotifications(items: NotificationItem[], userId?: string, isCalPermissionDismissed?: boolean): NotificationItem[] {
   if (!Array.isArray(items)) return [];
   const clearedAt = getStoredClearedAt(userId);
   const dismissedSet = getStoredDismissedIds(userId);
+  const seenCalendarError = new Set<string>();
 
   return items.filter((n) => {
     if (!n || !n.id) return false;
     if (dismissedSet.has(n.id)) return false;
     const itemTime = n.createdAtMs || (n.id.startsWith("notif-") ? parseInt(n.id.replace(/\D/g, ""), 10) || 0 : 0);
     if (clearedAt > 0 && itemTime > 0 && itemTime <= clearedAt) return false;
+
+    // Deduplicate or mute calendar error notifications so user is not spammed
+    const isCalErr =
+      n.type === "calendar" &&
+      (n.title?.toLowerCase().includes("permission") ||
+        n.title?.toLowerCase().includes("sync notice") ||
+        n.message?.toLowerCase().includes("permission") ||
+        n.message?.toLowerCase().includes("failed"));
+
+    if (isCalErr) {
+      if (isCalPermissionDismissed) return false;
+      if (seenCalendarError.has("cal_err")) return false;
+      seenCalendarError.add("cal_err");
+    }
+
     return true;
   });
 }
@@ -318,6 +341,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     }
     return "offline";
   });
+  const [isCalPermissionDismissed, setIsCalPermissionDismissed] = useState<boolean>(() => {
+    if (typeof window !== "undefined" && window.localStorage) {
+      try {
+        return localStorage.getItem(CAL_PERMISSION_DISMISSED_KEY) === "true";
+      } catch {}
+    }
+    return false;
+  });
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [lastSyncTimestampMs, setLastSyncTimestampMs] = useState<number | null>(() => {
     if (typeof window === "undefined" || !window.localStorage) return null;
@@ -376,7 +407,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
             if (raw) candidateNotifs = JSON.parse(raw);
             else if (Array.isArray(stored.notifications)) candidateNotifs = stored.notifications;
           } catch {}
-          setNotifications(filterValidNotifications(candidateNotifs));
+          const guestDismissed = localStorage.getItem(CAL_PERMISSION_DISMISSED_KEY) === "true";
+          setIsCalPermissionDismissed(guestDismissed);
+          setNotifications(filterValidNotifications(candidateNotifs, undefined, guestDismissed));
 
           if (stored.ecoEntries?.length) setEcoEntries(stored.ecoEntries);
         } else if (isCurrent) {
@@ -451,7 +484,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           if (raw) candidateNotifs = JSON.parse(raw);
           else if (stored && Array.isArray(stored.notifications)) candidateNotifs = stored.notifications;
         } catch {}
-        setNotifications(filterValidNotifications(candidateNotifs, authUser.id));
+
+        const userDismissed =
+          (authUser?.id ? localStorage.getItem(getCalPermissionDismissedKey(authUser.id)) === "true" : false) ||
+          localStorage.getItem(CAL_PERMISSION_DISMISSED_KEY) === "true";
+        setIsCalPermissionDismissed(userDismissed);
+        setNotifications(filterValidNotifications(candidateNotifs, authUser.id, userDismissed));
 
         if (stored && isCurrent) {
           if (Array.isArray(stored.chatMessages) && stored.chatMessages.length > 0) {
@@ -2362,16 +2400,27 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authUser?.id]);
 
+  const dismissCalendarPermissionNotice = useCallback((dismiss: boolean = true) => {
+    setIsCalPermissionDismissed(dismiss);
+    if (typeof window !== "undefined") {
+      try {
+        if (dismiss) {
+          localStorage.setItem(CAL_PERMISSION_DISMISSED_KEY, "true");
+          if (authUser?.id) localStorage.setItem(getCalPermissionDismissedKey(authUser.id), "true");
+        } else {
+          localStorage.removeItem(CAL_PERMISSION_DISMISSED_KEY);
+          if (authUser?.id) localStorage.removeItem(getCalPermissionDismissedKey(authUser.id));
+        }
+      } catch {}
+    }
+  }, [authUser?.id]);
+
   const disconnectCalendar = useCallback(async () => {
     try {
-      await fetch("/api/calendar/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "disconnect" }),
-      });
       setSyncStatus("offline");
       setLastSyncTime(null);
       setLastSyncTimestampMs(null);
+      dismissCalendarPermissionNotice(true);
       if (typeof window !== "undefined") {
         try {
           localStorage.removeItem("kronos_google_provider_token");
@@ -2379,20 +2428,22 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           if (authUser?.id) localStorage.removeItem(`kronos_cached_sync_status_${authUser.id}`);
         } catch {}
       }
-      addNotificationSafe({
-        id: `notif-disconnect-${Date.now()}`,
-        title: "Google Calendar Disconnected",
-        message: "Google Calendar & Tasks have been disconnected from your account.",
-        timestamp: "Just now",
-        type: "calendar",
-        read: false,
-      });
+      await fetch("/api/calendar/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disconnect" }),
+      }).catch((err) => console.warn("Failed to disconnect calendar remote:", err));
     } catch (err) {
       console.warn("Failed to disconnect calendar:", err);
     }
-  }, [authUser?.id, addNotificationSafe]);
+  }, [authUser?.id, dismissCalendarPermissionNotice]);
 
   const triggerCalendarSync = useCallback(async (forceFull: boolean = false, isBackground: boolean = false) => {
+    // If permission has been dismissed or user is offline/disconnected, skip background sync silently
+    if (isBackground && (isCalPermissionDismissed || syncStatus === "offline")) {
+      return { success: false, error: "Calendar sync dismissed or offline" };
+    }
+
     setSyncStatus("syncing");
     try {
       const res = await fetch("/api/calendar/sync", {
@@ -2405,7 +2456,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         signal: AbortSignal.timeout(25000),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
         setSyncStatus("synced");
         if (typeof window !== "undefined") {
@@ -2471,8 +2522,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
 
-        // Only add notification to the drawer if the user explicitly requested a sync
-        if (forceFull) {
+        // Only add notification to the drawer if the user explicitly requested a sync manually
+        if (forceFull && !isBackground) {
           addNotificationSafe({
             id: `notif-sync-err-${Date.now()}`,
             title: "Calendar Sync Notice",
@@ -2493,7 +2544,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem("kronos_cached_sync_status", "error");
         } catch {}
       }
-      if (forceFull) {
+      if (forceFull && !isBackground) {
         addNotificationSafe({
           id: `notif-sync-err-${Date.now()}`,
           title: "Calendar Sync Notice",
@@ -2507,7 +2558,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       }
       return { success: false, error: err.message };
     }
-  }, [authUser?.id, addNotificationSafe]);
+  }, [authUser?.id, isCalPermissionDismissed, syncStatus, addNotificationSafe]);
 
   // Continuous Background Auto-Sync Engine
   // Periodically evaluates elapsed time against configured interval (15m to 1w)
@@ -2522,8 +2573,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       // Skip if currently syncing
       if (syncStatus === "syncing") return;
 
-      // Skip if in persistent error/reauth state or offline
-      if (syncStatus === "error" || syncStatus === "offline") return;
+      // Skip if in persistent error/reauth state, offline, or muted/dismissed
+      if (syncStatus === "error" || syncStatus === "offline" || isCalPermissionDismissed) return;
 
       // Verify authenticated user exists
       if (!authUser?.id) return;
@@ -2580,6 +2631,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     isAuthLoading,
     autoSyncInterval,
     syncStatus,
+    isCalPermissionDismissed,
     authUser?.id,
     lastSyncTimestampMs,
     triggerCalendarSync,
@@ -2743,6 +2795,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         disconnectCalendar,
         simulateExternalCalendarConflict,
         resolveSyncConflict,
+        isCalPermissionDismissed,
+        dismissCalendarPermissionNotice,
         ecoEntries,
         logEcoActivity,
       }}
