@@ -8,7 +8,7 @@ export async function GET() {
   return NextResponse.json({
     configured,
     provider: configured ? "Google Gemini" : "Simulation / Rule-Based",
-    model: configured ? (process.env.GEMINI_MODEL || "gemini-3.5-flash") : "Mock Provider",
+    model: configured ? (process.env.GEMINI_MODEL || "gemini-3.5-flash-lite") : "Mock Provider",
   });
 }
 
@@ -53,6 +53,12 @@ const chatRequestSchema = z.object({
       )
       .default([]),
     currentDate: z.string().default(() => new Date().toISOString().split("T")[0]),
+    calendarHistory: z.array(z.any()).optional().default([]),
+    allTasks: z.array(z.any()).optional().default([]),
+    goals: z.array(z.any()).optional().default([]),
+    habits: z.array(z.any()).optional().default([]),
+    focusSessionsSummary: z.any().optional(),
+    metrics: z.any().optional(),
   }),
 });
 

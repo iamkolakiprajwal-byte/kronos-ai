@@ -1349,7 +1349,94 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           startTime: e.startTime,
           endTime: e.endTime,
           isFixed: true,
+          date: e.date,
         }));
+
+      // Gather complete calendar events across the entire month & horizon
+      const calendarHistory = calendarEvents.map((e) => ({
+        id: e.id,
+        title: e.title,
+        date: e.date,
+        startTime: e.startTime,
+        endTime: e.endTime,
+        category: e.category,
+        isFixed: e.isFixed,
+        location: e.location,
+        source: (e as any).source,
+      }));
+
+      // Gather all historical and scheduled tasks
+      const allTasksData = tasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        scheduledDate: t.scheduledDate,
+        estimatedDuration: t.estimatedDuration,
+        status: t.status,
+        priority: t.priority,
+        category: t.category,
+        startTime: t.startTime,
+        endTime: t.endTime,
+        tag: t.tag,
+      }));
+
+      // Gather goals and milestone statuses
+      const goalsData = goals.map((g) => ({
+        id: g.id,
+        title: g.title,
+        category: g.category,
+        progress: g.progress,
+        targetDate: g.targetDate,
+        milestones: (g.milestones || []).map((m) => ({
+          title: m.title,
+          completed: m.completed,
+          dueDate: m.dueDate,
+        })),
+      }));
+
+      // Gather habits and streaks
+      const habitsData = habits.map((h) => ({
+        id: h.id,
+        title: h.title,
+        category: h.category,
+        frequency: h.frequency,
+        cue: h.cue,
+        streak: (h as any).streak || 0,
+        completedToday: (h as any).completedToday || false,
+      }));
+
+      // Calculate focus sessions summary
+      const totalFocusMinutes = focusSessions.reduce(
+        (acc, s) => acc + (s.durationMinutes || 0),
+        0
+      );
+      const focusSessionsSummary = {
+        totalSessions: focusSessions.length,
+        totalFocusMinutes,
+        recentSessions: focusSessions.slice(-10).map((s) => ({
+          taskTitle: s.taskTitle,
+          durationMinutes: s.durationMinutes,
+          completedAt: s.completedAt,
+        })),
+      };
+
+      // Monthly productivity metrics
+      const currentMonthPrefix = activeDateStr.slice(0, 7);
+      const monthTasks = tasks.filter((t) => t.scheduledDate?.startsWith(currentMonthPrefix));
+      const completedMonthTasks = monthTasks.filter((t) => t.status === "completed");
+      const monthEvents = calendarEvents.filter((e) => e.date?.startsWith(currentMonthPrefix));
+
+      const metrics = {
+        month: currentMonthPrefix,
+        tasksCompletedThisMonth: completedMonthTasks.length,
+        tasksPendingThisMonth: monthTasks.length - completedMonthTasks.length,
+        completionRatePercentage:
+          monthTasks.length > 0
+            ? Math.round((completedMonthTasks.length / monthTasks.length) * 100)
+            : 0,
+        totalCalendarEventsThisMonth: monthEvents.length,
+        googleCalendarSynced: syncStatus === "synced" || syncStatus === "syncing",
+        lastGoogleSync: lastSyncTime || undefined,
+      };
 
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -1361,6 +1448,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
             existingTasks: tasks.filter((t) => t.scheduledDate === activeDateStr),
             fixedCommitments,
             currentDate: activeDateStr,
+            calendarHistory,
+            allTasks: allTasksData,
+            goals: goalsData,
+            habits: habitsData,
+            focusSessionsSummary,
+            metrics,
           },
         }),
       });
@@ -1460,7 +1553,34 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       lower.includes("hey") ||
       lower.includes("how are you");
 
-    if (lower.includes("create habit") || lower.includes("build habit") || lower.includes("habit of")) {
+    const isSummaryRequest =
+      lower.includes("summarize") ||
+      lower.includes("summary") ||
+      lower.includes("month") ||
+      lower.includes("overview") ||
+      lower.includes("review");
+
+    if (isSummaryRequest && (lower.includes("month") || lower.includes("week") || lower.includes("progress") || lower.includes("schedule"))) {
+      const monthName = format(selectedDate, "MMMM yyyy");
+      const completedCount = tasks.filter((t) => t.status === "completed").length;
+      const totalTasks = tasks.length;
+      const eventsCount = calendarEvents.length;
+      const focusHours = (focusSessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0) / 60).toFixed(1);
+
+      replyText = `### 📊 Monthly Productivity & Calendar Review (${monthName})\n\n` +
+        `Here is an overview grounded in your recorded schedule and workspace activity:\n\n` +
+        `• 📅 **Google Calendar & Fixed Events**: You have **${eventsCount} events** on your schedule. Upcoming commitments: ${
+          calendarEvents.slice(0, 3).map((e) => `${e.title} (${e.date} at ${e.startTime})`).join(", ") || "No fixed commitments"
+        }.\n` +
+        `• ✅ **Task Execution**: Completed **${completedCount} of ${totalTasks} tasks** (${
+          totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
+        }% completion rate).\n` +
+        `• 🎯 **Goal Milestones**: Tracking **${goals.length} goals** across your academic and career roadmaps.\n` +
+        `• ⚡ **Deep Work & Focus**: Logged **${focusHours} focus hours** across ${focusSessions.length} flow timer sessions.\n` +
+        `• 🔄 **Habits**: Maintaining **${habits.length} active habits** anchored to your daily routine.\n\n` +
+        `Would you like me to schedule deep work blocks or re-prioritize any pending tasks for the remainder of this month?`;
+      suggestions = undefined;
+    } else if (lower.includes("create habit") || lower.includes("build habit") || lower.includes("habit of")) {
       replyText = "Here is a behavioral habit protocol anchored to your routine using BJ Fogg Tiny Habits and the 2-Minute Rule:";
       habitSuggestion = {
         title: "Daily Focused Reading",

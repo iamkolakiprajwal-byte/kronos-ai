@@ -9,6 +9,8 @@ export type AIIntent =
   | "change_priority"
   | "create_habit"
   | "goal_decomposition"
+  | "summarize_progress"
+  | "calendar_query"
   | "general_query"
   | "clarification_needed";
 
@@ -62,6 +64,69 @@ export interface UserScheduleContext {
     startTime: string;
     endTime: string;
     isFixed: boolean;
+    date?: string;
   }>;
   currentDate: string; // "YYYY-MM-DD"
+  calendarHistory?: Array<{
+    id: string;
+    title: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    category?: string;
+    isFixed: boolean;
+    location?: string;
+    source?: string;
+  }>;
+  allTasks?: Array<{
+    id: string;
+    title: string;
+    scheduledDate: string;
+    estimatedDuration: number;
+    status: string;
+    priority: string;
+    category: string;
+    startTime?: string;
+    endTime?: string;
+    tag?: string;
+  }>;
+  goals?: Array<{
+    id: string;
+    title: string;
+    category: string;
+    progress: number;
+    targetDate: string;
+    milestones: Array<{
+      title: string;
+      completed: boolean;
+      dueDate?: string;
+    }>;
+  }>;
+  habits?: Array<{
+    id: string;
+    title: string;
+    category?: string;
+    frequency: string;
+    cue?: string;
+    streak?: number;
+    completedToday?: boolean;
+  }>;
+  focusSessionsSummary?: {
+    totalSessions: number;
+    totalFocusMinutes: number;
+    recentSessions: Array<{
+      taskTitle?: string;
+      durationMinutes: number;
+      completedAt: string;
+    }>;
+  };
+  metrics?: {
+    month?: string;
+    tasksCompletedThisMonth: number;
+    tasksPendingThisMonth: number;
+    completionRatePercentage: number;
+    totalCalendarEventsThisMonth: number;
+    googleCalendarSynced: boolean;
+    lastGoogleSync?: string;
+  };
 }
