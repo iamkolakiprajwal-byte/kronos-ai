@@ -6,7 +6,7 @@ export class GeminiProvider implements AIProvider {
   private apiKey: string;
   private model: string;
 
-  constructor(apiKey: string, model: string = "gemini-1.5-flash") {
+  constructor(apiKey: string, model: string = "gemini-3.5-flash") {
     this.apiKey = apiKey;
     this.model = model;
   }
@@ -44,8 +44,11 @@ CRITICAL CONSTRAINTS:
           enum: [
             "create_daily_schedule",
             "add_task",
+            "reschedule_task",
             "reschedule_missed",
             "urgent_interruption",
+            "change_priority",
+            "create_habit",
             "goal_decomposition",
             "general_query",
             "clarification_needed",
@@ -80,6 +83,51 @@ CRITICAL CONSTRAINTS:
             },
             required: ["title", "category", "priority", "estimatedDuration", "isFixed"],
           },
+        },
+        extractedHabit: {
+          type: "OBJECT",
+          properties: {
+            title: { type: "STRING" },
+            cue: { type: "STRING" },
+            category: {
+              type: "STRING",
+              enum: ["focus", "learning", "health", "mindfulness", "eco"],
+            },
+            frequency: {
+              type: "STRING",
+              enum: ["daily", "weekdays", "3x_week", "weekly"],
+            },
+            minimumVersion: { type: "STRING" },
+            targetDurationMinutes: { type: "INTEGER" },
+          },
+          required: ["title", "cue", "category", "frequency"],
+        },
+        extractedGoal: {
+          type: "OBJECT",
+          properties: {
+            title: { type: "STRING" },
+            category: {
+              type: "STRING",
+              enum: ["academic", "career", "skills", "personal"],
+            },
+            priority: {
+              type: "STRING",
+              enum: ["urgent", "high", "medium", "low"],
+            },
+            targetTimeline: { type: "STRING" },
+            milestones: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  title: { type: "STRING" },
+                  dueDate: { type: "STRING" },
+                },
+                required: ["title"],
+              },
+            },
+          },
+          required: ["title", "category", "priority", "targetTimeline", "milestones"],
         },
         detectedPreferences: {
           type: "OBJECT",
@@ -116,6 +164,7 @@ CRITICAL CONSTRAINTS:
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!res.ok) {
@@ -130,6 +179,18 @@ CRITICAL CONSTRAINTS:
       throw new Error("No structured response content received from Gemini.");
     }
 
-    return JSON.parse(candidate) as AIPlanResponse;
+    // Strip markdown formatting if returned
+    const cleanJson = candidate.trim().replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+    const parsed = JSON.parse(cleanJson) as AIPlanResponse;
+
+    // Normalize habit & goal suggestions for backwards compatibility with UI
+    if (parsed.extractedHabit && !(parsed as any).suggestedHabit) {
+      (parsed as any).suggestedHabit = parsed.extractedHabit;
+    }
+    if (parsed.extractedGoal && !(parsed as any).suggestedGoal) {
+      (parsed as any).suggestedGoal = parsed.extractedGoal;
+    }
+
+    return parsed;
   }
 }

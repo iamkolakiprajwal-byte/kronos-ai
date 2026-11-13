@@ -147,6 +147,15 @@ export default function AIPage() {
     onTranscriptChange: (text) => setVoiceDraft(text),
   });
 
+  const [aiStatus, setAiStatus] = useState<{ configured: boolean; provider: string; model: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/ai/chat")
+      .then((res) => res.json())
+      .then((data) => setAiStatus(data))
+      .catch(() => {});
+  }, []);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -213,6 +222,20 @@ export default function AIPage() {
           <div className="min-w-0">
             <h1 className="font-serif text-base sm:text-xl font-normal text-[#201e1b] flex items-center gap-2">
               <span>Planning Assistant</span>
+              {aiStatus && (
+                <span
+                  className={cn(
+                    "text-[10px] font-sans font-medium px-2 py-0.5 rounded-full border flex items-center gap-1",
+                    aiStatus.configured
+                      ? "bg-[#edf2ec] text-[#536b54] border-[#d6e0d5]"
+                      : "bg-[#fbf9f5] text-[#8a8479] border-[#e8e2d5]"
+                  )}
+                  title={aiStatus.configured ? `Powered by Google Gemini (${aiStatus.model})` : "Running local heuristic planner"}
+                >
+                  <span className={cn("w-1.5 h-1.5 rounded-full", aiStatus.configured ? "bg-[#536b54] animate-pulse" : "bg-[#b0a99c]")} />
+                  <span>{aiStatus.configured ? `Gemini (${aiStatus.model})` : "Local Heuristic"}</span>
+                </span>
+              )}
             </h1>
             <p className="text-[11px] sm:text-xs text-[#8a8479] truncate flex items-center gap-2">
               <span>Track: <strong className="text-[#545049] capitalize font-medium">{role === "student" ? "Academic" : role === "professional" ? "Professional" : "Dual"}</strong></span>
@@ -248,9 +271,23 @@ export default function AIPage() {
       <div className="flex-1 overflow-y-auto py-3.5 sm:py-4 space-y-3.5 sm:space-y-4 pr-1">
         {/* Adaptive Constraint-Based Planning Overview */}
         <div className="bg-[#fdfcf9] border border-[#e8e2d5] rounded-2xl p-3.5 sm:p-4 text-xs space-y-1.5 shadow-2xs">
-          <div className="flex items-center gap-2 text-[#201e1b] font-semibold">
-            <ShieldCheck className="w-4 h-4 text-[#536b54] shrink-0" />
-            <span className="font-serif text-sm">Adaptive Constraint-Based Planning</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[#201e1b] font-semibold">
+              <ShieldCheck className="w-4 h-4 text-[#536b54] shrink-0" />
+              <span className="font-serif text-sm">Adaptive Constraint-Based Planning</span>
+            </div>
+            {aiStatus && (
+              <span
+                className={cn(
+                  "text-[10px] font-sans font-medium px-2 py-0.5 rounded-full border",
+                  aiStatus.configured
+                    ? "bg-[#edf2ec] text-[#536b54] border-[#d6e0d5]"
+                    : "bg-[#f2eee6] text-[#8a8479] border-[#e8e2d5]"
+                )}
+              >
+                {aiStatus.configured ? "Gemini LLM Active" : "Heuristic Fallback"}
+              </span>
+            )}
           </div>
           <p className="text-[#545049] leading-relaxed text-[11px] sm:text-xs">
             Tell Kronos your intentions to automatically fit study blocks and tasks around commitments, productive rhythms, and minimum buffer windows.

@@ -4,7 +4,7 @@ import { MockAIProvider } from "./mock-provider";
 
 export function getAIProvider(): AIProvider {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 
   if (apiKey && apiKey !== "your_gemini_api_key_here" && !apiKey.startsWith("demo_")) {
     return new GeminiProvider(apiKey, model);

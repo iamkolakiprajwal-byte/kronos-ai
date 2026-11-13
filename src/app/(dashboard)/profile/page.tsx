@@ -63,6 +63,15 @@ export default function ProfilePage() {
   const isGoogleSynced = syncStatus === "synced" || syncStatus === "syncing";
   const isGoogleError = syncStatus === "error";
 
+  const [aiStatus, setAiStatus] = useState<{ configured: boolean; provider: string; model: string } | null>(null);
+
+  React.useEffect(() => {
+    fetch("/api/ai/chat")
+      .then((res) => res.json())
+      .then((data) => setAiStatus(data))
+      .catch(() => {});
+  }, []);
+
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const handleDisconnectCalendar = async () => {
     setIsDisconnecting(true);
@@ -572,18 +581,33 @@ export default function ProfilePage() {
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-[#b37e2a]" />
               <h3 className="font-serif text-sm font-bold text-[#201e1b]">
-                AI Cognitive Engine
+                Google Gemini AI Intelligence
               </h3>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#edf2ec] text-[#536b54] font-medium border border-[#d6e0d5]">
-              Active Engine
+            <span
+              className={cn(
+                "text-[10px] font-mono px-2 py-0.5 rounded-full font-medium border",
+                aiStatus?.configured
+                  ? "bg-[#edf2ec] text-[#536b54] border-[#d6e0d5]"
+                  : "bg-[#f2eee6] text-[#8a8479] border-[#e8e2d5]"
+              )}
+            >
+              {aiStatus?.configured ? `Live Connected (${aiStatus.model})` : "Heuristic Simulation Mode"}
             </span>
           </div>
           <p className="text-xs text-[#545049] leading-relaxed">
-            Local intelligent scheduling engine for instant response and private data processing. Deterministic priority scheduling, energy-level matching, and natural language understanding execute seamlessly in your workspace.
+            {aiStatus?.configured
+              ? `Connected to Google Gemini (${aiStatus.model}). Natural language intentions, task extraction, goal milestone decomposition, and cognitive preference learning are powered by live LLM inference.`
+              : "Running in local heuristic simulation mode. To enable real Google Gemini LLM inference for natural language scheduling and milestone roadmaps, add your GEMINI_API_KEY in .env.local or your Vercel project environment variables."}
           </p>
-          <div className="p-2.5 rounded-xl bg-[#faf7f0] border border-[#e8e2d5] text-[11px] text-[#545049]">
-            ✓ Deterministic interval-scheduling engine places tasks around protected fixed commitments.
+          <div className="p-2.5 rounded-xl bg-[#faf7f0] border border-[#e8e2d5] text-[11px] text-[#545049] space-y-1">
+            <p>✓ Deterministic interval-scheduling engine places tasks around protected fixed commitments.</p>
+            <p>✓ Structured output guarantees strict JSON format matching user profile parameters.</p>
+            {!aiStatus?.configured && (
+              <p className="text-[#8a8479] font-mono text-[10px] pt-1">
+                Env Key: GEMINI_API_KEY | Model: gemini-1.5-flash
+              </p>
+            )}
           </div>
         </div>
       </div>

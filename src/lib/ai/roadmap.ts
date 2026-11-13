@@ -16,15 +16,22 @@ interface DecomposeGoalInput {
 export async function decomposeGoalIntoRoadmap(
   goal: DecomposeGoalInput
 ): Promise<Milestone[]> {
+  // Isolate live API calls to application runtime; use deterministic heuristics during test suites
+  if (process.env.NODE_ENV === "test" || process.env.KRONOS_TEST_SUITE === "true") {
+    return generateHeuristicRoadmap(goal);
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (apiKey) {
     try {
+      const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(30000),
           body: JSON.stringify({
             contents: [
               {
@@ -78,7 +85,8 @@ Output ONLY a JSON array adhering to this schema:
         const json = await response.json();
         const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text;
         if (rawText) {
-          const parsed = JSON.parse(rawText) as Milestone[];
+          const cleanText = rawText.trim().replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+          const parsed = JSON.parse(cleanText) as Milestone[];
           if (Array.isArray(parsed) && parsed.length > 0) {
             return parsed;
           }

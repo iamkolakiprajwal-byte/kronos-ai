@@ -4,9 +4,11 @@ import { getAIProvider, isAIConfigured } from "@/lib/ai";
 import { saveUserMemory } from "@/lib/ai/memory";
 
 export async function GET() {
+  const configured = isAIConfigured();
   return NextResponse.json({
-    configured: isAIConfigured(),
-    provider: isAIConfigured() ? "Google Gemini" : "None",
+    configured,
+    provider: configured ? "Google Gemini" : "Simulation / Rule-Based",
+    model: configured ? (process.env.GEMINI_MODEL || "gemini-3.5-flash") : "Mock Provider",
   });
 }
 
