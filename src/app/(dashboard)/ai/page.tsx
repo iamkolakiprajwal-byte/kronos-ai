@@ -28,16 +28,20 @@ import { cn } from "@/lib/utils";
 
 const studentPrompts = [
   {
+    title: "⚡ Productivity Playbook",
+    prompt: "How can I make my day significantly more productive?",
+  },
+  {
+    title: "📊 Summarize Month",
+    prompt: "Summarize my month, how is my calendar and workload looking?",
+  },
+  {
     title: "Morning Study & Exercise",
     prompt: "I need to complete two assignments, review lecture notes for 1 hour, and go for a run at 5 PM.",
   },
   {
     title: "Exam Preparation",
     prompt: "Schedule 90 minutes of focused problem solving before my afternoon class.",
-  },
-  {
-    title: "Multi-Day Exam Plan",
-    prompt: "Break down my upcoming exam review over the next 3 days.",
   },
   {
     title: "Build Reading Habit",
@@ -47,13 +51,17 @@ const studentPrompts = [
     title: "Break Down Project",
     prompt: "Can you break down my semester project into an actionable, phased roadmap?",
   },
-  {
-    title: "Mid-Day Catchup",
-    prompt: "I missed my morning study block. Reorganize the rest of today realistically around my remaining commitments.",
-  },
 ];
 
 const proPrompts = [
+  {
+    title: "⚡ Productivity Playbook",
+    prompt: "How can I make my day significantly more productive?",
+  },
+  {
+    title: "📊 Summarize Month",
+    prompt: "Summarize my month, how is my calendar and workload looking?",
+  },
   {
     title: "Protect 2h Deep Work",
     prompt: "Protect a 2-hour uninterrupted deep focus block this morning for technical design.",
@@ -67,14 +75,6 @@ const proPrompts = [
     prompt: "Find a 45-minute window before 5 PM to compile deliverables for tomorrow's review.",
   },
   {
-    title: "Code Review Window",
-    prompt: "Schedule a 60-minute focused window to review high-priority pull requests.",
-  },
-  {
-    title: "Evening Boundary",
-    prompt: "Ensure all my tasks conclude before 6:00 PM so I can disconnect cleanly.",
-  },
-  {
     title: "Project Breakdown",
     prompt: "Decompose our architectural migration initiative into 3 actionable milestones.",
   },
@@ -82,12 +82,16 @@ const proPrompts = [
 
 const dualPrompts = [
   {
-    title: "Work & Evening Class",
-    prompt: "I have a morning team sync and an evening seminar. Fit 1 hour of coursework study between them.",
+    title: "⚡ Productivity Playbook",
+    prompt: "How can I make my day significantly more productive?",
   },
   {
-    title: "Resolve Schedule Collision",
-    prompt: "Check if my late meeting collides with my evening study commitments.",
+    title: "📊 Summarize Month",
+    prompt: "Summarize my month, how is my calendar and workload looking?",
+  },
+  {
+    title: "Work & Evening Class",
+    prompt: "I have a morning team sync and an evening seminar. Fit 1 hour of coursework study between them.",
   },
   {
     title: "High-Focus Study Window",
@@ -98,14 +102,135 @@ const dualPrompts = [
     prompt: "Structure a realistic Saturday study plan to review coursework without burning out.",
   },
   {
-    title: "Context Switch Buffer",
-    prompt: "Add a 15-minute mental buffer between my afternoon work tasks and evening study.",
-  },
-  {
     title: "Evening Shutdown",
     prompt: "Schedule an evening wind-down transition block after finishing my studies.",
   },
 ];
+
+function InlineText({ text }: { text: string }) {
+  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith("**") && part.endsWith("**")) {
+          return (
+            <strong key={i} className="font-semibold text-[#181614]">
+              {part.slice(2, -2)}
+            </strong>
+          );
+        }
+        if (part.startsWith("`") && part.endsWith("`")) {
+          return (
+            <code key={i} className="px-1 py-0.5 rounded bg-[#f2eee6] text-[#545049] font-mono text-[11px]">
+              {part.slice(1, -1)}
+            </code>
+          );
+        }
+        return <React.Fragment key={i}>{part}</React.Fragment>;
+      })}
+    </>
+  );
+}
+
+function FormattedMessage({ text }: { text: string }) {
+  if (!text) return null;
+
+  const lines = text.split("\n");
+  const renderedElements: React.ReactNode[] = [];
+  let currentList: { type: "ul" | "ol"; items: string[] } | null = null;
+
+  const flushList = () => {
+    if (!currentList) return;
+    if (currentList.type === "ul") {
+      renderedElements.push(
+        <ul key={`ul-${renderedElements.length}`} className="my-2 ml-4 space-y-1 list-disc text-[#201e1b]">
+          {currentList.items.map((it, idx) => (
+            <li key={idx} className="leading-relaxed">
+              <InlineText text={it} />
+            </li>
+          ))}
+        </ul>
+      );
+    } else {
+      renderedElements.push(
+        <ol key={`ol-${renderedElements.length}`} className="my-2 ml-4 space-y-1 list-decimal text-[#201e1b]">
+          {currentList.items.map((it, idx) => (
+            <li key={idx} className="leading-relaxed">
+              <InlineText text={it} />
+            </li>
+          ))}
+        </ol>
+      );
+    }
+    currentList = null;
+  };
+
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushList();
+      return;
+    }
+
+    if (trimmed.startsWith("### ")) {
+      flushList();
+      renderedElements.push(
+        <h3 key={idx} className="font-serif font-bold text-sm sm:text-[15px] text-[#201e1b] mt-3 mb-1 first:mt-0">
+          <InlineText text={trimmed.slice(4)} />
+        </h3>
+      );
+      return;
+    }
+
+    if (trimmed.startsWith("## ")) {
+      flushList();
+      renderedElements.push(
+        <h2 key={idx} className="font-serif font-bold text-base sm:text-lg text-[#201e1b] mt-3.5 mb-1.5 first:mt-0">
+          <InlineText text={trimmed.slice(3)} />
+        </h2>
+      );
+      return;
+    }
+
+    if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
+      flushList();
+      renderedElements.push(<hr key={idx} className="my-2.5 border-[#e8e2d5]" />);
+      return;
+    }
+
+    const ulMatch = trimmed.match(/^([•\-\*])\s+(.*)/);
+    if (ulMatch) {
+      if (!currentList || currentList.type !== "ul") {
+        flushList();
+        currentList = { type: "ul", items: [] };
+      }
+      currentList.items.push(ulMatch[2]);
+      return;
+    }
+
+    const olMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+    if (olMatch) {
+      if (!currentList || currentList.type !== "ol") {
+        flushList();
+        currentList = { type: "ol", items: [] };
+      }
+      currentList.items.push(olMatch[2]);
+      return;
+    }
+
+    flushList();
+    renderedElements.push(
+      <p key={idx} className="my-1.5 leading-relaxed first:mt-0 last:mb-0">
+        <InlineText text={trimmed} />
+      </p>
+    );
+  });
+
+  flushList();
+
+  return <div className="text-xs sm:text-[13px] leading-relaxed space-y-0.5">{renderedElements}</div>;
+}
 
 export default function AIPage() {
   const {
@@ -221,7 +346,7 @@ export default function AIPage() {
           </div>
           <div className="min-w-0">
             <h1 className="font-serif text-base sm:text-xl font-normal text-[#201e1b] flex items-center gap-2">
-              <span>Planning Assistant</span>
+              <span>Kronos AI Assistant</span>
               {aiStatus && (
                 <span
                   className={cn(
@@ -269,28 +394,29 @@ export default function AIPage() {
 
       {/* Chat Messages Stream */}
       <div className="flex-1 overflow-y-auto py-3.5 sm:py-4 space-y-3.5 sm:space-y-4 pr-1">
-        {/* Adaptive Constraint-Based Planning Overview */}
+        {/* Full-Capability Assistant Banner */}
         <div className="bg-[#fdfcf9] border border-[#e8e2d5] rounded-2xl p-3.5 sm:p-4 text-xs space-y-1.5 shadow-2xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-[#201e1b] font-semibold">
-              <ShieldCheck className="w-4 h-4 text-[#536b54] shrink-0" />
-              <span className="font-serif text-sm">Adaptive Constraint-Based Planning</span>
+              <Sparkles className="w-4 h-4 text-[#b37e2a] shrink-0" />
+              <span className="font-serif text-sm">Kronos Full-Capability AI Assistant</span>
             </div>
             {aiStatus && (
               <span
                 className={cn(
-                  "text-[10px] font-sans font-medium px-2 py-0.5 rounded-full border",
+                  "text-[10px] font-sans font-medium px-2 py-0.5 rounded-full border flex items-center gap-1",
                   aiStatus.configured
                     ? "bg-[#edf2ec] text-[#536b54] border-[#d6e0d5]"
                     : "bg-[#f2eee6] text-[#8a8479] border-[#e8e2d5]"
                 )}
               >
-                {aiStatus.configured ? "Gemini LLM Active" : "Heuristic Fallback"}
+                <span className={cn("w-1.5 h-1.5 rounded-full", aiStatus.configured ? "bg-[#536b54] animate-pulse" : "bg-[#b0a99c]")} />
+                {aiStatus.configured ? `Gemini Active (${aiStatus.model})` : "Heuristic Fallback"}
               </span>
             )}
           </div>
           <p className="text-[#545049] leading-relaxed text-[11px] sm:text-xs">
-            Tell Kronos your intentions to automatically fit study blocks and tasks around commitments, productive rhythms, and minimum buffer windows.
+            Powered by Google Gemini with full access to your Google Calendar, tasks, and habits. Ask anything: productivity advice, schedule planning, monthly summaries, goal breakdowns, or general questions.
           </p>
         </div>
 
@@ -320,9 +446,13 @@ export default function AIPage() {
                     : "bg-[#fdfcf9] text-[#201e1b] border border-[#e8e2d5] rounded-tl-xs"
                 )}
               >
-                <p className="whitespace-pre-line text-xs sm:text-[13px] leading-relaxed">
-                  {msg.text}
-                </p>
+                {isUser ? (
+                  <p className="whitespace-pre-line text-xs sm:text-[13px] leading-relaxed">
+                    {msg.text}
+                  </p>
+                ) : (
+                  <FormattedMessage text={msg.text} />
+                )}
 
                 {/* Proposed Tasks Box (If AI suggested schedule items) */}
                 {msg.suggestedTasks && msg.suggestedTasks.length > 0 && (
@@ -569,7 +699,7 @@ export default function AIPage() {
             <div className="p-3 bg-white border border-[#e8e2d5] rounded-2xl text-[#545049] text-xs flex items-center gap-2.5 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-[#536b54] animate-ping" />
               <span className="font-medium">
-                Evaluating commitments, energy rhythms & free space...
+                Kronos AI is thinking...
               </span>
             </div>
           </div>
@@ -614,7 +744,7 @@ export default function AIPage() {
             id="ai_chat_query"
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
-            placeholder="Ask Kronos to plan your day..."
+            placeholder="Ask Kronos anything... productivity advice, schedule planning, or questions"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="sentences"
@@ -630,7 +760,7 @@ export default function AIPage() {
             type="button"
             onClick={openVoiceModal}
             className="w-11 h-11 sm:w-10 sm:h-10 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-xl border border-[#e8e2d5] bg-[#fbf9f5] hover:bg-[#f2eee6] text-[#545049] hover:text-[#201e1b] transition-colors flex items-center justify-center shrink-0 cursor-pointer active:scale-95"
-            title="Dictate schedule request"
+            title="Dictate voice request"
             aria-label="Voice input"
           >
             <Mic className="w-4 h-4" />
@@ -645,11 +775,11 @@ export default function AIPage() {
                 ? "bg-[#201e1b] hover:bg-[#38342f] text-[#f8f6f0] active:scale-95"
                 : "bg-[#f2eee6] text-[#8a8479] hover:bg-[#e8e2d5] hover:text-[#201e1b]"
             )}
-            title={inputVal.trim() ? "Send schedule request" : "Type a request or tap a prompt above"}
+            title={inputVal.trim() ? "Send message" : "Type a request or tap a prompt above"}
             aria-label="Send message"
           >
             <Send className={cn("w-3.5 h-3.5", inputVal.trim() ? "text-[#e8decb]" : "text-[#8a8479]")} />
-            <span className="hidden sm:inline">Plan</span>
+            <span className="hidden sm:inline">Ask</span>
           </button>
         </form>
       </div>

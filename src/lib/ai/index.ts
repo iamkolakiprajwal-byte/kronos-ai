@@ -4,7 +4,17 @@ import { MockAIProvider } from "./mock-provider";
 
 export function getAIProvider(): AIProvider {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+  let model = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+
+  // Auto-upgrade obsolete or 404 models from older environment variables
+  if (
+    model === "gemini-1.5-flash" ||
+    model === "gemini-2.5-flash" ||
+    model === "gemini-3.6-flash" ||
+    !model.trim()
+  ) {
+    model = "gemini-3.5-flash-lite";
+  }
 
   if (apiKey && apiKey !== "your_gemini_api_key_here" && !apiKey.startsWith("demo_")) {
     return new GeminiProvider(apiKey, model);

@@ -5,10 +5,20 @@ import { saveUserMemory } from "@/lib/ai/memory";
 
 export async function GET() {
   const configured = isAIConfigured();
+  let model = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+  if (
+    model === "gemini-1.5-flash" ||
+    model === "gemini-2.5-flash" ||
+    model === "gemini-3.6-flash" ||
+    !model.trim()
+  ) {
+    model = "gemini-3.5-flash-lite";
+  }
+
   return NextResponse.json({
     configured,
     provider: configured ? "Google Gemini" : "Simulation / Rule-Based",
-    model: configured ? (process.env.GEMINI_MODEL || "gemini-3.5-flash-lite") : "Mock Provider",
+    model: configured ? model : "Mock Provider",
   });
 }
 
