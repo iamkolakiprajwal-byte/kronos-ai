@@ -117,6 +117,8 @@ export default function TermsPage() {
           <span>•</span>
           <Link href="/terms" className="underline hover:text-[#201e1b]">Terms of Service</Link>
           <span>•</span>
+          <Link href="/google-disclosure" className="underline hover:text-[#201e1b]">Google Disclosure</Link>
+          <span>•</span>
           <Link href="/login" className="underline hover:text-[#201e1b]">Sign In</Link>
         </div>
       </footer>

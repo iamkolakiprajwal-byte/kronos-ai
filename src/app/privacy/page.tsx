@@ -97,6 +97,13 @@ export default function PrivacyPage() {
             <li>We never use your Google user data for serving advertisements, retargeting, or personalized marketing.</li>
             <li>Human beings do not read your Google calendar entries unless you give us explicit permission for troubleshooting, it is necessary for security reasons, or required by law.</li>
           </ul>
+          <div className="pt-2 text-xs border-t border-[#f2eee6] text-[#545049]">
+            For our complete granular scope justification breakdown (including <code className="text-[11px] bg-[#f2eee6] px-1 py-0.5 rounded font-mono">calendar.events</code>, <code className="text-[11px] bg-[#f2eee6] px-1 py-0.5 rounded font-mono">calendar.readonly</code>, and <code className="text-[11px] bg-[#f2eee6] px-1 py-0.5 rounded font-mono">tasks</code>), please visit our dedicated{" "}
+            <Link href="/google-disclosure" className="underline font-semibold text-[#201e1b] hover:text-[#536b54]">
+              Google API Scopes Transparency & Limited Use Disclosure
+            </Link>{" "}
+            page.
+          </div>
         </section>
 
         {/* Section 4: Data Storage & Security */}
@@ -156,6 +163,8 @@ export default function PrivacyPage() {
           <Link href="/privacy" className="underline hover:text-[#201e1b]">Privacy Policy</Link>
           <span>•</span>
           <Link href="/terms" className="underline hover:text-[#201e1b]">Terms of Service</Link>
+          <span>•</span>
+          <Link href="/google-disclosure" className="underline hover:text-[#201e1b]">Google Disclosure</Link>
           <span>•</span>
           <Link href="/login" className="underline hover:text-[#201e1b]">Sign In</Link>
         </div>

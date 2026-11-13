@@ -302,6 +302,8 @@ export default function LoginPage() {
           <Link href="/privacy" className="underline hover:text-[#201e1b]">Privacy Policy</Link>
           <span>•</span>
           <Link href="/terms" className="underline hover:text-[#201e1b]">Terms of Service</Link>
+          <span>•</span>
+          <Link href="/google-disclosure" className="underline hover:text-[#201e1b]">Google Disclosure</Link>
         </div>
       </footer>
     </div>
