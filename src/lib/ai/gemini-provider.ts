@@ -194,6 +194,15 @@ You MUST respond with valid JSON adhering to this structure:
   "deletedTaskIds": ["task-id-to-delete"],
   "completedTaskTitles": ["Task Title to Mark Complete"],
   "completedTaskIds": ["task-id-to-complete"],
+  "updatedTasks": [
+    {
+      "taskTitle": "Task title to update",
+      "newStartTime": "15:00",
+      "newEndTime": "16:00",
+      "newScheduledDate": "YYYY-MM-DD",
+      "newDuration": 60
+    }
+  ],
   "extractedHabit": {
     "title": "Habit title",
     "cue": "Habit cue",
@@ -364,6 +373,9 @@ You MUST respond with valid JSON adhering to this structure:
     }
     if (!Array.isArray(parsed.completedTaskIds)) {
       parsed.completedTaskIds = [];
+    }
+    if (!Array.isArray(parsed.updatedTasks)) {
+      parsed.updatedTasks = [];
     }
 
     // Normalize habit & goal suggestions for backwards compatibility with UI

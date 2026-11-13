@@ -1469,58 +1469,158 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json();
         const plan = data.plan;
 
-        // Execute task deletions requested by user
+        // 1. EXECUTE TASK & EVENT DELETIONS REQUESTED BY USER OR CONFIRMED BY AI
+        const idsToDelete = new Set<string>(plan.deletedTaskIds || []);
+        const titlesToDelete = new Set<string>((plan.deletedTaskTitles || []).map((t: string) => t.toLowerCase().trim()));
+        const explText = (plan.explanation || "").toLowerCase();
+        const userPromptLower = userText.toLowerCase();
+
+        // Safety regex: Extract any quoted titles from AI confirmation or user prompt
         if (
           plan.intent === "delete_task" ||
-          (plan.deletedTaskTitles && plan.deletedTaskTitles.length > 0) ||
-          (plan.deletedTaskIds && plan.deletedTaskIds.length > 0)
+          explText.includes("deleted") ||
+          explText.includes("removed") ||
+          userPromptLower.includes("delete") ||
+          userPromptLower.includes("remove") ||
+          userPromptLower.includes("cancel")
         ) {
-          const idsToDelete = new Set(plan.deletedTaskIds || []);
-          const titlesToDelete = (plan.deletedTaskTitles || []).map((t: string) => t.toLowerCase().trim());
+          const matches = (plan.explanation || "").matchAll(/"([^"]+)"|'([^']+)'|\*\*([^*]+)\*\*/g);
+          for (const m of matches) {
+            const found = (m[1] || m[2] || m[3] || "").trim().toLowerCase();
+            if (found && found.length > 1 && found !== "task" && found !== "event") {
+              titlesToDelete.add(found);
+            }
+          }
 
-          const targetTasks = tasks.filter(
-            (t) =>
-              idsToDelete.has(t.id) ||
-              titlesToDelete.some(
+          // Check if any existing task title is referenced in prompt or explanation
+          for (const t of tasks) {
+            const tLower = t.title.toLowerCase().trim();
+            if (userPromptLower.includes(tLower) || explText.includes(tLower)) {
+              titlesToDelete.add(tLower);
+              idsToDelete.add(t.id);
+            }
+          }
+          for (const e of calendarEvents) {
+            const eLower = e.title.toLowerCase().trim();
+            if (userPromptLower.includes(eLower) || explText.includes(eLower)) {
+              titlesToDelete.add(eLower);
+              idsToDelete.add(e.id);
+            }
+          }
+        }
+
+        if (idsToDelete.size > 0 || titlesToDelete.size > 0) {
+          const titlesArr: string[] = Array.from(titlesToDelete);
+
+          setTasks((prev) =>
+            prev.filter((t) => {
+              const matchesId = idsToDelete.has(t.id);
+              const matchesTitle = titlesArr.some(
                 (title: string) =>
-                  t.title.toLowerCase().includes(title) || title.includes(t.title.toLowerCase())
-              )
+                  t.title.toLowerCase().trim() === title ||
+                  t.title.toLowerCase().includes(title) ||
+                  title.includes(t.title.toLowerCase().trim())
+              );
+              if (matchesId || matchesTitle) {
+                if (authUser?.id) {
+                  dataService.deleteTask(authUser.id, t.id).catch((e) => console.warn(e));
+                }
+                return false;
+              }
+              return true;
+            })
           );
 
-          targetTasks.forEach((t) => deleteTask(t.id));
-
-          // Also remove corresponding calendar events
           setCalendarEvents((prev) =>
-            prev.filter(
-              (e) =>
-                !idsToDelete.has(e.id) &&
-                !titlesToDelete.some(
-                  (title: string) =>
-                    e.title.toLowerCase().includes(title) || title.includes(e.title.toLowerCase())
-                )
-            )
+            prev.filter((e) => {
+              const matchesId = idsToDelete.has(e.id);
+              const matchesTitle = titlesArr.some(
+                (title: string) =>
+                  e.title.toLowerCase().trim() === title ||
+                  e.title.toLowerCase().includes(title) ||
+                  title.includes(e.title.toLowerCase().trim())
+              );
+              if (matchesId || matchesTitle) {
+                if (authUser?.id) {
+                  dataService.deleteCalendarEvent(authUser.id, e.id).catch((e) => console.warn(e));
+                }
+                return false;
+              }
+              return true;
+            })
           );
         }
 
-        // Execute task completions requested by user
+        // 2. EXECUTE TASK COMPLETIONS
+        const idsToComplete = new Set<string>(plan.completedTaskIds || []);
+        const titlesToComplete = new Set<string>((plan.completedTaskTitles || []).map((t: string) => t.toLowerCase().trim()));
+
         if (
           plan.intent === "complete_task" ||
-          (plan.completedTaskTitles && plan.completedTaskTitles.length > 0) ||
-          (plan.completedTaskIds && plan.completedTaskIds.length > 0)
+          explText.includes("completed") ||
+          explText.includes("marked as done") ||
+          userPromptLower.includes("complete") ||
+          userPromptLower.includes("mark as done") ||
+          userPromptLower.includes("finished")
         ) {
-          const idsToComplete = new Set(plan.completedTaskIds || []);
-          const titlesToComplete = (plan.completedTaskTitles || []).map((t: string) => t.toLowerCase().trim());
+          const matches = (plan.explanation || "").matchAll(/"([^"]+)"|'([^']+)'|\*\*([^*]+)\*\*/g);
+          for (const m of matches) {
+            const found = (m[1] || m[2] || m[3] || "").trim().toLowerCase();
+            if (found && found.length > 1) titlesToComplete.add(found);
+          }
+          for (const t of tasks) {
+            const tLower = t.title.toLowerCase().trim();
+            if (userPromptLower.includes(tLower) || explText.includes(tLower)) {
+              titlesToComplete.add(tLower);
+              idsToComplete.add(t.id);
+            }
+          }
+        }
 
+        if (idsToComplete.size > 0 || titlesToComplete.size > 0) {
+          const titlesArr: string[] = Array.from(titlesToComplete);
           setTasks((prev) =>
             prev.map((t) => {
-              if (
-                idsToComplete.has(t.id) ||
-                titlesToComplete.some(
-                  (title: string) =>
-                    t.title.toLowerCase().includes(title) || title.includes(t.title.toLowerCase())
-                )
-              ) {
+              const matchesId = idsToComplete.has(t.id);
+              const matchesTitle = titlesArr.some(
+                (title: string) =>
+                  t.title.toLowerCase().trim() === title ||
+                  t.title.toLowerCase().includes(title) ||
+                  title.includes(t.title.toLowerCase().trim())
+              );
+              if (matchesId || matchesTitle) {
+                if (authUser?.id) {
+                  dataService.updateTask(authUser.id, t.id, { status: "completed" }).catch((e) => console.warn(e));
+                }
                 return { ...t, status: "completed" };
+              }
+              return t;
+            })
+          );
+        }
+
+        // 3. EXECUTE TASK RESCHEDULING & UPDATES
+        if (plan.updatedTasks && plan.updatedTasks.length > 0) {
+          setTasks((prev) =>
+            prev.map((t) => {
+              const u = plan.updatedTasks?.find((up: any) =>
+                (up.taskId && up.taskId === t.id) ||
+                t.title.toLowerCase().includes(up.taskTitle?.toLowerCase() || "") ||
+                (up.taskTitle && up.taskTitle.toLowerCase().includes(t.title.toLowerCase()))
+              );
+              if (u) {
+                const updatedObj = {
+                  ...t,
+                  ...(u.newStartTime ? { startTime: u.newStartTime } : {}),
+                  ...(u.newEndTime ? { endTime: u.newEndTime } : {}),
+                  ...(u.newScheduledDate ? { scheduledDate: u.newScheduledDate } : {}),
+                  ...(u.newDuration ? { estimatedDuration: u.newDuration } : {}),
+                  ...(u.newPriority ? { priority: u.newPriority } : {}),
+                };
+                if (authUser?.id) {
+                  dataService.updateTask(authUser.id, t.id, updatedObj).catch((e) => console.warn(e));
+                }
+                return updatedObj;
               }
               return t;
             })

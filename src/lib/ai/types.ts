@@ -48,6 +48,16 @@ export interface ExtractedGoal {
   milestones: Array<{ title: string; dueDate?: string }>;
 }
 
+export interface ExtractedTaskUpdate {
+  taskId?: string;
+  taskTitle: string;
+  newStartTime?: string;
+  newEndTime?: string;
+  newScheduledDate?: string;
+  newDuration?: number;
+  newPriority?: Priority;
+}
+
 export interface AIPlanResponse {
   intent: AIIntent;
   explanation: string;
@@ -58,6 +68,7 @@ export interface AIPlanResponse {
   deletedTaskTitles?: string[];
   completedTaskIds?: string[];
   completedTaskTitles?: string[];
+  updatedTasks?: ExtractedTaskUpdate[];
   detectedPreferences?: Record<string, any>;
   requiresClarification: boolean;
   clarificationQuestion?: string;
