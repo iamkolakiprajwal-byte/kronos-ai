@@ -104,6 +104,74 @@ export async function POST(req: NextRequest) {
 
     const plan = await provider.generatePlan(prompt, context as any);
 
+    // Contextual safety net: Resolve conversational anaphora ("delete that", "done that")
+    const lowerPrompt = prompt.toLowerCase().trim();
+    const isDeleteRequest =
+      lowerPrompt.startsWith("delete") ||
+      lowerPrompt.startsWith("remove") ||
+      lowerPrompt.startsWith("cancel") ||
+      lowerPrompt.includes("delete that") ||
+      lowerPrompt.includes("remove that");
+
+    if (isDeleteRequest && (!plan.deletedTaskTitles || plan.deletedTaskTitles.length === 0)) {
+      const candidateTasks = (context.allTasks || []).concat(context.existingTasks || []);
+      const recentChatText = (context.chatHistory || [])
+        .slice(-4)
+        .map((m: any) => m.content)
+        .join(" ");
+
+      for (const t of candidateTasks) {
+        if (!t?.title) continue;
+        const taskTitleLower = t.title.toLowerCase().trim();
+        if (
+          lowerPrompt.includes(taskTitleLower) ||
+          recentChatText.toLowerCase().includes(taskTitleLower) ||
+          plan.explanation.toLowerCase().includes(taskTitleLower)
+        ) {
+          plan.intent = "delete_task";
+          plan.deletedTaskTitles = [t.title];
+          plan.deletedTaskIds = t.id ? [t.id] : [];
+          plan.requiresClarification = false;
+          plan.clarificationQuestion = "";
+          plan.explanation = `I have deleted **${t.title}** from your tasks and schedule.`;
+          break;
+        }
+      }
+    }
+
+    const isCompleteRequest =
+      lowerPrompt.startsWith("complete") ||
+      lowerPrompt.startsWith("done") ||
+      lowerPrompt.startsWith("finish") ||
+      lowerPrompt.includes("mark as done") ||
+      lowerPrompt.includes("finished that");
+
+    if (isCompleteRequest && (!plan.completedTaskTitles || plan.completedTaskTitles.length === 0)) {
+      const candidateTasks = (context.allTasks || []).concat(context.existingTasks || []);
+      const recentChatText = (context.chatHistory || [])
+        .slice(-4)
+        .map((m: any) => m.content)
+        .join(" ");
+
+      for (const t of candidateTasks) {
+        if (!t?.title) continue;
+        const taskTitleLower = t.title.toLowerCase().trim();
+        if (
+          lowerPrompt.includes(taskTitleLower) ||
+          recentChatText.toLowerCase().includes(taskTitleLower) ||
+          plan.explanation.toLowerCase().includes(taskTitleLower)
+        ) {
+          plan.intent = "complete_task";
+          plan.completedTaskTitles = [t.title];
+          plan.completedTaskIds = t.id ? [t.id] : [];
+          plan.requiresClarification = false;
+          plan.clarificationQuestion = "";
+          plan.explanation = `Great job! I have marked **${t.title}** as completed.`;
+          break;
+        }
+      }
+    }
+
     // Persist any newly detected preferences into user memory
     if (plan.detectedPreferences) {
       for (const [key, val] of Object.entries(plan.detectedPreferences)) {
