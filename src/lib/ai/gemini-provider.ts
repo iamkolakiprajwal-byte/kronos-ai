@@ -90,7 +90,7 @@ export class GeminiProvider implements AIProvider {
       : "N/A";
 
     const systemInstruction = `
-You are Kronos AI, an expert, deeply intelligent personal productivity, scheduling, and calendar assistant.
+You are Kronos AI, a deeply intelligent, full-capability personal AI assistant and productivity strategist.
 You have FULL ACCESS to the user's complete schedule, Google Calendar events, tasks, goals, habits, focus logs, and monthly productivity metrics.
 
 CURRENT WORKSPACE CONTEXT:
@@ -118,7 +118,14 @@ ${focusText}
 ${metricsText}
 
 YOUR CAPABILITIES & RULES:
-1. MONTHLY / WEEKLY REVIEWS & SUMMARIES:
+1. FULL-CAPABILITY AI ASSISTANT & GENERAL QUERIES:
+   You are an unrestricted, deeply capable personal AI assistant and productivity strategist.
+   - Whatever the user asks — productivity advice, time management playbooks, habits, learning strategies, writing emails or drafts, explaining concepts, brainstorming, answering questions, or conversational queries:
+   - Provide an articulate, deeply insightful, encouraging, high-quality markdown response in "explanation".
+   - Set intent to "general_query" and return an EMPTY ARRAY [] for "extractedTasks".
+   - NEVER refuse, NEVER say you only handle schedules or tasks, and NEVER demand that the user provide tasks. Always satisfy their request thoroughly and intelligently.
+
+2. MONTHLY / WEEKLY REVIEWS & SUMMARIES:
    When the user asks to summarize their month, week, or schedule (e.g. "summarize my month", "give me a monthly review", "what have I done this month?", "how is my calendar looking?"):
    - Provide a comprehensive, beautifully structured executive summary in "explanation".
    - Break it down clearly with markdown formatting:
@@ -129,25 +136,22 @@ YOUR CAPABILITIES & RULES:
      • 💡 **AI Recommendations**: Actionable, encouraging suggestions for the coming days based on their workload.
    - Set intent to "summarize_progress" and return an EMPTY ARRAY [] for "extractedTasks" (NEVER create tasks when the user is asking for a summary).
 
-2. CALENDAR & AGENDA QUERIES:
+3. CALENDAR & AGENDA QUERIES:
    When the user asks questions about their events (e.g. "do I have any meetings tomorrow?", "what is my schedule on Friday?", "am I free at 3pm?"):
    - Accurately inspect their real calendar events and answer with exact dates and times in "explanation".
    - Set intent to "calendar_query" and return [] for "extractedTasks".
 
-3. SCHEDULING & TASK CREATION:
+4. SCHEDULING & TASK CREATION:
    When the user explicitly asks to add, plan, or schedule tasks or study sessions:
    - Extract the tasks with realistic durations, categories, and priorities into "extractedTasks".
    - Set isFixed to true if the user specifies an exact time, or false if flexible.
    - Respect fixed commitments so the deterministic scheduler can fit them smoothly.
 
-4. CONVERSATIONAL & GENERAL QUERIES:
-   If the user asks casual questions or greetings ("hello", "who are you", "what can you do"), set intent to "general_query", provide a helpful, natural reply in "explanation", and return an EMPTY ARRAY [] for "extractedTasks".
-
 STRICT OUTPUT FORMAT:
-You MUST respond with 100% valid JSON adhering to this structure:
+You MUST respond with valid JSON adhering to this structure:
 {
   "intent": "create_daily_schedule" | "add_task" | "reschedule_task" | "reschedule_missed" | "urgent_interruption" | "change_priority" | "create_habit" | "goal_decomposition" | "summarize_progress" | "calendar_query" | "general_query" | "clarification_needed",
-  "explanation": "Detailed formatted markdown response (e.g. your monthly review or query answer)",
+  "explanation": "Detailed formatted markdown response (e.g. your answer, advice, monthly review, or scheduling summary)",
   "extractedTasks": [
     {
       "title": "Task title",
@@ -240,9 +244,47 @@ You MUST respond with 100% valid JSON adhering to this structure:
       throw new Error("No structured response content received from Gemini.");
     }
 
-    // Strip markdown formatting if returned
-    const cleanJson = candidate.trim().replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-    const parsed = JSON.parse(cleanJson) as AIPlanResponse;
+    let parsed: AIPlanResponse;
+    try {
+      // Strip markdown code fences if returned
+      const cleanJson = candidate
+        .trim()
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/```\s*$/i, "")
+        .trim();
+      parsed = JSON.parse(cleanJson) as AIPlanResponse;
+    } catch (_parseErr) {
+      // Resilient Fallback 1: Extract JSON object via regex
+      const jsonMatch = candidate.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]) as AIPlanResponse;
+        } catch (_nestedErr) {
+          // Resilient Fallback 2: Plain text response from Gemini; wrap cleanly
+          parsed = {
+            intent: "general_query",
+            explanation: candidate
+              .replace(/^```json\s*/i, "")
+              .replace(/^```\s*/i, "")
+              .replace(/```\s*$/i, "")
+              .trim(),
+            extractedTasks: [],
+            requiresClarification: false,
+            clarificationQuestion: "",
+          };
+        }
+      } else {
+        // Resilient Fallback 3: Entire text wrapped into explanation
+        parsed = {
+          intent: "general_query",
+          explanation: candidate.trim(),
+          extractedTasks: [],
+          requiresClarification: false,
+          clarificationQuestion: "",
+        };
+      }
+    }
 
     if (!Array.isArray(parsed.extractedTasks)) {
       parsed.extractedTasks = [];

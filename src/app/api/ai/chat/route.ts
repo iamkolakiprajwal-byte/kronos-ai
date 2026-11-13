@@ -12,54 +12,67 @@ export async function GET() {
   });
 }
 
+const defaultProfile = {
+  id: "user",
+  name: "Planner",
+  role: "student" as const,
+  wakeTime: "07:00",
+  sleepTime: "23:00",
+  mostProductivePeriod: "morning" as const,
+  preferredFocusDuration: 45,
+  preferredBreakDuration: 10,
+  planningStyle: "time-blocked" as const,
+  sustainabilityOptIn: false,
+};
+
 const chatRequestSchema = z.object({
   prompt: z.string().min(1, "Prompt cannot be empty"),
-  context: z.object({
-    profile: z
-      .object({
-        id: z.string().default("user"),
-        name: z.string().default("Planner"),
-        role: z.enum(["student", "professional", "both"]).default("student"),
-        wakeTime: z.string().default("07:00"),
-        sleepTime: z.string().default("23:00"),
-        mostProductivePeriod: z.enum(["morning", "afternoon", "evening", "night"]).default("morning"),
-        preferredFocusDuration: z.number().default(45),
-        preferredBreakDuration: z.number().default(10),
-        planningStyle: z.enum(["structured", "flexible", "time-blocked"]).default("time-blocked"),
-        sustainabilityOptIn: z.boolean().default(false),
-      })
-      .passthrough()
-      .default({
-        id: "user",
-        name: "Planner",
-        role: "student",
-        wakeTime: "07:00",
-        sleepTime: "23:00",
-        mostProductivePeriod: "morning",
-        preferredFocusDuration: 45,
-        preferredBreakDuration: 10,
-        planningStyle: "time-blocked",
-        sustainabilityOptIn: false,
-      }),
-    existingTasks: z.array(z.any()).default([]),
-    fixedCommitments: z
-      .array(
-        z.object({
-          title: z.string(),
-          startTime: z.string(),
-          endTime: z.string(),
-          isFixed: z.boolean().default(true),
-        }).passthrough()
-      )
-      .default([]),
-    currentDate: z.string().default(() => new Date().toISOString().split("T")[0]),
-    calendarHistory: z.array(z.any()).optional().default([]),
-    allTasks: z.array(z.any()).optional().default([]),
-    goals: z.array(z.any()).optional().default([]),
-    habits: z.array(z.any()).optional().default([]),
-    focusSessionsSummary: z.any().optional(),
-    metrics: z.any().optional(),
-  }),
+  context: z
+    .object({
+      profile: z
+        .object({
+          id: z.string().default("user"),
+          name: z.string().default("Planner"),
+          role: z.enum(["student", "professional", "both"]).default("student"),
+          wakeTime: z.string().default("07:00"),
+          sleepTime: z.string().default("23:00"),
+          mostProductivePeriod: z.enum(["morning", "afternoon", "evening", "night"]).default("morning"),
+          preferredFocusDuration: z.number().default(45),
+          preferredBreakDuration: z.number().default(10),
+          planningStyle: z.enum(["structured", "flexible", "time-blocked"]).default("time-blocked"),
+          sustainabilityOptIn: z.boolean().default(false),
+        })
+        .passthrough()
+        .default(defaultProfile),
+      existingTasks: z.array(z.any()).default([]),
+      fixedCommitments: z
+        .array(
+          z.object({
+            title: z.string(),
+            startTime: z.string(),
+            endTime: z.string(),
+            isFixed: z.boolean().default(true),
+          }).passthrough()
+        )
+        .default([]),
+      currentDate: z.string().default(() => new Date().toISOString().split("T")[0]),
+      calendarHistory: z.array(z.any()).optional().default([]),
+      allTasks: z.array(z.any()).optional().default([]),
+      goals: z.array(z.any()).optional().default([]),
+      habits: z.array(z.any()).optional().default([]),
+      focusSessionsSummary: z.any().optional(),
+      metrics: z.any().optional(),
+    })
+    .default({
+      profile: defaultProfile,
+      existingTasks: [],
+      fixedCommitments: [],
+      currentDate: new Date().toISOString().split("T")[0],
+      calendarHistory: [],
+      allTasks: [],
+      goals: [],
+      habits: [],
+    }),
 });
 
 export async function POST(req: NextRequest) {

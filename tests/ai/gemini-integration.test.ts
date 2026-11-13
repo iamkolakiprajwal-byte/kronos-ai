@@ -172,6 +172,39 @@ async function runGeminiIntegrationTests() {
       assert(summaryPlan.extractedTasks.length === 0, "Summary query correctly generates zero extraneous tasks");
       assert(summaryPlan.intent === "summarize_progress" || summaryPlan.intent === "general_query", `Summary query correctly identified intent: ${summaryPlan.intent}`);
       console.log("Summary explanation preview:\n", summaryPlan.explanation.slice(0, 300), "...");
+
+      // Proactive cooldown buffer
+      await new Promise((r) => setTimeout(r, 1200));
+
+      // 6. Test Open-Ended Full Capability / Productivity Advice Query
+      console.log("Testing Live Open-Ended Productivity & Full Capability Query...");
+      const productivePlan = await liveProvider.generatePlan("how to make my day more productive", {
+        profile: {
+          id: "test-user",
+          name: "Prajwal",
+          email: "iamkolakiprajwal@gmail.com",
+          avatar: "",
+          headline: "Productivity Enthusiast",
+          institutionOrCompany: "Engineering",
+          role: "student",
+          wakeTime: "07:00",
+          sleepTime: "23:00",
+          mostProductivePeriod: "morning",
+          preferredFocusDuration: 45,
+          preferredBreakDuration: 10,
+          planningStyle: "time-blocked",
+          sustainabilityOptIn: false,
+        },
+        existingTasks: [],
+        fixedCommitments: [],
+        currentDate: "2026-11-13",
+      });
+
+      assert(Boolean(productivePlan.explanation), "Live Gemini generated open-ended productivity advice");
+      assert(productivePlan.explanation.length > 50, "Productivity advice is comprehensive and non-empty");
+      assert(productivePlan.extractedTasks.length === 0, "Open-ended advice correctly generates zero forced tasks");
+      assert(productivePlan.intent === "general_query", `Open-ended query classified as general_query (got: ${productivePlan.intent})`);
+      console.log("Productivity advice preview:\n", productivePlan.explanation.slice(0, 300), "...");
     } catch (liveErr: any) {
       console.error("Live Gemini API call failed:", liveErr.message);
       assert(false, `Live Gemini API call succeeded: ${liveErr.message}`);

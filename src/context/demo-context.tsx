@@ -1660,8 +1660,28 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           tag: "Focus Block",
         },
       ];
+    } else if (
+      lower.includes("productive") ||
+      lower.includes("productivity") ||
+      lower.includes("focus") ||
+      lower.includes("routine") ||
+      lower.includes("advice") ||
+      lower.includes("tips") ||
+      lower.includes("better") ||
+      lower.includes("manage time") ||
+      lower.includes("time management")
+    ) {
+      replyText = `### 🚀 Actionable Productivity Playbook for Your Day\n\n` +
+        `Here is a science-backed routine tailored to your energy rhythms (${profile.mostProductivePeriod || "morning"} peak focus):\n\n` +
+        `1. **Eat the Frog (Peak Focus Block)**: Tackle your hardest, highest-leverage task during your peak energy window when cognitive willpower is at its highest.\n` +
+        `2. **Time-Boxing (45-Minute Sprints)**: Work in 45-minute focused bursts with zero tab switching, followed by a mandatory 5-minute break away from screens.\n` +
+        `3. **2-Minute Rule for Micro-Tasks**: If an admin chore or reply takes under 2 minutes, do it immediately rather than letting it clutter your mental buffer.\n` +
+        `4. **Protect Sleep Boundaries**: Maintain your ${profile.wakeTime || "07:00"} wake time and ${profile.sleepTime || "23:00"} bedtime to preserve neurochemical energy for tomorrow.\n` +
+        `5. **Daily Shutdown Ritual**: Spend the final 10 minutes of your workday reviewing what got done and pre-loading top 3 objectives for the next morning.\n\n` +
+        `Would you like me to schedule a 45-minute deep work block or help prioritize your active tasks?`;
+      suggestions = undefined;
     } else {
-      replyText = `I'm here to help plan your schedule. I didn't detect any specific tasks in your message. Tell me what you'd like to work on today (e.g., "Study for 1 hour" or "Prepare presentation") and I'll fit it in!`;
+      replyText = `I'm here to assist you with anything you need! Whether you want to optimize your schedule, brainstorm productivity strategies, break down a project into milestones, or discuss your calendar, just ask. What are you looking to achieve today?`;
       suggestions = undefined;
     }
 
