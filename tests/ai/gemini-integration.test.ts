@@ -205,6 +205,69 @@ async function runGeminiIntegrationTests() {
       assert(productivePlan.extractedTasks.length === 0, "Open-ended advice correctly generates zero forced tasks");
       assert(productivePlan.intent === "general_query", `Open-ended query classified as general_query (got: ${productivePlan.intent})`);
       console.log("Productivity advice preview:\n", productivePlan.explanation.slice(0, 300), "...");
+
+      // Proactive cooldown buffer
+      await new Promise((r) => setTimeout(r, 1200));
+
+      // 7. Test Multi-Turn Conversational Memory & Pronoun Recall ("delete that")
+      console.log("Testing Multi-Turn Memory & Recall ('delete that')...");
+      const memoryPlan = await liveProvider.generatePlan("delete that", {
+        profile: {
+          id: "test-user",
+          name: "Prajwal",
+          email: "iamkolakiprajwal@gmail.com",
+          avatar: "",
+          headline: "Productivity Enthusiast",
+          institutionOrCompany: "Engineering",
+          role: "student",
+          wakeTime: "07:00",
+          sleepTime: "23:00",
+          mostProductivePeriod: "morning",
+          preferredFocusDuration: 45,
+          preferredBreakDuration: 10,
+          planningStyle: "time-blocked",
+          sustainabilityOptIn: false,
+        },
+        existingTasks: [
+          {
+            id: "task-22ssd",
+            title: "22ssd",
+            scheduledDate: "2026-11-13",
+            estimatedDuration: 45,
+            status: "todo",
+            priority: "medium",
+            category: "work",
+            isFixed: false,
+          },
+        ],
+        allTasks: [
+          {
+            id: "task-22ssd",
+            title: "22ssd",
+            scheduledDate: "2026-11-13",
+            estimatedDuration: 45,
+            status: "todo",
+            priority: "medium",
+            category: "work",
+          },
+        ],
+        fixedCommitments: [],
+        currentDate: "2026-11-13",
+        chatHistory: [
+          { role: "user", content: "22ssd" },
+          {
+            role: "assistant",
+            content: "I noticed '22ssd' in your query and your recent task list! It looks like a placeholder or a quick note for a task you scheduled for November 10, 2026.",
+          },
+        ],
+      });
+
+      assert(Boolean(memoryPlan.explanation), "Multi-turn recall returned explanation");
+      assert(memoryPlan.intent === "delete_task", `Multi-turn recall identified intent delete_task (got: ${memoryPlan.intent})`);
+      const hasTitle = (memoryPlan.deletedTaskTitles || []).some((t) => t.toLowerCase().includes("22ssd"));
+      const hasId = (memoryPlan.deletedTaskIds || []).includes("task-22ssd");
+      assert(hasTitle || hasId, "Multi-turn recall successfully resolved 'that' to '22ssd'");
+      console.log("Multi-turn delete explanation:", memoryPlan.explanation);
     } catch (liveErr: any) {
       console.error("Live Gemini API call failed:", liveErr.message);
       assert(false, `Live Gemini API call succeeded: ${liveErr.message}`);

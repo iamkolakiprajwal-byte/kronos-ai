@@ -72,6 +72,7 @@ const chatRequestSchema = z.object({
       habits: z.array(z.any()).optional().default([]),
       focusSessionsSummary: z.any().optional(),
       metrics: z.any().optional(),
+      chatHistory: z.array(z.any()).optional().default([]),
     })
     .default({
       profile: defaultProfile,
@@ -82,6 +83,7 @@ const chatRequestSchema = z.object({
       allTasks: [],
       goals: [],
       habits: [],
+      chatHistory: [],
     }),
 });
 

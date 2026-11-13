@@ -147,10 +147,34 @@ YOUR CAPABILITIES & RULES:
    - Set isFixed to true if the user specifies an exact time, or false if flexible.
    - Respect fixed commitments so the deterministic scheduler can fit them smoothly.
 
+5. CONVERSATIONAL MEMORY, RECALL & PRONOUN RESOLUTION:
+   - You have FULL RECALL of previous turns in this conversation.
+   - When the user refers back to previous topics, tasks, or items using pronouns or phrases like "that", "it", "them", "the last one", "delete that", "do that", "change it", or mentions a title previously discussed (e.g., "22ssd"):
+   - Accurately resolve what "that" or "it" refers to based on the chat history.
+   - NEVER say "I'm not sure which item" if the task or topic was mentioned in the prior messages!
+
+6. DELETING & REMOVING TASKS OR EVENTS:
+   - When the user asks to delete, remove, cancel, or drop a task or event (e.g., "delete that", "delete 22ssd", "remove task", "cancel my meeting"):
+   - Identify the matching task(s) from previous conversation turns and user tasks ("allTasks" / "existingTasks").
+   - Set intent to "delete_task".
+   - Set "deletedTaskTitles" to an array of matching task titles (e.g. ["22ssd"]).
+   - Set "deletedTaskIds" to matching task IDs if found in allTasks.
+   - Set "extractedTasks" to [].
+   - In "explanation", confirm clearly: "I've deleted **22ssd** from your tasks and schedule."
+
+7. COMPLETING & MARKING TASKS DONE:
+   - When the user indicates they completed or want to check off a task (e.g. "I finished that", "mark 22ssd as done", "done"):
+   - Identify the matching task(s) from previous turns and "allTasks".
+   - Set intent to "complete_task".
+   - Set "completedTaskTitles" to an array of matching task titles.
+   - Set "completedTaskIds" to matching IDs.
+   - Set "extractedTasks" to [].
+   - In "explanation", confirm: "Great job! I've marked **22ssd** as completed."
+
 STRICT OUTPUT FORMAT:
 You MUST respond with valid JSON adhering to this structure:
 {
-  "intent": "create_daily_schedule" | "add_task" | "reschedule_task" | "reschedule_missed" | "urgent_interruption" | "change_priority" | "create_habit" | "goal_decomposition" | "summarize_progress" | "calendar_query" | "general_query" | "clarification_needed",
+  "intent": "create_daily_schedule" | "add_task" | "delete_task" | "complete_task" | "update_task" | "reschedule_task" | "reschedule_missed" | "urgent_interruption" | "change_priority" | "create_habit" | "goal_decomposition" | "summarize_progress" | "calendar_query" | "general_query" | "clarification_needed",
   "explanation": "Detailed formatted markdown response (e.g. your answer, advice, monthly review, or scheduling summary)",
   "extractedTasks": [
     {
@@ -164,6 +188,10 @@ You MUST respond with valid JSON adhering to this structure:
       "tag": "optional"
     }
   ],
+  "deletedTaskTitles": ["Task Title to Delete"],
+  "deletedTaskIds": ["task-id-to-delete"],
+  "completedTaskTitles": ["Task Title to Mark Complete"],
+  "completedTaskIds": ["task-id-to-complete"],
   "extractedHabit": {
     "title": "Habit title",
     "cue": "Habit cue",
@@ -187,13 +215,30 @@ You MUST respond with valid JSON adhering to this structure:
 }
 `;
 
+    const contents: Array<{ role: "user" | "model"; parts: [{ text: string }] }> = [];
+
+    if (context.chatHistory && context.chatHistory.length > 0) {
+      for (const msg of context.chatHistory.slice(-10)) {
+        const role = msg.role === "assistant" ? "model" : "user";
+        const text = msg.content?.trim();
+        if (text) {
+          if (contents.length > 0 && contents[contents.length - 1].role === role) {
+            contents[contents.length - 1].parts[0].text += `\n\n${text}`;
+          } else {
+            contents.push({ role, parts: [{ text }] });
+          }
+        }
+      }
+    }
+
+    if (contents.length > 0 && contents[contents.length - 1].role === "user") {
+      contents[contents.length - 1].parts[0].text += `\n\n${userPrompt}`;
+    } else {
+      contents.push({ role: "user", parts: [{ text: userPrompt }] });
+    }
+
     const payload = {
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: userPrompt }],
-        },
-      ],
+      contents,
       systemInstruction: {
         parts: [{ text: systemInstruction }],
       },
@@ -221,8 +266,25 @@ You MUST respond with valid JSON adhering to this structure:
         if (res.ok) break;
 
         errText = await res.text();
+
+        // If 503 high demand spike, retry once after a short 1s buffer
+        if (res.status === 503) {
+          console.warn(`[Gemini] ${activeModel} reported status 503. Retrying with backoff...`);
+          await new Promise((r) => setTimeout(r, 1200));
+          try {
+            res = await fetch(activeEndpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+              signal: AbortSignal.timeout(20000),
+            });
+            if (res.ok) break;
+            errText = await res.text();
+          } catch (_retryErr) {}
+        }
+
         // If quota exhausted (429) or model not found (404), fall back to next model
-        if (res.status === 429 || res.status === 404) {
+        if (res.status === 429 || res.status === 404 || res.status === 503) {
           console.warn(`[Gemini] ${activeModel} reported status ${res.status}. Falling back to next candidate...`);
           continue;
         }
@@ -288,6 +350,18 @@ You MUST respond with valid JSON adhering to this structure:
 
     if (!Array.isArray(parsed.extractedTasks)) {
       parsed.extractedTasks = [];
+    }
+    if (!Array.isArray(parsed.deletedTaskTitles)) {
+      parsed.deletedTaskTitles = [];
+    }
+    if (!Array.isArray(parsed.deletedTaskIds)) {
+      parsed.deletedTaskIds = [];
+    }
+    if (!Array.isArray(parsed.completedTaskTitles)) {
+      parsed.completedTaskTitles = [];
+    }
+    if (!Array.isArray(parsed.completedTaskIds)) {
+      parsed.completedTaskIds = [];
     }
 
     // Normalize habit & goal suggestions for backwards compatibility with UI

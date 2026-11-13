@@ -1438,6 +1438,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         lastGoogleSync: lastSyncTime || undefined,
       };
 
+      // Multi-turn chat memory and history
+      const chatHistory = chatMessages.slice(-10).map((m) => ({
+        role: m.sender === "user" ? ("user" as const) : ("assistant" as const),
+        content: m.text,
+      }));
+
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1454,6 +1460,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
             habits: habitsData,
             focusSessionsSummary,
             metrics,
+            chatHistory,
           },
         }),
       });
@@ -1461,6 +1468,64 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         const plan = data.plan;
+
+        // Execute task deletions requested by user
+        if (
+          plan.intent === "delete_task" ||
+          (plan.deletedTaskTitles && plan.deletedTaskTitles.length > 0) ||
+          (plan.deletedTaskIds && plan.deletedTaskIds.length > 0)
+        ) {
+          const idsToDelete = new Set(plan.deletedTaskIds || []);
+          const titlesToDelete = (plan.deletedTaskTitles || []).map((t: string) => t.toLowerCase().trim());
+
+          const targetTasks = tasks.filter(
+            (t) =>
+              idsToDelete.has(t.id) ||
+              titlesToDelete.some(
+                (title: string) =>
+                  t.title.toLowerCase().includes(title) || title.includes(t.title.toLowerCase())
+              )
+          );
+
+          targetTasks.forEach((t) => deleteTask(t.id));
+
+          // Also remove corresponding calendar events
+          setCalendarEvents((prev) =>
+            prev.filter(
+              (e) =>
+                !idsToDelete.has(e.id) &&
+                !titlesToDelete.some(
+                  (title: string) =>
+                    e.title.toLowerCase().includes(title) || title.includes(e.title.toLowerCase())
+                )
+            )
+          );
+        }
+
+        // Execute task completions requested by user
+        if (
+          plan.intent === "complete_task" ||
+          (plan.completedTaskTitles && plan.completedTaskTitles.length > 0) ||
+          (plan.completedTaskIds && plan.completedTaskIds.length > 0)
+        ) {
+          const idsToComplete = new Set(plan.completedTaskIds || []);
+          const titlesToComplete = (plan.completedTaskTitles || []).map((t: string) => t.toLowerCase().trim());
+
+          setTasks((prev) =>
+            prev.map((t) => {
+              if (
+                idsToComplete.has(t.id) ||
+                titlesToComplete.some(
+                  (title: string) =>
+                    t.title.toLowerCase().includes(title) || title.includes(t.title.toLowerCase())
+                )
+              ) {
+                return { ...t, status: "completed" };
+              }
+              return t;
+            })
+          );
+        }
 
         // If tasks were extracted, run deterministic constraint solver
         let verifiedTasks = plan.extractedTasks;
@@ -1603,6 +1668,88 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           { title: "Phase 3: Verification, testing & demonstration" },
         ],
       };
+    } else if (
+      lower.startsWith("delete") ||
+      lower.startsWith("remove") ||
+      lower.startsWith("cancel") ||
+      lower.includes("delete that") ||
+      lower.includes("remove that")
+    ) {
+      let targetTitle = "";
+      const lastAssistantMsg = chatMessages[chatMessages.length - 1];
+      const matchInLast = lastAssistantMsg?.text?.match(/"([^"]+)"|'([^']+)'|\*\*([^*]+)\*\*/);
+      if (matchInLast) {
+        targetTitle = matchInLast[1] || matchInLast[2] || matchInLast[3] || "";
+      }
+
+      if (!targetTitle) {
+        targetTitle = lower.replace(/^(delete|remove|cancel)\s+(that|the|task|event|item)?\s*/i, "").trim();
+      }
+
+      const matchingTask = targetTitle
+        ? tasks.find(
+            (t) =>
+              t.title.toLowerCase().includes(targetTitle.toLowerCase()) ||
+              targetTitle.toLowerCase().includes(t.title.toLowerCase())
+          )
+        : tasks[0];
+
+      if (matchingTask) {
+        deleteTask(matchingTask.id);
+        setCalendarEvents((prev) =>
+          prev.filter(
+            (e) =>
+              e.id !== matchingTask.id &&
+              !e.title.toLowerCase().includes(matchingTask.title.toLowerCase())
+          )
+        );
+        replyText = `I have deleted **"${matchingTask.title}"** from your tasks and schedule.`;
+      } else {
+        replyText = `I couldn't locate that specific task in your schedule. Please specify the title of the task you would like to delete.`;
+      }
+    } else if (
+      lower.startsWith("done") ||
+      lower.startsWith("complete") ||
+      lower.startsWith("finish") ||
+      lower.includes("mark as done") ||
+      lower.includes("finished that") ||
+      lower.includes("completed that")
+    ) {
+      let targetTitle = "";
+      const lastAssistantMsg = chatMessages[chatMessages.length - 1];
+      const matchInLast = lastAssistantMsg?.text?.match(/"([^"]+)"|'([^']+)'|\*\*([^*]+)\*\*/);
+      if (matchInLast) {
+        targetTitle = matchInLast[1] || matchInLast[2] || matchInLast[3] || "";
+      }
+
+      if (!targetTitle) {
+        targetTitle = lower.replace(/^(complete|done|finish|mark as done)\s+(that|the|task|event|item)?\s*/i, "").trim();
+      }
+
+      const matchingTask = targetTitle
+        ? tasks.find(
+            (t) =>
+              t.title.toLowerCase().includes(targetTitle.toLowerCase()) ||
+              targetTitle.toLowerCase().includes(t.title.toLowerCase())
+          )
+        : tasks[0];
+
+      if (matchingTask) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === matchingTask.id ? { ...t, status: "completed" } : t))
+        );
+        replyText = `Great job! I've marked **"${matchingTask.title}"** as completed.`;
+      } else {
+        replyText = `I couldn't locate that task to mark as completed. Which task did you finish?`;
+      }
+    } else if (tasks.some((t) => t.title.toLowerCase() === lower || t.title.toLowerCase().includes(lower))) {
+      const match = tasks.find((t) => t.title.toLowerCase() === lower || t.title.toLowerCase().includes(lower))!;
+      replyText = `I found **"${match.title}"** in your task registry (scheduled for ${match.scheduledDate || "today"}). What would you like to do with it?`;
+      fallbackActions = [
+        { label: `Delete "${match.title}"`, payload: `delete ${match.title}` },
+        { label: `Mark Completed`, payload: `mark ${match.title} as completed` },
+        { label: `Schedule 45m Block`, payload: `schedule 45 minutes for ${match.title}` },
+      ];
     } else if (isQuestionOrGreeting) {
       replyText =
         "I'm Kronos AI, your personal planning assistant! I help you organize tasks around your classes, meetings, and energy rhythms. Tell me what you'd like to accomplish today (e.g., '2 assignments, gym at 4, study economics') and I'll schedule them for you!";

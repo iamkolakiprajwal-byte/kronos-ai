@@ -3,6 +3,9 @@ import { Task, Priority, UserProfile } from "@/types";
 export type AIIntent =
   | "create_daily_schedule"
   | "add_task"
+  | "delete_task"
+  | "complete_task"
+  | "update_task"
   | "reschedule_task"
   | "reschedule_missed"
   | "urgent_interruption"
@@ -51,6 +54,10 @@ export interface AIPlanResponse {
   extractedTasks: ExtractedTask[];
   extractedHabit?: ExtractedHabit;
   extractedGoal?: ExtractedGoal;
+  deletedTaskIds?: string[];
+  deletedTaskTitles?: string[];
+  completedTaskIds?: string[];
+  completedTaskTitles?: string[];
   detectedPreferences?: Record<string, any>;
   requiresClarification: boolean;
   clarificationQuestion?: string;
@@ -129,4 +136,8 @@ export interface UserScheduleContext {
     googleCalendarSynced: boolean;
     lastGoogleSync?: string;
   };
+  chatHistory?: Array<{
+    role: "user" | "assistant";
+    content: string;
+  }>;
 }
