@@ -2,15 +2,22 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { performBidirectionalSync } from "@/lib/calendar/sync-service";
+import { performBidirectionalSync, getOrRefreshValidAccessToken } from "@/lib/calendar/sync-service";
+import { GoogleCalendarAdapter } from "@/lib/calendar/google-adapter";
+import { GoogleTasksAdapter } from "@/lib/calendar/google-tasks-adapter";
 import { mockCalendarAdapter } from "@/lib/calendar/mock-adapter";
 
 const SyncRequestSchema = z.object({
-  action: z.enum(["sync", "disconnect", "simulate_conflict", "resolve", "reset_and_sync"]).default("sync"),
+  action: z
+    .enum(["sync", "disconnect", "simulate_conflict", "resolve", "reset_and_sync", "delete_remote"])
+    .default("sync"),
   conflictId: z.string().optional(),
   resolution: z.enum(["keep_local", "accept_remote"]).optional(),
   useMock: z.boolean().default(false),
   accessToken: z.string().optional(),
+  taskId: z.string().optional(),
+  eventId: z.string().optional(),
+  title: z.string().optional(),
 });
 
 /**
@@ -87,7 +94,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { action, conflictId, resolution, useMock, accessToken } = SyncRequestSchema.parse(body);
+    const { action, conflictId, resolution, useMock, accessToken, taskId, eventId, title } =
+      SyncRequestSchema.parse(body);
 
     const isTest = process.env.NODE_ENV === "test" || useMock;
 
@@ -160,6 +168,86 @@ export async function POST(request: Request) {
           response.cookies.delete("kronos_google_token");
           response.cookies.delete("kronos_google_refresh_token");
           return response;
+        }
+
+        if (action === "delete_remote") {
+          const targetTitle = (title || "").trim();
+          const targetTaskId = (taskId || "").trim();
+          const targetEventId = (eventId || "").trim();
+
+          let deletedFromGoogle = false;
+
+          // 1. Delete from Supabase tasks & calendar_events
+          if (targetTaskId) {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetTaskId);
+            if (isUuid) {
+              await supabase.from("tasks").delete().eq("user_id", targetUserId).or(`id.eq.${targetTaskId},external_task_id.eq.${targetTaskId}`);
+              await supabase.from("calendar_events").delete().eq("user_id", targetUserId).or(`id.eq.${targetTaskId},task_id.eq.${targetTaskId}`);
+            } else {
+              await supabase.from("tasks").delete().eq("user_id", targetUserId).or(`title.ilike.${targetTaskId},external_task_id.eq.${targetTaskId}`);
+              await supabase.from("calendar_events").delete().eq("user_id", targetUserId).ilike("title", targetTaskId);
+            }
+          }
+          if (targetTitle) {
+            await supabase.from("tasks").delete().eq("user_id", targetUserId).ilike("title", targetTitle);
+            await supabase.from("calendar_events").delete().eq("user_id", targetUserId).ilike("title", targetTitle);
+          }
+
+          // 2. Delete from Google Calendar & Google Tasks if active connection exists
+          try {
+            const { data: connection } = await supabase
+              .from("calendar_connections")
+              .select("*")
+              .eq("user_id", targetUserId)
+              .maybeSingle();
+
+            if (connection && (connection.sync_status === "active" || connection.sync_status === "synced")) {
+              const tokenResult = await getOrRefreshValidAccessToken(targetUserId, supabase, connection);
+              if (tokenResult.accessToken) {
+                const tasksAdapter = new GoogleTasksAdapter(tokenResult.accessToken);
+                const calAdapter = new GoogleCalendarAdapter(tokenResult.accessToken, connection.calendar_id || "primary");
+
+                // Google Tasks cleanup
+                if (targetTaskId && !targetTaskId.startsWith("task-")) {
+                  await tasksAdapter.deleteTask(targetTaskId).catch(() => false);
+                  deletedFromGoogle = true;
+                }
+                if (targetTitle) {
+                  const remoteTasks = await tasksAdapter.fetchTasks().catch(() => ({ items: [] }));
+                  for (const item of remoteTasks.items || []) {
+                    if (item.title?.toLowerCase().trim() === targetTitle.toLowerCase()) {
+                      await tasksAdapter.deleteTask(item.id).catch(() => false);
+                      deletedFromGoogle = true;
+                    }
+                  }
+                }
+
+                // Google Calendar cleanup
+                if (targetEventId && !targetEventId.startsWith("event-")) {
+                  await calAdapter.deleteEvent(targetEventId).catch(() => false);
+                  deletedFromGoogle = true;
+                }
+                if (targetTitle) {
+                  const remoteCal = await calAdapter.fetchRemoteChanges().catch(() => ({ added: [], deletedIds: [] }));
+                  for (const ev of remoteCal.added || []) {
+                    if (ev.title?.toLowerCase().trim() === targetTitle.toLowerCase()) {
+                      await calAdapter.deleteEvent(ev.id).catch(() => false);
+                      deletedFromGoogle = true;
+                    }
+                  }
+                }
+              }
+            }
+          } catch (remoteErr) {
+            console.warn("[delete_remote] Remote Google cleanup notice:", remoteErr);
+          }
+
+          return NextResponse.json({
+            success: true,
+            action: "delete_remote",
+            deletedFromGoogle,
+            message: "Item removed from database and synchronized with Google.",
+          });
         }
 
         const forceFullSync = action === "reset_and_sync";

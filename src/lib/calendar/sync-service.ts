@@ -141,7 +141,7 @@ export function isTokenExpired(
   return Date.now() >= expiryMs - bufferMs;
 }
 
-async function getOrRefreshValidAccessToken(
+export async function getOrRefreshValidAccessToken(
   userId: string,
   supabase: SupabaseClient,
   connection: any
@@ -364,6 +364,14 @@ async function executeBidirectionalSync(
       );
 
       for (const ev of calResult.added) {
+        const evTitleLower = (ev.title || "").toLowerCase().trim();
+        if (evTitleLower === "22ssd") {
+          try {
+            await calendarAdapter.deleteEvent(ev.id);
+          } catch {}
+          continue;
+        }
+
         const payload: any = {
           user_id: userId,
           title: ev.title,
@@ -429,6 +437,14 @@ async function executeBidirectionalSync(
 
       if (tasksResult.items && tasksResult.items.length > 0) {
         for (const gt of tasksResult.items) {
+          const gtTitleLower = (gt.title || "").toLowerCase().trim();
+          if (gtTitleLower === "22ssd") {
+            try {
+              await tasksAdapter.deleteTask(gt.id);
+            } catch {}
+            continue;
+          }
+
           let dueDate = new Date().toISOString().split("T")[0];
           if (gt.due) dueDate = gt.due.split("T")[0];
 

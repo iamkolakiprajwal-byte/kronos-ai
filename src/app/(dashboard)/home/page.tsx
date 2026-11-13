@@ -19,6 +19,7 @@ import {
   Briefcase,
   Compass,
   Check,
+  Trash2,
 } from "lucide-react";
 import { useDemo } from "@/context/demo-context";
 import { MonthCalendar } from "@/components/calendar/month-calendar";
@@ -32,6 +33,7 @@ export default function HomePage() {
     calendarEvents,
     tasks,
     toggleTaskStatus,
+    deleteTask,
     profile,
     referenceDate,
     openQuickTask,
@@ -199,7 +201,7 @@ export default function HomePage() {
                       <div
                         key={t.id}
                         className={cn(
-                          "p-3 rounded-2xl border text-xs transition-colors flex items-start gap-2.5",
+                          "group p-3 rounded-2xl border text-xs transition-colors flex items-start gap-2.5 relative",
                           isCompleted
                             ? "bg-[#f5f1e8]/40 border-[#e8e2d5] text-[#8a8479]"
                             : "bg-white border-[#e8e2d5] hover:border-[#d5cdbd] shadow-2xs"
@@ -225,9 +227,23 @@ export default function HomePage() {
                             >
                               {t.title}
                             </span>
-                            <span className="text-[10px] text-[#8a8479] font-mono shrink-0">
-                              {t.startTime || `${t.estimatedDuration}m`}
-                            </span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[10px] text-[#8a8479] font-mono">
+                                {t.startTime || `${t.estimatedDuration}m`}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteTask(t.id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-[#8a8479] hover:text-[#b85437] hover:bg-[#faece7] rounded-md transition-all cursor-pointer"
+                                title="Delete task"
+                                aria-label={`Delete task ${t.title}`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                           <div className="flex items-center gap-1.5 mt-1">
                             {t.priority === "urgent" && (

@@ -261,55 +261,56 @@ You MUST respond with valid JSON adhering to this structure:
 
     let res: Response | null = null;
     let errText = "";
+    const primaryModel = this.model && this.model.includes("3.5") ? this.model : "gemini-3.5-flash-lite";
     const candidateModels = [
-      this.model,
+      primaryModel,
       "gemini-3.5-flash-lite",
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-3.5-flash",
+      "gemini-flash-latest",
     ];
     const uniqueModels = Array.from(new Set(candidateModels));
 
     for (const activeModel of uniqueModels) {
       const activeEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${this.apiKey}`;
-      try {
-        res = await fetch(activeEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(20000),
-        });
+      
+      // Attempt up to 3 tries for each model with exponential backoff on 503 or transient network errors
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          res = await fetch(activeEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(20000),
+          });
 
-        if (res.ok) break;
+          if (res.ok) break;
 
-        errText = await res.text();
+          errText = await res.text();
 
-        // If 503 high demand spike, retry once after a short 1s buffer
-        if (res.status === 503) {
-          console.warn(`[Gemini] ${activeModel} reported status 503. Retrying with backoff...`);
-          await new Promise((r) => setTimeout(r, 1200));
-          try {
-            res = await fetch(activeEndpoint, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-              signal: AbortSignal.timeout(20000),
-            });
-            if (res.ok) break;
-            errText = await res.text();
-          } catch (_retryErr) {}
+          // If 503 high demand spike, retry with backoff
+          if (res.status === 503 && attempt < 3) {
+            console.warn(`[Gemini] ${activeModel} reported status 503 (attempt ${attempt}/3). Retrying with backoff...`);
+            await new Promise((r) => setTimeout(r, attempt * 1500));
+            continue;
+          }
+
+          // If 429 quota or 404, don't keep retrying this model
+          if (res.status === 429 || res.status === 404) {
+            console.warn(`[Gemini] ${activeModel} reported status ${res.status}. Falling back to next candidate...`);
+            break;
+          }
+
+          break;
+        } catch (fetchErr: any) {
+          errText = fetchErr.message;
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, attempt * 1200));
+            continue;
+          }
+          console.warn(`[Gemini] ${activeModel} fetch failed: ${fetchErr.message}. Trying next candidate...`);
         }
-
-        // If quota exhausted (429) or model not found (404), fall back to next model
-        if (res.status === 429 || res.status === 404 || res.status === 503) {
-          console.warn(`[Gemini] ${activeModel} reported status ${res.status}. Falling back to next candidate...`);
-          continue;
-        }
-        break;
-      } catch (fetchErr: any) {
-        errText = fetchErr.message;
-        console.warn(`[Gemini] ${activeModel} fetch failed: ${fetchErr.message}. Trying next candidate...`);
       }
+
+      if (res && res.ok) break;
     }
 
     if (!res || !res.ok) {

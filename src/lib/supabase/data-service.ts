@@ -227,18 +227,45 @@ export const dataService = {
     return true;
   },
 
-  async deleteTask(userId: string, taskId: string): Promise<boolean> {
+  async deleteTask(userId: string, taskIdOrTitle: string): Promise<boolean> {
     if (!isSupabaseConfigured) return false;
     const supabase = createClient();
     if (!supabase) return false;
 
-    const { error } = await supabase
-      .from("tasks")
-      .delete()
-      .eq("id", taskId)
-      .eq("user_id", userId);
+    const trimmed = (taskIdOrTitle || "").trim();
+    if (!trimmed) return false;
 
-    return !error;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+
+    try {
+      if (isUuid) {
+        await supabase
+          .from("tasks")
+          .delete()
+          .eq("user_id", userId)
+          .or(`id.eq.${trimmed},external_task_id.eq.${trimmed}`);
+        await supabase
+          .from("calendar_events")
+          .delete()
+          .eq("user_id", userId)
+          .or(`id.eq.${trimmed},task_id.eq.${trimmed}`);
+      } else {
+        await supabase
+          .from("tasks")
+          .delete()
+          .eq("user_id", userId)
+          .or(`title.ilike.${trimmed},external_task_id.eq.${trimmed}`);
+        await supabase
+          .from("calendar_events")
+          .delete()
+          .eq("user_id", userId)
+          .ilike("title", trimmed);
+      }
+      return true;
+    } catch (err) {
+      console.warn("[dataService.deleteTask] Notice:", err);
+      return false;
+    }
   },
 
   async batchUpdateTaskSchedule(
@@ -328,18 +355,35 @@ export const dataService = {
     };
   },
 
-  async deleteCalendarEvent(userId: string, eventId: string): Promise<boolean> {
+  async deleteCalendarEvent(userId: string, eventIdOrTitle: string): Promise<boolean> {
     if (!isSupabaseConfigured) return false;
     const supabase = createClient();
     if (!supabase) return false;
 
-    const { error } = await supabase
-      .from("calendar_events")
-      .delete()
-      .eq("id", eventId)
-      .eq("user_id", userId);
+    const trimmed = (eventIdOrTitle || "").trim();
+    if (!trimmed) return false;
 
-    return !error;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+
+    try {
+      if (isUuid) {
+        await supabase
+          .from("calendar_events")
+          .delete()
+          .eq("user_id", userId)
+          .or(`id.eq.${trimmed},external_event_id.eq.${trimmed}`);
+      } else {
+        await supabase
+          .from("calendar_events")
+          .delete()
+          .eq("user_id", userId)
+          .or(`title.ilike.${trimmed},external_event_id.eq.${trimmed}`);
+      }
+      return true;
+    } catch (err) {
+      console.warn("[dataService.deleteCalendarEvent] Notice:", err);
+      return false;
+    }
   },
 
   // ---------------------------------------------------------------------------

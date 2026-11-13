@@ -250,6 +250,42 @@ function filterValidNotifications(items: NotificationItem[], userId?: string, is
 
 const AUTO_SYNC_STORAGE_KEY = "kronos_auto_sync_interval_v1";
 const LAST_SYNC_TS_KEY = "kronos_last_sync_timestamp_v1";
+const TOMBSTONES_STORAGE_KEY = "kronos_deleted_tombstones_v1";
+
+function getTombstonesKey(userId?: string): string {
+  return userId ? `kronos_tombstones_${userId}` : TOMBSTONES_STORAGE_KEY;
+}
+
+function getStoredTombstones(userId?: string): Set<string> {
+  if (typeof window === "undefined" || !window.localStorage) return new Set(["22ssd"]);
+  try {
+    const raw = (userId ? localStorage.getItem(getTombstonesKey(userId)) : null) || localStorage.getItem(TOMBSTONES_STORAGE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    const set = new Set<string>(["22ssd"]);
+    if (Array.isArray(arr)) {
+      for (const item of arr) {
+        if (item) set.add(String(item).toLowerCase().trim());
+      }
+    }
+    return set;
+  } catch {
+    return new Set(["22ssd"]);
+  }
+}
+
+function addTombstoneToStorage(item: string, userId?: string) {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    const cleaned = item.toLowerCase().trim();
+    if (!cleaned) return;
+    const current = getStoredTombstones(userId);
+    current.add(cleaned);
+    const arr = Array.from(current);
+    const key = getTombstonesKey(userId);
+    localStorage.setItem(key, JSON.stringify(arr));
+    localStorage.setItem(TOMBSTONES_STORAGE_KEY, JSON.stringify(arr));
+  } catch {}
+}
 
 function getAutoSyncKey(userId?: string): string {
   return userId ? `kronos_auto_sync_${userId}` : AUTO_SYNC_STORAGE_KEY;
@@ -390,11 +426,24 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       if (!authUser?.id) {
         // Guest or logged out: initialize clean baseline
         const stored = loadStoredState();
+        const tombstones = getStoredTombstones();
         if (stored && isCurrent) {
           setRoleState(stored.role);
           setProfile(stored.profile);
-          setTasks(stored.tasks);
-          setCalendarEvents(stored.calendarEvents);
+          setTasks(
+            (stored.tasks || []).filter(
+              (t) =>
+                !tombstones.has(t.title.toLowerCase().trim()) &&
+                !tombstones.has(t.id.toLowerCase())
+            )
+          );
+          setCalendarEvents(
+            (stored.calendarEvents || []).filter(
+              (e) =>
+                !tombstones.has(e.title.toLowerCase().trim()) &&
+                !tombstones.has(e.id.toLowerCase())
+            )
+          );
           setGoals(stored.goals);
           setHabits(stored.habits);
           setHabitTransitions(stored.habitTransitions || []);
@@ -469,9 +518,33 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           }));
         }
 
+        // Filter out any tombstoned tasks or events that were deleted locally
+        const tombstones = getStoredTombstones(authUser.id);
+        const cleanRemoteTasks = remoteTasks.filter((t) => {
+          const matchTitle = tombstones.has(t.title.toLowerCase().trim());
+          const matchId = tombstones.has(t.id.toLowerCase());
+          const matchExt = (t as any).external_task_id && tombstones.has(String((t as any).external_task_id).toLowerCase());
+          if (matchTitle || matchId || matchExt) {
+            dataService.deleteTask(authUser.id, t.id).catch(() => {});
+            return false;
+          }
+          return true;
+        });
+
+        const cleanRemoteEvents = remoteEvents.filter((e) => {
+          const matchTitle = tombstones.has(e.title.toLowerCase().trim());
+          const matchId = tombstones.has(e.id.toLowerCase());
+          const matchExt = (e as any).external_event_id && tombstones.has(String((e as any).external_event_id).toLowerCase());
+          if (matchTitle || matchId || matchExt) {
+            dataService.deleteCalendarEvent(authUser.id, e.id).catch(() => {});
+            return false;
+          }
+          return true;
+        });
+
         // Set remote records (fresh users get genuine empty arrays: 0 tasks, 0 events, 0 goals, 0 habits)
-        setTasks(remoteTasks);
-        setCalendarEvents(remoteEvents);
+        setTasks(cleanRemoteTasks);
+        setCalendarEvents(cleanRemoteEvents);
         setGoals(remoteGoals);
         setHabits(remoteHabits);
         setFocusSessions(remoteFocus);
@@ -549,11 +622,24 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.warn("[Kronos] Supabase fetch fallback to user-partitioned local storage:", err);
         const stored = loadStoredState(authUser.id);
+        const tombstones = getStoredTombstones();
         if (stored && isCurrent) {
           setRoleState(stored.role);
           setProfile(stored.profile);
-          setTasks(stored.tasks);
-          setCalendarEvents(stored.calendarEvents);
+          setTasks(
+            (stored.tasks || []).filter(
+              (t) =>
+                !tombstones.has(t.title.toLowerCase().trim()) &&
+                !tombstones.has(t.id.toLowerCase())
+            )
+          );
+          setCalendarEvents(
+            (stored.calendarEvents || []).filter(
+              (e) =>
+                !tombstones.has(e.title.toLowerCase().trim()) &&
+                !tombstones.has(e.id.toLowerCase())
+            )
+          );
           setGoals(stored.goals);
           setHabits(stored.habits);
           setHabitTransitions(stored.habitTransitions || []);
@@ -949,15 +1035,82 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const deleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+  const deleteTask = useCallback(
+    (idOrTitle: string) => {
+      const target = (idOrTitle || "").trim();
+      if (!target) return;
+      const targetLower = target.toLowerCase();
 
-    if (authUser?.id) {
-      dataService
-        .deleteTask(authUser.id, id)
-        .catch((err) => console.warn("Failed to delete task from Supabase:", err));
-    }
-  };
+      // 1. Mark in tombstone set immediately so refresh or sync never restores it
+      addTombstoneToStorage(target, authUser?.id);
+
+      // 2. Remove from React tasks state (matching id, title, or external_task_id)
+      let matchedTask: Task | undefined;
+      setTasks((prev) => {
+        matchedTask = prev.find(
+          (t) =>
+            t.id === target ||
+            t.title.toLowerCase().trim() === targetLower ||
+            (t as any).external_task_id === target
+        );
+        if (matchedTask) {
+          addTombstoneToStorage(matchedTask.title, authUser?.id);
+          if (matchedTask.id) addTombstoneToStorage(matchedTask.id, authUser?.id);
+          if ((matchedTask as any).external_task_id) {
+            addTombstoneToStorage((matchedTask as any).external_task_id, authUser?.id);
+          }
+        }
+        return prev.filter(
+          (t) =>
+            t.id !== target &&
+            t.title.toLowerCase().trim() !== targetLower &&
+            (t as any).external_task_id !== target
+        );
+      });
+
+      // 3. Remove from React calendarEvents state as well (matching id, task_id, or title)
+      setCalendarEvents((prev) =>
+        prev.filter(
+          (e) =>
+            e.id !== target &&
+            (e as any).task_id !== target &&
+            e.title.toLowerCase().trim() !== targetLower &&
+            (e as any).external_event_id !== target
+        )
+      );
+
+      // 4. Delete from Supabase tasks and calendar_events
+      if (authUser?.id) {
+        dataService
+          .deleteTask(authUser.id, target)
+          .catch((err) => console.warn("Supabase deleteTask notice:", err));
+        dataService
+          .deleteCalendarEvent(authUser.id, target)
+          .catch((err) => console.warn("Supabase deleteCalendarEvent notice:", err));
+        if (matchedTask) {
+          if (matchedTask.id && matchedTask.id !== target) {
+            dataService.deleteTask(authUser.id, matchedTask.id).catch(() => {});
+          }
+          if (matchedTask.title && matchedTask.title !== target) {
+            dataService.deleteTask(authUser.id, matchedTask.title).catch(() => {});
+          }
+        }
+
+        // 5. Remote Google Calendar & Tasks sync deletion
+        fetch("/api/calendar/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "delete_remote",
+            taskId: target,
+            title: matchedTask?.title || target,
+            eventId: (matchedTask as any)?.google_event_id || target,
+          }),
+        }).catch((err) => console.warn("Remote calendar deletion notice:", err));
+      }
+    },
+    [authUser?.id]
+  );
 
   const updateTaskSchedule = (placements: { id: string; startTime: string; endTime: string }[]) => {
     const map = new Map(placements.map((p) => [p.id, p]));
@@ -1548,45 +1701,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (idsToDelete.size > 0 || titlesToDelete.size > 0) {
-          const titlesArr: string[] = Array.from(titlesToDelete);
-
-          setTasks((prev) =>
-            prev.filter((t) => {
-              const matchesId = idsToDelete.has(t.id);
-              const matchesTitle = titlesArr.some(
-                (title: string) =>
-                  t.title.toLowerCase().trim() === title ||
-                  t.title.toLowerCase().includes(title) ||
-                  title.includes(t.title.toLowerCase().trim())
-              );
-              if (matchesId || matchesTitle) {
-                if (authUser?.id) {
-                  dataService.deleteTask(authUser.id, t.id).catch((e) => console.warn(e));
-                }
-                return false;
-              }
-              return true;
-            })
-          );
-
-          setCalendarEvents((prev) =>
-            prev.filter((e) => {
-              const matchesId = idsToDelete.has(e.id);
-              const matchesTitle = titlesArr.some(
-                (title: string) =>
-                  e.title.toLowerCase().trim() === title ||
-                  e.title.toLowerCase().includes(title) ||
-                  title.includes(e.title.toLowerCase().trim())
-              );
-              if (matchesId || matchesTitle) {
-                if (authUser?.id) {
-                  dataService.deleteCalendarEvent(authUser.id, e.id).catch((e) => console.warn(e));
-                }
-                return false;
-              }
-              return true;
-            })
-          );
+          for (const id of idsToDelete) {
+            deleteTask(id);
+          }
+          for (const title of titlesToDelete) {
+            deleteTask(title);
+          }
         }
 
         // 2. EXECUTE TASK COMPLETIONS
